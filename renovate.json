@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "Europe/Bucharest",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "commitMessagePrefix": "chore(deps):",
+  "rangeStrategy": "bump",
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "packageRules": [
+    {
+      "description": "Keep the exact-pinned Tailwind CLI and library aligned.",
+      "matchPackageNames": ["tailwindcss", "@tailwindcss/cli"],
+      "groupName": "tailwindcss",
+      "rangeStrategy": "pin",
+      "automerge": false
+    },
+    {
+      "description": "Major updates require explicit review.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "labels": ["dependencies", "major"]
+    },
+    {
+      "description": "Pin GitHub Actions to commit SHAs.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "pinDigests": true,
+      "automerge": false
+    }
+  ]
+}
