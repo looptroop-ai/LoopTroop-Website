@@ -5,6 +5,23 @@
   "buildCommand": "npm run build",
   "outputDirectory": "site",
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/install",
+      "destination": "https://github.com/looptroop-ai/LoopTroop/releases/latest/download/install.sh",
+      "permanent": false
+    },
+    {
+      "source": "/install.sh",
+      "destination": "https://github.com/looptroop-ai/LoopTroop/releases/latest/download/install.sh",
+      "permanent": false
+    },
+    {
+      "source": "/install.ps1",
+      "destination": "https://github.com/looptroop-ai/LoopTroop/releases/latest/download/install.ps1",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
