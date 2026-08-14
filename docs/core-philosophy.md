@@ -20,7 +20,7 @@ The fifteen sections below describe each idea behind LoopTroop in detail. Every 
 
 **Summary:** LoopTroop is a local, fully open-source AI coding orchestrator. It runs on your own machine, attaches to your local Git repositories, and gives you control over models, artifacts, logs, execution, and the final code changes.
 
-LoopTroop is released under the MIT license and runs entirely on your machine: a local backend, a local frontend, and a local SQLite database. It does not route your repository through a hosted black box. You attach a project by pointing it at a folder on disk (the project record stores a local `folder_path`), and all planning artifacts, logs, and code changes live locally where you can inspect them.
+LoopTroop is released under the MIT license and runs entirely on your machine. Installed, it is one background service that serves the interface and the API from a single loopback address over a local SQLite database; from a checkout the same parts run as separate development processes. Either way it does not route your repository through a hosted black box. You attach a project by pointing it at a folder on disk (the project record stores a local `folder_path`), and all planning artifacts, logs, and code changes live locally where you can inspect them.
 
 It is designed for developers who want more control than a single cloud chat or a black-box coding agent can offer. You decide which models run, you can read every intermediate artifact, and you own the resulting diff before anything is merged.
 
@@ -32,7 +32,7 @@ It is designed for developers who want more control than a single cloud chat or 
 
 The primary product experience is the graphical interface. A Kanban board organizes projects and tickets across lifecycle columns, and dedicated views let you move between phase artifacts, structured logs, code diffs, council output, bead status and approval, execution progress, configuration, model selection, and final review. Nothing important happens off-screen; the workflow is built to be watched and steered.
 
-There is also a local backend API and a set of development scripts, so automation and integration are possible. But the GUI is the main way you are expected to drive and observe the system, precisely because the goal is transparency rather than hidden automation.
+There is also a local API, and a CLI whose `status` and `doctor` commands speak `--json`, so automation and integration are possible. But the GUI is the main way you are expected to drive and observe the system, precisely because the goal is transparency rather than hidden automation.
 
 **Read more:** [Frontend](frontend.md), and the [Kanban Board](frontend.md#_12-kanban-board) and [Key Workspace Views](frontend.md#_4-key-workspace-views) sections.
 

@@ -251,6 +251,23 @@ Prompt acquisition is bounded by timeout and abort signals. OpenCode `create`, `
 | Prompt runner and phase bridge | `server/workflow/runOpenCodePrompt.ts` |
 | Question handling and blocked-error mapping | `server/routes/ticketHandlers/openCodeQuestionHandlers.ts`, `server/opencode/blockedErrorDiagnostics.ts` |
 
+### CLI and daemon
+
+The layer that turns the backend above into an installed background service.
+None of it takes part in the development stack, where the processes are started
+by `npm run dev` instead.
+
+| Area | Modules |
+| --- | --- |
+| Entry point and Node-version guard | `server/cli/launcher.cjs`, `server/cli/cli.ts` |
+| Commands | `server/cli/commands.ts` (start, stop, restart, status, open), `server/cli/setupCommand.ts`, `server/cli/logsCommand.ts`, `server/cli/doctorCommand.ts`, `server/cli/cleanCommand.ts` |
+| Daemon process and handoff | `server/daemon/startDaemon.ts`, `server/cli/daemonProcess.ts`, `server/cli/daemonHandoff.ts` |
+| Single-instance ownership | `server/lib/daemonLock.ts`, `server/lib/daemonPaths.ts`, `server/lib/processIdentity.ts`, `server/cli/processControl.ts` |
+| Configuration directory and settings | `server/lib/appConfigDir.ts`, `server/lib/appSettings.ts` |
+| OpenCode supervision | `server/opencode/supervisor.ts` — adopts a running server, or starts one and restarts it if it crashes |
+| Install channel and update checks | `server/lib/installChannel.ts`, `server/lib/updateCheck.ts` |
+| Standalone executable | `server/lib/isSea.ts`, `server/lib/seaAssets.ts` |
+
 ## 10. ASCII Overview
 
 ```text

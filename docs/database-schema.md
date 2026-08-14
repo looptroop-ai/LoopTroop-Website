@@ -424,6 +424,12 @@ These match the hot runtime paths: ticket board/status queries, phase-attempt ve
 
 ## 8. Changing The Schema Safely
 
+> [!NOTE]
+> This section is for working on LoopTroop from a checkout. The `db:*` scripts it
+> uses live in the repository and are not part of an installed copy. An installed
+> LoopTroop migrates its own database at startup, and `looptroop doctor` reports
+> the schema state.
+
 LoopTroop uses Drizzle table definitions, but **runtime bootstrap code is the real startup contract**.
 
 For app DB changes:

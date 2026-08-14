@@ -1,22 +1,22 @@
 # Operations Guide
 
 > [!IMPORTANT]
-> **TL;DR** — Covers startup maintenance, runtime storage, API auth and health surfaces, OpenCode logs, project-local Git hygiene, worktree cleanup, diagnostics, and local troubleshooting.
+> **This page has two halves, and most people only need the first.**
+> [Part 1](#part-1-operating-an-installed-looptroop) is operating an **installed**
+> LoopTroop: the service, its state, backups, worktree cleanup.
+> [Part 2](#part-2-the-development-stack) is the **development stack** — running
+> from a checkout with `npm run dev` to work on LoopTroop itself. The preflight,
+> maintenance, dependency and script material in Part 2 does not apply to an
+> installed copy, and several of its commands are not even present in one.
 
-This guide covers the parts of LoopTroop you deal with after the first run: startup maintenance, runtime storage, project-local Git hygiene, worktree cleanup, diagnostics, and common local service issues.
+---
 
-> [!NOTE]
-> **Most of this page is about the development stack** — running LoopTroop from a
-> checkout with `npm run dev`, to work on LoopTroop itself. If you installed
-> LoopTroop to use it, start with the section immediately below; the preflight,
-> maintenance and dependency material further down does not apply to you.
+# Part 1: Operating An Installed LoopTroop
 
-## 0. Operating An Installed LoopTroop
-
-An installed LoopTroop runs as a background service, managed by one command:
+An installed LoopTroop runs as a background service:
 
 ```bash
-looptroop start      # detaches; survives closing the terminal
+looptroop open       # starts it if it is not running, then opens a browser
 looptroop status     # --json for a script
 looptroop logs -f
 looptroop restart
@@ -26,25 +26,63 @@ looptroop stop
 Every command and option is in the [CLI Reference](cli.md); installing, upgrading
 and uninstalling are in [Installation](installation.md).
 
-| Task | Where it lives |
+## Where an installed LoopTroop keeps its state
+
+Everything lives in one [configuration directory](configuration.md#where-looptroop-keeps-its-state),
+outside the installation — so upgrading, or switching channels entirely, never
+loses it. The directory is `0700` and the files in it `0600`.
+
+| File | What it is |
 | --- | --- |
-| **Configuration, database, daemon record, log** | The [configuration directory](configuration.md#where-looptroop-keeps-its-state) — one place, outside the installation, so upgrading or switching channels never loses it |
-| **Backing up** | Copy that directory with the daemon stopped |
-| **Checking the machine** | `looptroop doctor` — see [Runtime Diagnostics](diagnostics.md) |
-| **Which copy this is, and how to upgrade it** | `looptroop doctor` names the channel and its own upgrade command |
-| **Abandoned worktrees** | `looptroop clean`, then `--apply` to remove them |
+| `config.json` | Settings you have changed from the defaults |
+| `app.sqlite` | App settings, profiles, and the attached-project registry |
+| `daemon.json` | The running daemon's record: pid, port, instance id, and the API token it minted at startup. Also records *why* the last start was refused |
+| `daemon.lock` | Held by the running daemon, so a second one cannot start against the same directory |
+| `logs/daemon.log` | What `looptroop logs` reads. Rotated at each start |
+
+**Backing up** is copying that directory with the daemon stopped. Your projects
+are not in it: LoopTroop works in git worktrees under `<project>/.looptroop/`,
+described in [Part 2's storage table](#_2-runtime-storage), which applies to both
+stacks.
+
+## Routine tasks
+
+| Task | Command |
+| --- | --- |
+| Check the machine can run it | `looptroop doctor` — see [Runtime Diagnostics](diagnostics.md) |
+| Find out which copy this is, and how to upgrade it | `looptroop doctor` names the channel and its own upgrade command |
+| Remove worktrees left by cancelled tickets | `looptroop clean`, then `looptroop clean --apply` |
 
 `looptroop clean` is worktree housekeeping: it removes git worktrees left behind
 by cancelled or interrupted tickets, inside your project, and never touches
-configuration, tickets or the database.
+configuration, tickets or the database. It refuses to run while the daemon is up,
+because those worktrees may be in use.
 
 One daemon runs per configuration directory, held by a lock that records which
 process took it rather than only when it last checked in. To run two, give each
 its own `LOOPTROOP_CONFIG_DIR` and port.
 
-## 1. Quick Reference
+## OpenCode is managed for you
 
-Everything from here on is the development stack.
+An installed daemon does not need you to run `opencode serve`. At startup it
+either **adopts** an OpenCode already listening at the configured base URL, or
+**starts and supervises one itself**, restarting it if it crashes and stopping it
+when the daemon stops. With no OpenCode to reach and no CLI to launch, the daemon
+refuses to start rather than serving an interface that cannot run a single coding
+operation — `LOOPTROOP_OPENCODE_MODE=mock` looks around without one.
+
+`looptroop doctor` reports which of those happened.
+
+---
+
+# Part 2: The development stack
+
+Everything from here on is about running LoopTroop from a checkout, to work on
+LoopTroop itself. See
+[Working on LoopTroop itself](installation.md#working-on-looptroop-itself) to set
+it up.
+
+## 1. Quick Reference
 
 | Task | Start here |
 | --- | --- |
@@ -174,7 +212,10 @@ Dependencies with additional constraints:
 
 ## 5. Scripts Reference
 
-All scripts are available with `npm run <name>`.
+Run any of these with `npm run <name>`. This is the subset worth knowing, not the
+full list — `package.json` currently declares far more, mostly the `verify:*`,
+`build:*` and `release:*` families that the release pipeline drives. `npm run`
+with no arguments prints all of them.
 
 ### Development Stack
 
@@ -190,7 +231,7 @@ All scripts are available with `npm run <name>`.
 
 | Script | Purpose |
 | --- | --- |
-| `build` | Type-check and produce a production frontend bundle (`tsc -b && vite build`). |
+| `build` | Type-check, then build the client bundle and the server (`tsc -b && npm run build:client && npm run build:server`). The server half is what makes the daemon and the standalone executable possible. |
 | `preview` | Serve the last production build locally for inspection. |
 
 The frontend dev server pre-optimizes its complete declared browser dependency set before serving the app and disables browser storage of dev resources. This makes a process restart safe even when the browser restores a previously open LoopTroop tab: the restored document cannot retain an old React dependency graph while a lazy ticket workspace loads from the new process. The dependency policy is checked against production imports in the localized Vite configuration test.
@@ -283,7 +324,17 @@ Default port resolution and origin building are implemented in `shared/appConfig
 
 When `LOOPTROOP_FRONTEND_ORIGIN` is not explicitly set, LoopTroop derives the frontend origin from `LOOPTROOP_FRONTEND_PORT`, defaulting to `http://localhost:5173`. If `LOOPTROOP_FRONTEND_ORIGIN` is set but cannot be parsed as a URL origin, LoopTroop ignores it and falls back to that derived default.
 
-LoopTroop accepts API tokens through either `x-looptroop-token` or `Authorization: Bearer <token>`. For `/api/stream` only, the browser `EventSource` fallback may also send `?apiToken=...` because native `EventSource` requests cannot attach custom headers.
+LoopTroop accepts API tokens through either `x-looptroop-token` or `Authorization: Bearer <token>`.
+
+> [!IMPORTANT]
+> **The query-string fallback below is the development stack only.** In the dev
+> stack, `/api/stream` also accepts `?apiToken=...`, because a native browser
+> `EventSource` cannot attach custom headers. An **installed daemon has no such
+> path**: its middleware takes a session cookie or a bearer token and nothing
+> else, and a same-origin `EventSource` sends the cookie by itself. An installed
+> daemon's token is the one it minted into `daemon.json`, not
+> `LOOPTROOP_API_TOKEN` — see the [API Reference](api-reference.md) for both
+> models side by side.
 
 ### Useful Health Endpoints
 
@@ -343,6 +394,12 @@ LoopTroop restores owner removal permissions before deleting each eligible workt
 
 ## 10. Diagnostics
 
+> [!NOTE]
+> `diagnose:stall` is a **checkout-only** tool. It lives in `scripts/`, which the
+> published package does not ship, so an installed LoopTroop has no such command.
+> From an installed copy, use `looptroop doctor`, `looptroop status --json` and
+> `looptroop logs -f` — see [Runtime Diagnostics](diagnostics.md).
+
 If the UI feels slow, tickets disappear after refresh, or the app appears to stall, run the diagnostic command while `npm run dev` is still running:
 
 ```bash
@@ -375,6 +432,13 @@ Checks:
 
 When using `npm run dev`, port resolution and basic auth are handled automatically. The checks below apply when OpenCode is still unreachable after startup or when running the backend outside of `npm run dev`.
 
+> [!NOTE]
+> **An installed daemon does not need step 1.** It adopts a running OpenCode or
+> starts and supervises one itself — see
+> [OpenCode is managed for you](#opencode-is-managed-for-you). Step 2's
+> `X-LoopTroop-Token` is also the wrong credential there: an installed daemon
+> mints its own into `daemon.json`.
+
 1. Ensure OpenCode is running: `opencode serve`.
 2. Ping the backend health endpoint: `curl http://127.0.0.1:3000/api/health/opencode`. If you configured `LOOPTROOP_API_TOKEN`, include `-H "X-LoopTroop-Token: $LOOPTROOP_API_TOKEN"`.
 3. If OpenCode is on a non-default port, set `LOOPTROOP_OPENCODE_BASE_URL`, for example `export LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:4097`.
@@ -398,12 +462,12 @@ You can also force native watching off a mounted drive with `CHOKIDAR_USEPOLLING
 
 ### Windows-Mounted Drive Warning (WSL Users Only)
 
-If you run LoopTroop inside Windows Subsystem for Linux (WSL), ensure that both the LoopTroop installation directory and your attached target projects reside on the native Linux file system (e.g., under `/home/username/...` or another path in `\wsl$`).
+If you run LoopTroop inside Windows Subsystem for Linux (WSL), ensure that your attached target projects — and, if you are working from a checkout, the checkout itself — reside on the native Linux file system (e.g., under `/home/username/...` or another path in `\wsl$`). The project half of this applies to an installed LoopTroop too.
 
 > [!WARNING]
 > **Avoid Windows-mounted drives (like `/mnt/c/...` or `/mnt/d/...`) in WSL.**
 >
-> Keeping the LoopTroop codebase or attached projects on Windows-mounted drives severely degrades disk I/O performance. This slows down Git operations, codebase scanning, and test execution. It also disables native file-watching, forcing a fallback to chokidar polling (`CHOKIDAR_USEPOLLING=1`). For optimal performance, always store your workspaces and repositories inside the Linux home directory.
+> Keeping attached projects — or a LoopTroop checkout — on Windows-mounted drives severely degrades disk I/O performance. This slows down Git operations, codebase scanning, and test execution. It also disables native file-watching, forcing a fallback to chokidar polling (`CHOKIDAR_USEPOLLING=1`). For optimal performance, always store your workspaces and repositories inside the Linux home directory.
 
 The path detection logic is implemented in `shared/wslPerformance.ts`, which exports `isWslWindowsMountPath()` to identify Windows-mounted paths, `resolveWatchPollingDecision()` to choose native watching vs. polling for both the frontend and backend watchers, and `buildWslAppMountedDriveWarning()` / `buildWslProjectMountedDriveWarning()` to generate targeted performance warnings.
 
@@ -419,6 +483,8 @@ Do not run `npm audit fix --force` as routine maintenance for these warnings. Th
 
 ## Related Docs
 
+- [Installation](installation.md) — every channel, upgrading, uninstalling, and the development checkout
+- [CLI Reference](cli.md) — every command an installed LoopTroop has
 - [Getting Started](getting-started.md)
 - [System Architecture](system-architecture.md)
 - [Runtime Diagnostics](diagnostics.md)

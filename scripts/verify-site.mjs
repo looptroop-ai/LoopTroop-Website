@@ -40,12 +40,24 @@ const gettingStarted = (await readFile('site/docs/getting-started.html', 'utf8')
   .replace(/&amp;/g, '&')
   .replace(/\s+/g, ' ')
 
-const installedAt = gettingStarted.indexOf('npm install -g looptroop')
-const devStackAt = gettingStarted.indexOf('npm run dev')
-
-if (installedAt === -1) {
-  throw new Error('Getting Started never tells anyone how to install LoopTroop.')
+// Both the default channel and npm. The install block is a tab group, and every
+// panel is rendered into the HTML whether or not it is the visible one — so
+// this asserts the commands are on the page, not which tab happens to be open.
+// Checking only npm would let the curl default disappear silently; checking
+// only curl would let the tab group lose every other channel.
+const installCommands = {
+  'the one-line installer': 'curl -fsSL https://www.looptroop.ovh/install',
+  npm: 'npm install -g looptroop',
 }
+
+let installedAt = Infinity
+for (const [channel, command] of Object.entries(installCommands)) {
+  const at = gettingStarted.indexOf(command)
+  if (at === -1) throw new Error(`Getting Started never shows how to install LoopTroop with ${channel}.`)
+  installedAt = Math.min(installedAt, at)
+}
+
+const devStackAt = gettingStarted.indexOf('npm run dev')
 if (devStackAt !== -1 && devStackAt < installedAt) {
   throw new Error('Getting Started leads with the development stack instead of installing LoopTroop.')
 }

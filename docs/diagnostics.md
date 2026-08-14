@@ -23,10 +23,17 @@ looptroop doctor
 looptroop doctor --json
 ```
 
-It checks the machine rather than a ticket: the Node and npm versions against the
-floor this release requires, git, whether OpenCode is reachable, whether the port
-is free, and whether a daemon is already running. Each failing check prints what
-to do about it.
+It checks the machine rather than a ticket, in thirteen checks: the Node version
+against the floor this release requires; `git` and `gh`, plus whether `gh` is
+authenticated; the configuration directory; which channel this copy came from;
+the database schema; why the last start failed, if it did; whether the project's
+git ignores are in place; the OpenCode CLI and whether OpenCode is reachable;
+whether the port is free; and whether a daemon is already running. Each failing
+check prints what to do about it.
+
+`git` is required and `gh` is not: a missing `git` fails the run, a missing `gh`
+only warns, because `gh` is needed for the pull-request step at the end of a
+ticket and nothing before it.
 
 > [!NOTE]
 > **`doctor` exits non-zero when any check fails.** That is what makes it usable

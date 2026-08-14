@@ -103,9 +103,11 @@ looptroop doctor
 looptroop doctor --json
 ```
 
-`doctor` checks Node, git, OpenCode, the port, the daemon, and how this copy was
-installed. See [Runtime Diagnostics](diagnostics.md) for what each check means
-and what to do when one fails.
+`doctor` runs thirteen checks: Node, `git`, `gh` and its authentication, the
+configuration directory, how this copy was installed, the database schema, the
+last start, the project's git ignores, the OpenCode CLI and OpenCode itself, the
+port, and the daemon. See [Runtime Diagnostics](diagnostics.md) for what each
+check means and what to do when one fails.
 
 > [!NOTE]
 > **`doctor` exits non-zero when any check fails**, which is what makes it usable

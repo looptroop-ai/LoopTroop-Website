@@ -7,12 +7,18 @@ Welcome to LoopTroop! This guide takes you from zero to your first AI-driven dev
 
 ## 1. Prerequisites
 
-You need a few basic developer tools:
+Two things every channel needs, because none of them install it for you:
 
-- **Node.js** and **npm**
-- **Git**
-- A local git repository with an `origin` pointing to GitHub
-- **[OpenCode](https://opencode.ai)** installed locally with at least one configured provider (v1 for now, v2 coming soon).
+- **[OpenCode](https://opencode.ai)** with at least one configured provider.
+  LoopTroop starts one if it is on your PATH and adopts one you are already
+  running, but it will not install it, and refuses to start with no OpenCode to
+  reach.
+- A local git repository with an `origin` pointing to GitHub.
+
+**Everything else depends on how you install it** — Homebrew and Scoop bring
+their own Node, git and `gh`, while npm, bun and pnpm expect you to have them.
+Each tab in the next section states its own requirements, so you only read the
+one you are using.
 
 ### Why a VM?
 
@@ -25,45 +31,73 @@ LoopTroop runs OpenCode in `dangerously-skip-permissions` (or YOLO) mode so that
 
 ## 2. Installation
 
-```bash
+Pick one. Each tab says what it needs beyond the command itself.
+
+::: code-group
+
+```bash [curl]
+curl -fsSL https://www.looptroop.ovh/install | sh
+```
+
+```powershell [irm]
+irm https://www.looptroop.ovh/install.ps1 | iex
+```
+
+```bash [npm]
 npm install -g looptroop
 ```
 
-That is the whole installation. LoopTroop is also on Homebrew, Scoop, bun, pnpm
-and Docker, and publishes a standalone executable that carries its own Node
-runtime — see [Installation](installation.md) for every channel, and for
-upgrading, uninstalling and verifying a download.
+```bash [Homebrew]
+brew install looptroop-ai/tap/looptroop
+```
+
+```powershell [Scoop]
+scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket
+scoop install looptroop
+```
+
+```bash [bun]
+bun add -g looptroop
+```
+
+```bash [pnpm]
+pnpm add -g looptroop
+```
+
+```bash [Docker]
+docker pull looptroopai/looptroop:latest
+```
+
+:::
+
+| Channel | What it needs first |
+| --- | --- |
+| **curl / irm** | Node and npm. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
+| **npm** | Node 24.15.0+, npm 11.12.1+, git, `gh` |
+| **Homebrew** | Nothing else — it pulls in `node@24` and `gh`, and takes git from the OS |
+| **Scoop** | Nothing else — it depends on `nodejs-lts`, `git` and `gh` |
+| **bun** | bun *and* Node 24.15.0+ (the launcher is a Node program), git, `gh` |
+| **pnpm** | pnpm *and* Node 24.15.0+, git, `gh`. pnpm will not resolve a tag to a version published in the last 24 hours |
+| **Docker** | Only Docker — Node, git and `gh` are in the image, but it needs an OpenCode server it can reach |
+
+[Installation](installation.md) covers every channel in full: upgrading,
+uninstalling, the standalone executable that carries its own Node runtime, and
+verifying a download.
 
 ## 3. Starting the Application
 
 ```bash
-looptroop start
 looptroop open
 ```
 
-`start` detaches from the terminal, so LoopTroop keeps running after the shell
-closes. It serves the interface and the API from **one address on port 3000** —
-there is no separate web server to configure. `open` points a browser at it.
+That is both steps: `open` starts LoopTroop in the background if it is not
+already running, then points a browser at it. It serves the interface and the API
+from **one address on port 3000** — there is no separate web server to configure.
 
-What `open` prints is a **signed-in link**: a URL carrying a single-use code in
-its fragment, which the browser exchanges for a session cookie. The fragment is
-never sent in a request line, so it cannot reach an access log, and there is no
-password to set. Sessions last 12 hours; run `looptroop open` again when one
-ends.
-
-| | Address |
-| --- | --- |
-| **LoopTroop** (interface and API) | `http://127.0.0.1:3000` |
-| **OpenCode** | `http://127.0.0.1:4096` |
-| **Docs** | `https://www.looptroop.ovh/docs/` (hosted externally) |
-
-> [!IMPORTANT]
-> If OpenCode is running on a different port, point LoopTroop to it:
-> `export LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:YOUR_PORT`
-
-The daemon binds loopback only, and will not bind wider by omission — see
-[Configuration](configuration.md) for the two variables that change that and the
-token they require.
+What `open` gives the browser is a **signed-in link**: a single-use code in the
+URL fragment, exchanged for a session cookie. The fragment never reaches an
+access log, and there is no password to set. Sessions last 12 hours; run
+`looptroop open` again when one ends.
 
 ```bash
 looptroop status    # is it running?
@@ -72,15 +106,19 @@ looptroop doctor    # can this machine run it?
 looptroop stop
 ```
 
-The full command list is in the [CLI Reference](cli.md).
+`looptroop doctor` is the one to run when something looks wrong: it names what is
+missing rather than letting the first ticket fail, and tells you which channel
+this copy came from and the exact command that upgrades it.
 
-::: details Not sure the machine is ready?
+> [!IMPORTANT]
+> If OpenCode is running on a port other than `4096`, point LoopTroop at it:
+> `export LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:YOUR_PORT`
 
-`looptroop doctor` checks Node, git, OpenCode, the port and the daemon, and tells
-you which of those is missing rather than failing at the first ticket. It also
-names the channel this copy was installed from and the exact command that
-upgrades it. See [Runtime Diagnostics](diagnostics.md).
-:::
+The daemon binds loopback only and will not bind wider by omission. Every
+command and flag is in the [CLI Reference](cli.md); the two variables that change
+the bind, and the token they require, are in
+[Configuration](configuration.md); what to do when it misbehaves is in
+[Runtime Diagnostics](diagnostics.md).
 
 ## 4. Setting Up Your AI Council
 
@@ -158,40 +196,10 @@ For the full lifecycle, see [Ticket Flow](ticket-flow.md).
 
 ## Working on LoopTroop itself
 
-Everything above installs LoopTroop to use it. To develop LoopTroop, run it from
-a checkout instead — this is the development stack, with Vite on port 5173 and
-hot reload, not the installed service:
-
-```bash
-git clone https://github.com/looptroop-ai/LoopTroop.git
-cd LoopTroop
-npm run dev
-```
-
-One command starts the frontend, backend and OpenCode watcher; you do not need to
-start OpenCode manually. On first run it also handles dependency installation and
-daily maintenance.
-
-| Service | Address |
-| --- | --- |
-| **Frontend** (UI) | `http://localhost:5173` |
-| **Backend** (API) | `http://127.0.0.1:3000` |
-| **OpenCode** | `http://127.0.0.1:4096` |
-
-::: details What happens during startup?
-
-The preflight handles dependency updates, security audit fixes, OpenCode CLI updates, and port checks. Dependency proposals must pass npm's normal peer resolution before they can change the checkout; incompatible releases are held rather than forced. Normal startup prints a short summary of every updated package (previous → new version) and releases held by the age or compatibility gates.
-
-For the full preflight specification, see [Operations Guide](operations.md).
-:::
-
-::: details Useful startup flags
-
-- **`npm run dev --opencode-logs=all`** — full OpenCode DEBUG logs in your terminal (starts OpenCode with `--print-logs --log-level DEBUG`).
-- **`npm run dev --lan`** — binds the frontend to the local network, prints LAN URLs and a QR code. Backend and OpenCode stay on loopback, while documentation links continue to use the hosted site. This way you can connect to the app via mobile or another computer on the same network.
-
-For non-mutating startup, forced maintenance, and manual maintenance commands, see [Operations Guide](operations.md).
-:::
+Everything above installs LoopTroop to use it. To develop LoopTroop instead,
+run it from a checkout — that is the development stack, with Vite and hot
+reload, and it is covered in
+[Installation](installation.md#working-on-looptroop-itself).
 
 ## Next Steps
 

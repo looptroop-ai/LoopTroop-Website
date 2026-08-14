@@ -121,6 +121,15 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
   border-bottom-color: #1aaec2;
 }
 
+/* Install method tabs.
+   Unlike the screenshot tabs these sit on the terminal card, which is dark in
+   both themes, so the active colour is the light-on-dark brand tone in both —
+   a `.dark` counterpart here would make the light theme unreadable. */
+.install-tab.active {
+  color: #1aaec2;
+  border-bottom-color: #1aaec2;
+}
+
 /* Mobile menu */
 .mobile-menu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
 .mobile-menu.open { max-height: 400px; }

@@ -158,7 +158,7 @@ Prompts are configured separately from the profile, through the **Prompts** butt
 
 Prompt edits are read when a phase builds its prompt, so a save applies to runs started afterwards; a phase already in flight keeps the prompt it was launched with. A corrupt or invalid template file never blocks a run: LoopTroop falls back to the built-in default for that prompt and reports it as a warning banner in the Prompts screen.
 
-See [Customizing Prompts](prompts.md#customizing-prompts) for the storage layout, validation rules, and editor controls.
+See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage layout, validation rules, and editor controls.
 
 ## Quick Reference
 

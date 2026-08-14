@@ -67,6 +67,28 @@ Base-URL resolution depends on the mode:
 - **Remote URL:** the launcher treats the server as external and never tries to start or port-shift it.
 - **Mock mode:** no network probe happens at all.
 
+### 3.1 The installed daemon supervises OpenCode itself
+
+Everything above describes the development stack. An **installed** LoopTroop does
+not rely on `npm run dev` for any of it: `server/opencode/supervisor.ts` runs
+inside the daemon and resolves one of four states at startup, before the daemon
+binds its port.
+
+| State | When | What the daemon does |
+| --- | --- | --- |
+| **adopted** | Something is already answering at the configured base URL | Uses it, and never tries to start or stop it |
+| **managed** | Nothing is answering, but the `opencode` CLI is on PATH | Starts `opencode serve` in its own process group, restarts it if it crashes, and stops it when the daemon stops |
+| **mock** | `LOOPTROOP_OPENCODE_MODE=mock` | Skips OpenCode entirely — enough to look around the interface, not to run a ticket |
+| **degraded** | Neither reachable nor launchable | The daemon refuses to start, rather than serving an interface that cannot run a single coding operation |
+
+Restarts are bounded at three consecutive attempts; after that the supervisor
+reports the state rather than restarting forever.
+`looptroop doctor` names which of the four applies, and
+`looptroop status` repeats it.
+
+This is why an installed user is never told to run `opencode serve` by hand — see
+the [Operations Guide](operations.md#opencode-is-managed-for-you).
+
 ## 4. OpenCode Configuration Pass-Through
 
 LoopTroop sends work through your OpenCode server rather than replacing OpenCode's provider layer.

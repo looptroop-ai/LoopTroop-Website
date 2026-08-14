@@ -20,16 +20,58 @@ LoopTroop executes agent code changes with full local user privileges to allow u
 :::
 ## Start Here
 
-```bash
-npm install -g looptroop
-looptroop start
+Install it, then run `looptroop open` — that starts LoopTroop in the background
+if it is not already running and opens a signed-in browser on it.
+
+::: code-group
+
+```bash [curl]
+curl -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
-Also on Homebrew, Scoop, bun, pnpm and Docker, with a standalone executable that
-needs no Node installed — see [Installation](installation.md). To work on
-LoopTroop itself rather than use it, see
-[Working on LoopTroop itself](getting-started.md#working-on-looptroop-itself).
+```powershell [irm]
+irm https://www.looptroop.ovh/install.ps1 | iex
+looptroop open
+```
+
+```bash [npm]
+npm install -g looptroop
+looptroop open
+```
+
+```bash [Homebrew]
+brew install looptroop-ai/tap/looptroop
+looptroop open
+```
+
+```powershell [Scoop]
+scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket
+scoop install looptroop
+looptroop open
+```
+
+```bash [bun]
+bun add -g looptroop
+looptroop open
+```
+
+```bash [pnpm]
+pnpm add -g looptroop
+looptroop open
+```
+
+```bash [Docker]
+docker pull looptroopai/looptroop:latest
+```
+
+:::
+
+[Getting Started](getting-started.md) walks through the first run, and
+[Installation](installation.md) covers every channel, what each one requires,
+upgrading, uninstalling and the standalone executable. To work on LoopTroop
+itself rather than use it, see
+[Working on LoopTroop itself](installation.md#working-on-looptroop-itself).
 
 If you are new to LoopTroop, use this order:
 
@@ -105,7 +147,8 @@ flowchart TD
 
 ### Start Here
 
-- [Getting Started](getting-started.md): installation, startup, ports, and first project attach.
+- [Getting Started](getting-started.md): prerequisites, the first run, and attaching a first project.
+- [Installation](installation.md): every channel and what each requires, upgrading, uninstalling, verifying a download, and running in a container.
 - [Core Philosophy](core-philosophy.md): context engineering, councils, retries, and approvals.
 - [Context Engineering](context-engineering.md): why prompts are built from minimal per-status context and what each status receives.
 
@@ -130,6 +173,7 @@ flowchart TD
 ### Reference
 
 - [Configuration](configuration.md): all profile settings with defaults, ranges, and trade-offs.
+- [CLI Reference](cli.md): every `looptroop` command and option, the `--json` output, and what running as a service means.
 - [Prompt Inventory](prompts.md): built-in prompts, collapsed full prompt content, runtime prompt builders, workflow usage, tool policies, and context inputs.
 - [API Reference](api-reference.md): routes, SSE events, payload shapes.
 - [Output Normalization](output-normalization.md): how malformed or partial model output is repaired or isolated before use.

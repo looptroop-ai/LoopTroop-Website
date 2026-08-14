@@ -65,7 +65,9 @@ const sidebar = [
     text: 'Direction',
     collapsed: false,
     items: [
-      { text: 'Changelog', link: `${appRepo}/blob/main/CHANGELOG.md`, target: '_blank' },
+      // The local page, matching the top nav. It is a stub that forwards to the
+      // app repository, but one destination for one label beats two.
+      { text: 'Changelog', link: '/changelog' },
       { text: 'Roadmap', link: '/roadmap' },
     ],
   },

@@ -83,6 +83,16 @@ curl -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 & ([scriptblock]::Create((irm https://www.looptroop.ovh/install.ps1))) -Binary
 ```
 
+Everything the installer accepts, in either mode:
+
+| Flag | PowerShell | What it does |
+| --- | --- | --- |
+| `--binary` | `-Binary` | Install the standalone executable instead of going through npm |
+| `--version X.Y.Z` | `-Version X.Y.Z` | Install an exact version rather than the newest release |
+| `--prefix DIR` | `-Prefix DIR` | Choose where the executable goes, instead of `~/.looptroop` |
+| `--tarball PATH` | `-Tarball PATH` | Install a tarball you already have, skipping the download |
+| `--dry-run` | — | Report what it would do and change nothing. POSIX only; `install.ps1` has no equivalent |
+
 Run the same command again to upgrade. The upgrade is transactional: it verifies
 the download against the checksum the release published, stops a running daemon
 and confirms it exited, replaces the file by rename rather than writing over it,
@@ -187,9 +197,9 @@ looptroop stop
 | **pnpm** | `pnpm remove -g looptroop` |
 | **Homebrew** | `brew uninstall looptroop` |
 | **Scoop** | `scoop uninstall looptroop` |
-| **Chocolatey** | `choco uninstall looptroop` |
-| **WinGet** | `winget uninstall LoopTroopAI.LoopTroop` |
-| **AUR** | `yay -R looptroop-bin` |
+| ⏳ **Chocolatey** | `choco uninstall looptroop` |
+| ⏳ **WinGet** | `winget uninstall LoopTroopAI.LoopTroop` |
+| ⏳ **AUR** | `yay -R looptroop-bin` |
 | **Installer script (npm mode)** | `npm uninstall -g looptroop` — it installs through npm, so npm removes it |
 | **Docker** | `docker rmi looptroopai/looptroop:latest` |
 
@@ -223,12 +233,168 @@ of this — LoopTroop works in git worktrees under `<project>/.looptroop/`, and
 ## Running in a container
 
 Published for `linux/amd64` and `linux/arm64`. Docker is the only thing the host
-needs — Node, git and `gh` are in the image. It needs an OpenCode server it can
-reach and a project mounted at its own absolute path; both are covered in the
-[README's container section](https://github.com/looptroop-ai/LoopTroop#run-it-in-a-container).
+needs — Node, git and `gh` are in the image:
 
-## Building from a checkout
+```bash
+docker pull looptroopai/looptroop:latest
+```
 
-To develop LoopTroop rather than use it, see
-[Getting Started](getting-started.md#working-on-looptroop-itself). That is the
-development stack, not the installed service described here.
+Two things it still needs from you, both deliberately not baked in.
+
+**An OpenCode server.** It is not in the image: it needs a configured model
+provider and your credentials, and bundling it would tie LoopTroop's releases to
+OpenCode's. A container with no OpenCode to reach exits at startup instead of
+serving an interface that cannot run a single coding operation, so pass
+`-e LOOPTROOP_OPENCODE_BASE_URL=…` pointing at a server you run — or
+`-e LOOPTROOP_OPENCODE_MODE=mock` to look around without one.
+
+That server has to be able to open the files LoopTroop gives it. LoopTroop works
+in git worktrees under `<project>/.looptroop/worktrees/` and asks OpenCode to
+open one **by absolute path**, so the path has to mean the same thing on both
+sides. Mounting the project somewhere tidy like `/workspace/project` breaks that
+the moment OpenCode is not in the same container: it is handed a directory that
+does not exist on its own filesystem. So mount the project at its own path:
+
+```bash
+PROJECT=/absolute/path/to/project
+```
+
+and use `-v "$PROJECT":"$PROJECT"`, as below. If you would rather keep a tidy
+path inside the container, run OpenCode as a sidecar with the identical mount, so
+both processes see the same string.
+
+**A way to reach it.** The daemon binds `127.0.0.1`, which inside a container is
+the container's own loopback, so publishing a port alone connects to nothing.
+That default is the point: this is a control plane that executes code on the
+machine it runs on, and it does not become network-reachable by accident.
+
+On Linux, share the host's network namespace and the loopback boundary stays
+real:
+
+```bash
+docker run --network host \
+  -e LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:4096 \
+  -v looptroop-config:/home/node/.looptroop \
+  -v "$PROJECT":"$PROJECT" -w "$PROJECT" \
+  looptroopai/looptroop:latest
+```
+
+On Docker Desktop for Mac and Windows the containers run in a VM, so
+`--network host` is that VM's loopback rather than yours. There the daemon has to
+bind wider, which it will not do by omission — it refuses a non-loopback bind
+unless both variables are set, and refuses it without a token:
+
+```bash
+docker run -p 127.0.0.1:3000:3000 \
+  -e LOOPTROOP_ALLOW_REMOTE_API=1 \
+  -e LOOPTROOP_BACKEND_HOST=0.0.0.0 \
+  -e LOOPTROOP_API_TOKEN="$(openssl rand -hex 32)" \
+  -e LOOPTROOP_OPENCODE_BASE_URL=http://host.docker.internal:4096 \
+  -v looptroop-config:/home/node/.looptroop \
+  -v "$PROJECT":"$PROJECT" -w "$PROJECT" \
+  looptroopai/looptroop:latest
+```
+
+In PowerShell, the same run with the same meaning:
+
+```powershell
+$Project = "C:\path\to\project"
+$Token = -join ((1..32) | ForEach-Object { "{0:x2}" -f (Get-Random -Max 256) })
+docker run -p 127.0.0.1:3000:3000 `
+  -e LOOPTROOP_ALLOW_REMOTE_API=1 `
+  -e LOOPTROOP_BACKEND_HOST=0.0.0.0 `
+  -e LOOPTROOP_API_TOKEN=$Token `
+  -e LOOPTROOP_OPENCODE_BASE_URL=http://host.docker.internal:4096 `
+  -v "${Project}:${Project}" -w $Project `
+  looptroopai/looptroop:latest
+```
+
+Windows needs one more decision than the others, because of the path rule above.
+`C:\path\to\project` is not a path a Linux container can be given, and an
+OpenCode server running natively on Windows cannot open a Linux one — so the two
+sides cannot meet by mounting the same string. Either run OpenCode as a container
+sidecar with the identical mount, or keep the project inside WSL and run both
+from there, where `/home/you/project` means the same thing on both sides. A
+native Windows OpenCode with a container LoopTroop is the one combination that
+cannot be made to work.
+
+`-p 127.0.0.1:3000:3000`, not `-p 3000:3000`: the short form publishes on every
+host interface, which on a shared network offers that control plane to everyone
+on it.
+
+`LOOPTROOP_API_TOKEN` is what authorises the wider bind. It is **not** the token
+the API accepts — the daemon mints its own at startup and records it owner-only.
+Read the one that works with:
+
+```bash
+docker exec <container> sh -c 'cat "$LOOPTROOP_CONFIG_DIR/daemon.json"'
+```
+
+Keep the `looptroop-config` volume. It holds the database and the daemon record;
+without it every restart is a fresh install.
+
+The container runs as uid 1000. If your host user is a different uid, git refuses
+the mounted checkout with "detected dubious ownership" — match the uid rather
+than relaxing `safe.directory` inside the image for everyone. The named config
+volume is then no longer writable either, so put the config somewhere that uid
+owns:
+
+```bash
+docker run --network host --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -e LOOPTROOP_CONFIG_DIR=/workspace/.looptroop \
+  -e LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:4096 \
+  -v "$PROJECT":"$PROJECT" -w "$PROJECT" \
+  -v "$HOME/.looptroop:/workspace/.looptroop" \
+  looptroopai/looptroop:latest
+```
+
+`HOME=/tmp` because `/home/node` belongs to uid 1000 and nothing should have to
+write into a home directory it does not own.
+
+Commits carry their identity per invocation, so no global git config is needed.
+`gh` does need credentials for the pull-request step: pass `-e GH_TOKEN=…`. The
+push uses the same token, through `gh`'s credential helper — git does not read
+`GH_TOKEN` itself, and nothing else in the image supplies a credential, so
+without that the pull request would be prepared and never pushed.
+
+## Working on LoopTroop itself
+
+Everything above installs LoopTroop to use it. To develop LoopTroop, run it from
+a checkout instead — this is the development stack, with Vite on port 5173 and
+hot reload, not the installed service:
+
+```bash
+git clone https://github.com/looptroop-ai/LoopTroop.git
+cd LoopTroop
+npm run dev
+```
+
+One command starts the frontend, backend and OpenCode watcher; you do not need to
+start OpenCode manually. On first run it also handles dependency installation and
+daily maintenance.
+
+| Service | Address |
+| --- | --- |
+| **Frontend** (UI) | `http://localhost:5173` |
+| **Backend** (API) | `http://127.0.0.1:3000` |
+| **OpenCode** | `http://127.0.0.1:4096` |
+
+The dev stack is several processes with hot reload, not one daemon. `looptroop
+start` plays no part in it, and the two have **different authentication rules** —
+see the [API Reference](api-reference.md).
+
+::: details What happens during startup?
+
+The preflight handles dependency updates, security audit fixes, OpenCode CLI updates, and port checks. Dependency proposals must pass npm's normal peer resolution before they can change the checkout; incompatible releases are held rather than forced. Normal startup prints a short summary of every updated package (previous → new version) and releases held by the age or compatibility gates.
+
+For the full preflight specification, see [Operations Guide](operations.md).
+:::
+
+::: details Useful startup flags
+
+- **`npm run dev --opencode-logs=all`** — full OpenCode DEBUG logs in your terminal (starts OpenCode with `--print-logs --log-level DEBUG`).
+- **`npm run dev --lan`** — binds the frontend to the local network, prints LAN URLs and a QR code. Backend and OpenCode stay on loopback, while documentation links continue to use the hosted site. This way you can connect to the app via mobile or another computer on the same network.
+
+For non-mutating startup, forced maintenance, and manual maintenance commands, see [Operations Guide](operations.md).
+:::
