@@ -21,7 +21,7 @@ Commands:
   stop           Stop the running daemon
   restart        Stop and start again
   status         Show whether the daemon is running
-  open           Open the interface in your browser
+  open           Open the interface, starting LoopTroop if it is not running
   logs           Show the daemon log
   doctor         Check that this machine can run LoopTroop
   clean          List, and optionally remove, abandoned worktrees
@@ -74,10 +74,14 @@ To run more than one, give each its own configuration directory and port — see
 looptroop open
 ```
 
-prints and opens a **signed-in link**: a URL carrying a single-use code in its
-fragment. The fragment is never sent in a request line, so it cannot reach an
-access log; the browser exchanges it for a session cookie that scripts cannot
-read. There is no way to sign in by query string, and no password to set.
+**starts LoopTroop if it is not already running**, then opens a **signed-in
+link**: a URL carrying a single-use code in its fragment. The fragment is never
+sent in a request line, so it cannot reach an access log; the browser exchanges
+it for a session cookie that scripts cannot read. There is no way to sign in by
+query string, and no password to set.
+
+Against a daemon that is already running it opens that one — it will not start a
+second. `looptroop start` remains for starting the service without a browser.
 
 Sessions last 12 hours. When one ends the tab says so and names the command that
 signs in again, rather than rendering an interface whose every request is
