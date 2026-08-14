@@ -5,6 +5,69 @@
 
 The singleton profile is the baseline configuration, accessible through the **Configuration** button in the LoopTroop UI. You do not need to restart the server after editing it, but settings are not all consumed at the same moment: some are frozen when a ticket starts, while others are read later at phase or session boundaries.
 
+## Where LoopTroop Keeps Its State
+
+Everything an installation owns lives in one directory, outside the installation
+itself — so upgrading, reinstalling, or switching channels does not lose it:
+
+| Platform | Path |
+| --- | --- |
+| **Linux, macOS** | `$XDG_CONFIG_HOME/looptroop`, falling back to `~/.config/looptroop` |
+| **Windows** | `%APPDATA%\looptroop` |
+| **Any** | `LOOPTROOP_CONFIG_DIR`, which overrides both |
+
+It holds `config.json`, the application database, the daemon record and the log.
+The directory is created owner-only (`0700`), and files that can carry a token or
+session state are written `0600`.
+
+`XDG_CONFIG_HOME` is deliberately ignored on Windows: it is a freedesktop
+convention, so honouring it there would split one user's data across two
+locations depending on which shell launched the process.
+
+### `config.json`
+
+Unrecognised keys are preserved when the file is rewritten, so settings written by
+a newer version survive being loaded by an older one, and a malformed file is
+ignored with a warning rather than preventing startup.
+
+### Settings, and where each one comes from
+
+Only the settings in this table are resolved with the precedence
+**flag → environment → file → default**. Everything else below resolves
+somewhere else entirely, which is why they are listed separately rather than as
+one flat list.
+
+| Setting | `config.json` key | Environment | Flag | Default |
+| --- | --- | --- | --- | --- |
+| Port | `port` | `LOOPTROOP_BACKEND_PORT` | `--port` | `3000` |
+| Log level | `logLevel` | `LOOPTROOP_LOG_LEVEL` | — | `info` |
+| OpenCode address | `opencodeBaseUrl` | `LOOPTROOP_OPENCODE_BASE_URL` | — | `http://127.0.0.1:4096` |
+| OpenCode mode | `opencodeMode` | `LOOPTROOP_OPENCODE_MODE` | — | `live` |
+
+Resolved elsewhere, and **not** through that chain:
+
+| Variable | What it does |
+| --- | --- |
+| `LOOPTROOP_CONFIG_DIR` | The directory everything above lives in. Read before any file exists, so it cannot come from one. |
+| `LOOPTROOP_APP_DB_PATH` | Moves the application database. |
+| `LOOPTROOP_ALLOW_REMOTE_API` | Permits a non-loopback bind. Requires a token as well. |
+| `LOOPTROOP_BACKEND_HOST` | The bind address, once the above allows one. |
+| `LOOPTROOP_API_TOKEN` | Authorises the wider bind. **Not** the token the API accepts — see [API Reference](api-reference.md). |
+
+### Runtime markers
+
+`LOOPTROOP_CONTAINER` is set by the container image to record how LoopTroop was
+installed. It is not a user setting; setting it by hand only makes `doctor`
+describe your installation incorrectly.
+
+> [!IMPORTANT]
+> **There is deliberately no `host` setting in `config.json`.** The control
+> interface binds loopback only, and a control plane that executes code on the
+> machine it runs on must not become network-reachable because somebody edited a
+> configuration file. A wider bind takes two environment variables *and* a token,
+> so it is always a deliberate act. See
+> [Running in a container](installation.md#running-in-a-container).
+
 ## Scope And Inheritance
 
 LoopTroop applies configuration in three layers:

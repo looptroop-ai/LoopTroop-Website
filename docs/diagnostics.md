@@ -9,9 +9,57 @@ This page covers the diagnostics that help explain slow local behavior, blocked 
 
 | Surface | When it appears | Where to inspect it | Best for |
 | --- | --- | --- | --- |
+| `looptroop doctor` | Any time — before the first ticket, or after anything goes wrong | Your terminal | Whether this machine can run LoopTroop at all, and how this copy was installed |
 | Runtime stall report | You run `npm run diagnose:stall` while the app is slow or behaving oddly | `tmp/diagnostics/runtime-stall-*.log` | Slow refreshes, missing tickets after reload, OpenCode reachability issues, disk / CPU / memory pressure |
 | Blocked-error diagnostics | A phase ends in `BLOCKED_ERROR` | Ticket error view and persisted error occurrence data | Provider failures, timeouts, session errors, transport failures, model output truncation |
 | Structured retry diagnostics | A structured-output phase rejects one or more model attempts before validating or finally failing | Artifact processing notices and artifact detail views | Why a response was retried, what validation failed, and what excerpt caused the retry |
+
+## 1a. `looptroop doctor`
+
+The first thing to run, and the cheapest.
+
+```bash
+looptroop doctor
+looptroop doctor --json
+```
+
+It checks the machine rather than a ticket: the Node and npm versions against the
+floor this release requires, git, whether OpenCode is reachable, whether the port
+is free, and whether a daemon is already running. Each failing check prints what
+to do about it.
+
+> [!NOTE]
+> **`doctor` exits non-zero when any check fails.** That is what makes it usable
+> in a script, and it means a fresh machine with no OpenCode configured yet
+> reports a failure by design rather than by fault.
+
+`--json` emits `{ ok, checks }` on stdout and nothing else, so it can be piped
+into a parser.
+
+### The install check
+
+The last check is not about whether LoopTroop runs — it is about which copy this
+is:
+
+```
+✓ install         npm (upgrade: npm install -g looptroop@latest)
+```
+
+It names the channel this copy was installed from and the exact command that
+upgrades **it**. That matters because the commands are not interchangeable:
+running `npm install -g looptroop@latest` against a bun or pnpm installation does
+not upgrade it, it installs a second copy under npm's prefix. See
+[Installation](installation.md#upgrading).
+
+The channel is worked out from where the files landed, and recorded so the answer
+is stable. Some installers state it outright by leaving a marker file; the rest
+are inferred from the install path. The answer can legitimately be **unknown** —
+an archive unpacked by hand has no evidence to read — and in that case the advice
+is generic rather than confidently wrong.
+
+LoopTroop also checks the registry once a day for a newer version and prints the
+right upgrade command for this channel. It prints nothing at all when the check
+cannot reach the registry.
 
 ## 2. Runtime Stall Report
 

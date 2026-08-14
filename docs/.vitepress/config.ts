@@ -13,6 +13,7 @@ const sidebar = [
     items: [
       { text: 'Home', link: '/' },
       { text: 'Getting Started', link: '/getting-started' },
+      { text: 'Installation', link: '/installation' },
       { text: 'Core Philosophy', link: '/core-philosophy' },
       { text: 'Context Engineering', link: '/context-engineering' },
     ],
@@ -46,6 +47,7 @@ const sidebar = [
     collapsed: false,
     items: [
       { text: 'Configuration', link: '/configuration' },
+      { text: 'CLI Reference', link: '/cli' },
       { text: 'Prompt Inventory', link: '/prompts' },
       { text: 'API Reference', link: '/api-reference' },
       { text: 'Output Normalization', link: '/output-normalization' },
