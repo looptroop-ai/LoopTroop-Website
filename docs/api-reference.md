@@ -26,8 +26,15 @@ interchangeable:
 
 ```bash
 TOKEN=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.config/looptroop/daemon.json')))['apiToken'])")
-curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/api/health
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/api/projects
 ```
+
+> [!NOTE]
+> `/api/health` is deliberately **not** authenticated on an installed daemon: a
+> container health probe holds no credentials, and the response carries nothing
+> worth protecting behind a loopback-only bind. It is therefore the one endpoint
+> that cannot tell you whether your token works — use a real route like
+> `/api/projects` to check a credential.
 
 > [!IMPORTANT]
 > **`LOOPTROOP_API_TOKEN` is not this token.** In a container it is what
@@ -57,11 +64,19 @@ attach — cookies carry no port scope of their own.
 | Content hashes | Human-reviewed artifacts expose lowercase SHA-256 hashes so approval requests can prove which bytes were reviewed |
 | Action responses | Most workflow action routes return `message`, `ticketId`, `status`, `state`, and the latest `ticket` snapshot |
 
-When `LOOPTROOP_API_TOKEN` is configured, every `/api/*` route requires either `X-LoopTroop-Token: <token>` or `Authorization: Bearer <token>`. The only query-token exception is `/api/stream`, where browser `EventSource` clients may use `apiToken=<token>` because they cannot set custom headers. That query-token path is intentionally stream-only and less secure than header auth because URLs can be logged. `npm run dev` generates an ephemeral token when needed and keeps it server-side; the Vite dev proxy injects it for same-origin `/api` requests.
+> [!IMPORTANT]
+> **The paragraph below is the development stack only.** An installed daemon
+> uses the credentials in [Reaching An Installed Daemon](#reaching-an-installed-daemon)
+> above, and its middleware is a different one with different rules — in
+> particular it accepts **no query-string token at all**. Do not mix the two.
+
+In the development stack (`npm run dev`), when `LOOPTROOP_API_TOKEN` is configured, every `/api/*` route requires either `X-LoopTroop-Token: <token>` or `Authorization: Bearer <token>`. There, `/api/stream` also accepts `apiToken=<token>` as a query parameter, because browser `EventSource` clients cannot set custom headers; that path is less secure than header auth, because URLs reach access logs and browser history. `npm run dev` generates an ephemeral token when needed and keeps it server-side; the Vite dev proxy injects it for same-origin `/api` requests.
+
+**The installed daemon has no equivalent.** Its session middleware accepts a session cookie or a bearer token and nothing else — there is deliberately no query-parameter path, and a same-origin `EventSource` sends the cookie on its own, so the one case that needed it no longer does.
 
 Invalid or missing credentials return `401`. If auth is required but no backend token is configured and unauthenticated mode is not allowed, the middleware returns `503`.
 
-API routes use a global per-client rate limit, with separate buckets for read requests, normal write actions, and UI-state autosave writes. The default local-tool budget is 200 reads/minute, 120 normal writes/minute, and 300 autosaves/minute per client. The lightweight `GET /api/health` liveness probe is exempt so reachability checks remain available after the normal read budget is exhausted; authentication still applies. When another route exceeds its limit, the backend returns `429` with a JSON error body and a `Retry-After` header containing the number of seconds to wait before retrying. Forwarded client IP headers are ignored unless `LOOPTROOP_TRUST_PROXY=1` is set, so local development typically uses a single shared `local` bucket identity.
+API routes use a global per-client rate limit, with separate buckets for read requests, normal write actions, and UI-state autosave writes. The default local-tool budget is 200 reads/minute, 120 normal writes/minute, and 300 autosaves/minute per client. The lightweight `GET /api/health` liveness probe is exempt so reachability checks remain available after the normal read budget is exhausted. On an installed daemon that probe is also unauthenticated; in the development stack the configured token still applies. When another route exceeds its limit, the backend returns `429` with a JSON error body and a `Retry-After` header containing the number of seconds to wait before retrying. Forwarded client IP headers are ignored unless `LOOPTROOP_TRUST_PROXY=1` is set, so local development typically uses a single shared `local` bucket identity.
 
 ## Health, Models, Workflow Meta, And Streaming
 
@@ -75,7 +90,7 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | `GET` | `/api/workflow/meta` | Current workflow groups and phases |
 | `GET` | `/api/stream?ticketId=<id>` | Ticket-scoped SSE stream using the composite ticket ref; validates the ticket and enforces stream caps |
 
-`/api/stream` also accepts `lastEventId` and, when header auth is not available, `apiToken` query parameters. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible. The stream route rejects the 7th concurrent client for the same ticket and rejects new streams once the global total reaches 100 active clients.
+`/api/stream` also accepts a `lastEventId` query parameter. In the development stack it additionally accepts `apiToken` when header auth is not available; **an installed daemon does not** — its middleware takes a session cookie or a bearer token only, and a same-origin `EventSource` sends the cookie itself. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible. The stream route rejects the 7th concurrent client for the same ticket and rejects new streams once the global total reaches 100 active clients.
 
 After a completed assistant turn is recorded, an `ai_metrics` event carries only `ticketId`, `phase`, `phaseAttempt`, `modelId`, and `updatedAt`. It invalidates an already-open AI/model details query; token and cost values remain in the authenticated REST response rather than the SSE replay buffer.
 

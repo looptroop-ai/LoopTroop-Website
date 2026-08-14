@@ -110,19 +110,30 @@ rather than installing something that cannot run.
 
 ## Verifying a download
 
-Every release publishes `checksums.sha256`, listing every asset:
+Every release publishes `checksums.sha256`. It lists **every** asset the release
+publishes, so check the line for the file you actually downloaded rather than
+checking the whole file:
 
 ```bash
-sha256sum -c checksums.sha256
+grep looptroop-<version>-linux-x64.tar.gz checksums.sha256 | sha256sum -c
 ```
 
 ```bash
-shasum -a 256 -c checksums.sha256   # macOS
+grep looptroop-<version>-darwin-arm64.tar.gz checksums.sha256 | shasum -a 256 -c
 ```
 
 ```powershell
 Get-FileHash looptroop-<version>-win-x64.zip -Algorithm SHA256
 ```
+
+> [!WARNING]
+> A plain `sha256sum -c checksums.sha256` reports every asset you did *not*
+> download as `FAILED open or read` and exits non-zero. That looks like a
+> corrupted release and is not one — it is the checksum file describing every
+> asset in the release while you have one. GNU coreutils can skip them with
+> `sha256sum --ignore-missing -c checksums.sha256`; macOS `shasum` has no such
+> flag, which is why the single-line form above is the one that works
+> everywhere.
 
 `release-manifest.json` records the same hashes alongside each asset's size, and
 is what the installers check against — `checksums.sha256` is generated from it,
