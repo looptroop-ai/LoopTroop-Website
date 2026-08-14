@@ -6,6 +6,15 @@ search: false
 
 > **Roadmap status:** This roadmap is a living planning document, not the definitive source of current product status. It was started before the app existed, and items have been added continuously during development. Some entries may already be implemented, partially complete, changed, or no longer relevant. Verify the current codebase, tickets, and release notes before treating any item as still pending or authoritative.
 
+## Shipped
+
+Completed epics stay in place below, annotated with what actually shipped rather than deleted — the
+text records what was asked for, and the annotation records what was built and where it differs.
+
+| Epic | Shipped in |
+| --- | --- |
+| [Global CLI Distribution & Multi-Platform Packaging](#high-priority) — install from npm, bun, pnpm, Homebrew, Scoop, Docker, a one-line installer and a standalone executable, published by an automated release pipeline | 0.5.0–0.5.4 |
+
 ## Contents
 
 - [High Priority](#high-priority)
@@ -50,6 +59,8 @@ search: false
     *   Audit order (status by status, starting with first): `DRAFT` → `SCANNING_RELEVANT_FILES` → `COUNCIL_DELIBERATING` → `COUNCIL_VOTING_INTERVIEW` → `COMPILING_INTERVIEW` → `WAITING_INTERVIEW_ANSWERS` → `VERIFYING_INTERVIEW_COVERAGE` → `WAITING_INTERVIEW_APPROVAL` → `DRAFTING_PRD` → `COUNCIL_VOTING_PRD` → `REFINING_PRD` → `VERIFYING_PRD_COVERAGE` → `WAITING_PRD_APPROVAL` → `DRAFTING_BEADS` → `COUNCIL_VOTING_BEADS` → `REFINING_BEADS` → `VERIFYING_BEADS_COVERAGE` → `EXPANDING_BEADS` → `WAITING_BEADS_APPROVAL` → `PRE_FLIGHT_CHECK` → `GENERATING_EXECUTION_SETUP_PLAN` → `WAITING_EXECUTION_SETUP_APPROVAL` → `PREPARING_EXECUTION_ENV` → `CODING` → `RUNNING_FINAL_TEST` → `INTEGRATING_CHANGES` → `CREATING_PULL_REQUEST` → `WAITING_PR_REVIEW` → `CLEANING_ENV` → `COMPLETED`.
     *   For each status, document: input fields consumed, output fields produced, output fields actually used downstream, and fields added by any retry path.
 * **Global CLI Distribution & Multi-Platform Packaging (automated release pipeline):** Refactor the LoopTroop runtime architecture from a dev-centric multi-process concurrent stack into a production-ready global CLI daemon, and implement an automated release workflow that cross-compiles, packages, and synchronizes system package managers on every GitHub Release.
+
+	> **Shipped in 0.5.0–0.5.4.** LoopTroop installs from npm, bun, pnpm, Homebrew, Scoop, Docker, a one-line installer script and a standalone executable, and every release is cut by an automated pipeline that builds once, verifies those exact bytes on Linux, macOS and Windows, and publishes them everywhere in parallel. Three channels — Chocolatey, WinGet and the AUR — are written, built and tested on every change but are not published yet, each waiting on somebody else's queue; the publish jobs are gated on repository variables and are switched on per channel when each clears. Deviations from the text below, each deliberate: there is no macOS Intel executable, because Node cannot build a single-file executable for that target; there is no Nix flake, dropped as scope nobody asked for; and the installer never writes to `/usr/local/bin` or asks for sudo. Two paths in the text were never right and are corrected in place. See the [Installation](installation.md) page for what this actually shipped as.
 	+ **Automated Version Synchronization on Release:** When a new GitHub Release is created (or a version tag is pushed), automatically propagate the release version number to every file in the repository that references it, so no location is left stale.
 		- Treat the `version` field in `package.json` as the single canonical source of truth for the application version.
 		- On release trigger, bump `package.json` to the release version (if not already set) and regenerate `package-lock.json` via `npm install --package-lock-only` so both files stay in sync.
@@ -60,7 +71,7 @@ search: false
 		- Commit the version-bump changes back to the release branch (or tag) with a deterministic commit message (e.g., `chore(release): bump version to <version>`) before any downstream compilation, packaging, or publishing jobs execute.
 		- The step must be idempotent: re-running on the same release version is a no-op when every file already carries the correct version.
 	+ **Single-Process Production Compilation (CLI Daemon Mode):** Combine the three application development processes (Vite frontend, Node backend API, and OpenCode watcher) into a single production compilation unit.
-		- The frontend Vite workspace must build statically to `dist/frontend` during compile time.
+		- The frontend Vite workspace must build statically to `dist/client` during compile time. **Shipped as `dist/client`**, not `dist/frontend`.
 		- The Hono backend server must be updated to serve these static files natively, routing all non-API web traffic to `dist/frontend/index.html` to support the client-side SPA router.
 		- Spawning external hot-reloaders or dev-servers at runtime must be disallowed in production execution.
 	+ **Global User-Space Configuration Separation:** Remove reliance on local `.env` files in the installation directory, which is read-only in global installation environments.
@@ -70,7 +81,7 @@ search: false
 		- No migration receipts are needed: there is no prior on-disk configuration format to migrate from.
 	+ **OIDC-Protected Registry Publication (npm, Bun, and pnpm):** Configure a secure, automated publishing pipeline using OpenID Connect (OIDC) "Trusted Publishing" with npmjs.com.
 		- On publication of a GitHub Release, compile production JavaScript targets, bundle the static assets, and run `npm publish` securely without storing long-lived, static npm tokens in GitHub secrets.
-		- Ensure the published package maps the main executable entrypoint to `"bin": { "looptroop": "dist/cli.js" }` so that `npm i -g`, `bun add -g`, and `pnpm add -g` work natively.
+		- Ensure the published package maps the main executable entrypoint to `"bin": { "looptroop": "dist/cli.js" }` so that `npm i -g`, `bun add -g`, and `pnpm add -g` work natively. **Shipped as `dist/server/cli/launcher.cjs`.** All three are verified by CI on Linux and Windows, and each has its own install channel and upgrade command, because none of them upgrades another's installation. Publication is one OIDC publish to npm; bun and pnpm are clients of that registry, not separate ones.
 	+ **Matrix Binary Compilation & Release Assets:** Configure a GitHub Actions runner matrix to compile standalone binaries for target platforms (`macos-x64`, `macos-arm64`, `linux-x64`, `win-x64`) using `@yao-pkg/pkg`, `bun build --compile`, or Node's Single Executable Applications. The original `pkg` project is archived and must not be used.
 		- Package compiled binaries inside `.tar.gz` (for macOS/Linux) and `.zip` (for Windows) containers.
 		- Automatically upload package archives to the matching GitHub Release assets on release confirmation.
@@ -90,7 +101,8 @@ search: false
 	+ **Declarative Nix Flake Packaging (`nix profile install github:looptroop-ai/LoopTroop`):** Add a declarative `flake.nix` file to the root of your primary repository.
 		- The flake must define a zero-dependency derivation wrapping the compiled Linux/macOS binaries.
 		- Automate the Nix registry updates so developers using declarative shell workspaces can test or execute LoopTroop instantly inside clean, immutable sandbox environments.
-    + **Number of downloads:** On the main website, the current terminal that shows how to install LoopTroop will be replaced with multiple tabs for each installation method, the first being the universal installer script. Underneath this terminal, show a total number of downloads, which is an aggregated counter of all installs across all package managers. When clicking on that counter, a new small window will be shown with all the details, e.g., npm has 100 downloads and an official link where details can be shown (if such a thing exists per package manager). It will also show the number of stars, forks, watchers, issues, and PRs for the repo. This number of stars will also be shown next to the counter, so it will be "3214 downloads, 245 stars." I want the numbers to refresh 4 times a day; the website is hosted on Vercel right now.
+*   **Number of downloads:** On the main website, the current terminal that shows how to install LoopTroop will be replaced with multiple tabs for each installation method, the first being the universal installer script. Underneath this terminal, show a total number of downloads, which is an aggregated counter of all installs across all package managers. When clicking on that counter, a new small window will be shown with all the details, e.g., npm has 100 downloads and an official link where details can be shown (if such a thing exists per package manager). It will also show the number of stars, forks, watchers, issues, and PRs for the repo. This number of stars will also be shown next to the counter, so it will be "3214 downloads, 245 stars." I want the numbers to refresh 4 times a day; the website is hosted on Vercel right now.
+    *   Split out of **Global CLI Distribution & Multi-Platform Packaging** when that item shipped: it is website analytics rather than packaging, sharing only the page it sits on. It replaces the hero terminal with per-method tabs, so it supersedes the current three-line terminal rather than sitting beside it.
 *   **Adversarial Critique Pre-Pass:** After relevant-file scanning and any enabled research briefs, optionally run a bounded ticket-level critique before Interview begins.
     *   Persist `.looptroop/tickets/<ticket-id>/critique.yaml` with verdict, major risks, counterproposals, interview follow-ups, and stop conditions.
     *   Treat the critique as read-only planning context, not a council vote or automatic cancel path.

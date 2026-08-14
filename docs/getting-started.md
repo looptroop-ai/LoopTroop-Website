@@ -25,48 +25,61 @@ LoopTroop runs OpenCode in `dangerously-skip-permissions` (or YOLO) mode so that
 
 ## 2. Installation
 
-Clone the repository and install dependencies:
-
 ```bash
-git clone https://github.com/looptroop-ai/LoopTroop.git
-cd LoopTroop
-npm install
+npm install -g looptroop
 ```
+
+That is the whole installation. LoopTroop is also on Homebrew, Scoop, bun, pnpm
+and Docker, and publishes a standalone executable that carries its own Node
+runtime — see [Installation](installation.md) for every channel, and for
+upgrading, uninstalling and verifying a download.
 
 ## 3. Starting the Application
 
 ```bash
-npm run dev
+looptroop start
+looptroop open
 ```
 
-This single command starts the frontend, backend, and OpenCode watcher (you don't need to start OpenCode manually). Documentation remains available from the externally hosted site. On first run the app also handles dependency installation and daily maintenance automatically.
+`start` detaches from the terminal, so LoopTroop keeps running after the shell
+closes. It serves the interface and the API from **one address on port 3000** —
+there is no separate web server to configure. `open` points a browser at it.
 
-By default the services bind to:
+What `open` prints is a **signed-in link**: a URL carrying a single-use code in
+its fragment, which the browser exchanges for a session cookie. The fragment is
+never sent in a request line, so it cannot reach an access log, and there is no
+password to set. Sessions last 12 hours; run `looptroop open` again when one
+ends.
 
-| Service | Address |
+| | Address |
 | --- | --- |
-| **Frontend** (UI) | `http://localhost:5173` |
-| **Backend** (API) | `http://127.0.0.1:3000` |
-| **Docs** | `https://www.looptroop.ovh/docs/` (hosted externally) |
+| **LoopTroop** (interface and API) | `http://127.0.0.1:3000` |
 | **OpenCode** | `http://127.0.0.1:4096` |
+| **Docs** | `https://www.looptroop.ovh/docs/` (hosted externally) |
 
 > [!IMPORTANT]
 > If OpenCode is running on a different port, point LoopTroop to it:
 > `export LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:YOUR_PORT`
 
-::: details What happens during startup?
+The daemon binds loopback only, and will not bind wider by omission — see
+[Configuration](configuration.md) for the two variables that change that and the
+token they require.
 
-The preflight handles dependency updates, security audit fixes, OpenCode CLI updates, and port checks. Dependency proposals must pass npm's normal peer resolution before they can change the checkout; incompatible releases are held rather than forced. Normal startup prints a short summary of every updated package (previous → new version) and releases held by the age or compatibility gates.
+```bash
+looptroop status    # is it running?
+looptroop logs -f   # what is it doing?
+looptroop doctor    # can this machine run it?
+looptroop stop
+```
 
-For the full preflight specification, see [Operations Guide](operations.md).
-:::
+The full command list is in the [CLI Reference](cli.md).
 
-::: details Useful startup flags
+::: details Not sure the machine is ready?
 
-- **`npm run dev --opencode-logs=all`** — full OpenCode DEBUG logs in your terminal (starts OpenCode with `--print-logs --log-level DEBUG`).
-- **`npm run dev --lan`** — binds the frontend to the local network, prints LAN URLs and a QR code. Backend and OpenCode stay on loopback, while documentation links continue to use the hosted site. This way you can connect to the app via mobile or another computer on the same network.
-
-For non-mutating startup, forced maintenance, and manual maintenance commands, see [Operations Guide](operations.md).
+`looptroop doctor` checks Node, git, OpenCode, the port and the daemon, and tells
+you which of those is missing rather than failing at the first ticket. It also
+names the channel this copy was installed from and the exact command that
+upgrades it. See [Runtime Diagnostics](diagnostics.md).
 :::
 
 ## 4. Setting Up Your AI Council
@@ -120,7 +133,7 @@ Free APIs can experience rate-limiting or latency spikes. Community trackers hel
 
 ## 5. Attaching Your First Project
 
-1. Open `http://localhost:5173` in your browser.
+1. Open the interface with `looptroop open`.
 2. Click **Add Project** and provide the absolute path to your local git repository.
 3. LoopTroop verifies it is a valid git repo with a GitHub origin.
 4. If the repository already has a `.looptroop` state folder, choose whether to restore everything, keep the project settings while clearing all tickets, or delete that state and start fresh. The two destructive choices show exactly what will be deleted and require confirmation.
@@ -143,8 +156,47 @@ Your ticket flows through a structured pipeline — each stage has a clear purpo
 
 For the full lifecycle, see [Ticket Flow](ticket-flow.md).
 
+## Working on LoopTroop itself
+
+Everything above installs LoopTroop to use it. To develop LoopTroop, run it from
+a checkout instead — this is the development stack, with Vite on port 5173 and
+hot reload, not the installed service:
+
+```bash
+git clone https://github.com/looptroop-ai/LoopTroop.git
+cd LoopTroop
+npm run dev
+```
+
+One command starts the frontend, backend and OpenCode watcher; you do not need to
+start OpenCode manually. On first run it also handles dependency installation and
+daily maintenance.
+
+| Service | Address |
+| --- | --- |
+| **Frontend** (UI) | `http://localhost:5173` |
+| **Backend** (API) | `http://127.0.0.1:3000` |
+| **OpenCode** | `http://127.0.0.1:4096` |
+
+::: details What happens during startup?
+
+The preflight handles dependency updates, security audit fixes, OpenCode CLI updates, and port checks. Dependency proposals must pass npm's normal peer resolution before they can change the checkout; incompatible releases are held rather than forced. Normal startup prints a short summary of every updated package (previous → new version) and releases held by the age or compatibility gates.
+
+For the full preflight specification, see [Operations Guide](operations.md).
+:::
+
+::: details Useful startup flags
+
+- **`npm run dev --opencode-logs=all`** — full OpenCode DEBUG logs in your terminal (starts OpenCode with `--print-logs --log-level DEBUG`).
+- **`npm run dev --lan`** — binds the frontend to the local network, prints LAN URLs and a QR code. Backend and OpenCode stay on loopback, while documentation links continue to use the hosted site. This way you can connect to the app via mobile or another computer on the same network.
+
+For non-mutating startup, forced maintenance, and manual maintenance commands, see [Operations Guide](operations.md).
+:::
+
 ## Next Steps
 
+- [Installation](installation.md) — every channel, upgrading, uninstalling, verifying a download
+- [CLI Reference](cli.md) — every command and option
 - [Ticket Flow](ticket-flow.md) — end-to-end lifecycle from ticket to PR
 - [Ticket Lifecycle Screenshots](ticket-lifecycle-screenshots.md) — visual walkthrough of every workflow status
 - [Core Philosophy](core-philosophy.md) — context engineering, councils, retries, approvals

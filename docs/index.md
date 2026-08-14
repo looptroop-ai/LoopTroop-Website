@@ -21,14 +21,19 @@ LoopTroop executes agent code changes with full local user privileges to allow u
 ## Start Here
 
 ```bash
-git clone https://github.com/looptroop-ai/LoopTroop.git
-cd LoopTroop
-npm run dev
+npm install -g looptroop
+looptroop start
+looptroop open
 ```
+
+Also on Homebrew, Scoop, bun, pnpm and Docker, with a standalone executable that
+needs no Node installed — see [Installation](installation.md). To work on
+LoopTroop itself rather than use it, see
+[Working on LoopTroop itself](getting-started.md#working-on-looptroop-itself).
 
 If you are new to LoopTroop, use this order:
 
-1. [Getting Started](getting-started.md) for local setup and the first run.
+1. [Getting Started](getting-started.md) for installing it and the first run.
 2. [Core Philosophy](core-philosophy.md) for the system-level design goals.
 3. [Context Engineering](context-engineering.md) for LoopTroop's minimum-context model discipline.
 4. [Ticket Flow](ticket-flow.md) for the full lifecycle from draft to completion.

@@ -7,6 +7,45 @@ All backend routes are mounted under `/api`.
 
 This page documents the current HTTP surface exposed by `server/index.ts` and the route handlers in `server/routes/*`.
 
+## Reaching An Installed Daemon
+
+An installed LoopTroop serves the interface and the API from **one address**,
+`http://127.0.0.1:3000` by default. There is no separate API port, and no
+cross-origin headers are sent in production — the interface and the API are the
+same origin.
+
+### Authenticating
+
+There are two credentials, for two different callers, and they are not
+interchangeable:
+
+| Caller | Credential | How it is obtained |
+| --- | --- | --- |
+| **A browser** | A session cookie | `looptroop open` prints a signed-in link carrying a single-use code in its fragment; the browser exchanges it for the cookie |
+| **A script** | `Authorization: Bearer <token>` | The daemon mints a random token at startup and records it in `daemon.json` in the [configuration directory](configuration.md), owner-readable only |
+
+```bash
+TOKEN=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.config/looptroop/daemon.json')))['apiToken'])")
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/api/health
+```
+
+> [!IMPORTANT]
+> **`LOOPTROOP_API_TOKEN` is not this token.** In a container it is what
+> *authorises* a non-loopback bind; the token the API accepts is still the one
+> the daemon minted and recorded. Reading `daemon.json` is how you get a
+> credential that works.
+
+The session cookie is set `HttpOnly` so no script on the page can read it,
+`Path=/api` so it is not attached to requests for the static bundle, and
+`SameSite=Strict` so another site cannot drive the control API with it. Sessions
+last 12 hours.
+
+There is no way to authenticate by query string, with one deliberate exception
+noted below for `EventSource`. Requests are also restricted to this machine and
+to this daemon's own address, so a page served from a different port on the same
+loopback interface cannot drive it with a cookie the browser would otherwise
+attach — cookies carry no port scope of their own.
+
 ## Conventions
 
 | Convention | Meaning |

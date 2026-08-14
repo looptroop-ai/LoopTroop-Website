@@ -5,7 +5,46 @@
 
 This guide covers the parts of LoopTroop you deal with after the first run: startup maintenance, runtime storage, project-local Git hygiene, worktree cleanup, diagnostics, and common local service issues.
 
+> [!NOTE]
+> **Most of this page is about the development stack** — running LoopTroop from a
+> checkout with `npm run dev`, to work on LoopTroop itself. If you installed
+> LoopTroop to use it, start with the section immediately below; the preflight,
+> maintenance and dependency material further down does not apply to you.
+
+## 0. Operating An Installed LoopTroop
+
+An installed LoopTroop runs as a background service, managed by one command:
+
+```bash
+looptroop start      # detaches; survives closing the terminal
+looptroop status     # --json for a script
+looptroop logs -f
+looptroop restart
+looptroop stop
+```
+
+Every command and option is in the [CLI Reference](cli.md); installing, upgrading
+and uninstalling are in [Installation](installation.md).
+
+| Task | Where it lives |
+| --- | --- |
+| **Configuration, database, daemon record, log** | The [configuration directory](configuration.md#where-looptroop-keeps-its-state) — one place, outside the installation, so upgrading or switching channels never loses it |
+| **Backing up** | Copy that directory with the daemon stopped |
+| **Checking the machine** | `looptroop doctor` — see [Runtime Diagnostics](diagnostics.md) |
+| **Which copy this is, and how to upgrade it** | `looptroop doctor` names the channel and its own upgrade command |
+| **Abandoned worktrees** | `looptroop clean`, then `--apply` to remove them |
+
+`looptroop clean` is worktree housekeeping: it removes git worktrees left behind
+by cancelled or interrupted tickets, inside your project, and never touches
+configuration, tickets or the database.
+
+One daemon runs per configuration directory, held by a lock that records which
+process took it rather than only when it last checked in. To run two, give each
+its own `LOOPTROOP_CONFIG_DIR` and port.
+
 ## 1. Quick Reference
+
+Everything from here on is the development stack.
 
 | Task | Start here |
 | --- | --- |

@@ -12,9 +12,43 @@ const requiredFiles = [
   'site/docs/index.html',
   'site/docs/changelog.html',
   'site/docs/roadmap.html',
+  'site/docs/installation.html',
+  'site/docs/cli.html',
 ]
 
 for (const file of requiredFiles) await access(file)
+
+/**
+ * The regression that made a whole phase of work necessary.
+ *
+ * For four releases LoopTroop installed from seven channels and ran as a
+ * background service, and every page of the published documentation still opened
+ * with `git clone` and `npm run dev`. Nothing was wrong with the docs as
+ * development docs; they had simply never been told the product had shipped.
+ *
+ * `npm run dev` is deliberately not banned — it is the correct instruction on the
+ * pages about working on LoopTroop itself. What must stay true is that the page
+ * people arrive at leads with installing it.
+ */
+// Against the rendered text, never the markup: syntax highlighting splits a
+// shell command across a span per token, so searching the HTML for the command
+// finds nothing even when the page shows it.
+const gettingStarted = (await readFile('site/docs/getting-started.html', 'utf8'))
+  .replace(/<[^>]+>/g, '')
+  .replace(/&quot;/g, '"')
+  .replace(/&#39;/g, "'")
+  .replace(/&amp;/g, '&')
+  .replace(/\s+/g, ' ')
+
+const installedAt = gettingStarted.indexOf('npm install -g looptroop')
+const devStackAt = gettingStarted.indexOf('npm run dev')
+
+if (installedAt === -1) {
+  throw new Error('Getting Started never tells anyone how to install LoopTroop.')
+}
+if (devStackAt !== -1 && devStackAt < installedAt) {
+  throw new Error('Getting Started leads with the development stack instead of installing LoopTroop.')
+}
 
 const indexHtml = await readFile('site/index.html', 'utf8')
 if (indexHtml.includes('{{VERSION}}')) throw new Error('Marketing output still contains a build-time version placeholder.')
