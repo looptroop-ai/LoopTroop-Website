@@ -4,14 +4,13 @@ LoopTroop installs like ordinary software and runs as a background service. Pick
 a channel, start it, open it.
 
 ```bash
-npm install -g looptroop
-looptroop start
+curl -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
-`start` detaches from the terminal, so LoopTroop keeps running after the shell
-closes. It serves the interface and the API from one address on port 3000, and
-`open` points a browser at it with a signed-in link.
+`open` starts LoopTroop in the background if it is not already running, then
+points a browser at it with a signed-in link. Use `looptroop start` if you want
+the service without a browser.
 
 > [!IMPORTANT]
 > Everything here still needs **Node.js 24.15.0 or newer** and **git**, with one
@@ -24,13 +23,13 @@ closes. It serves the interface and the API from one address on port 3000, and
 
 | | Install | Upgrade | |
 | --- | --- | --- | --- |
+| **Installer script** (everywhere) | `curl -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
 | **pnpm** (everywhere) | `pnpm add -g looptroop` | `pnpm add -g looptroop@latest` | ✅ |
 | **Homebrew** (macOS, Linux) | `brew install looptroop-ai/tap/looptroop` | `brew upgrade looptroop` | ✅ |
 | **Scoop** (Windows) | `scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket`<br>`scoop install looptroop` | `scoop update looptroop` | ✅ |
-| **Docker** | `docker pull looptroopai/looptroop:latest` | `docker pull looptroopai/looptroop:latest` | ✅ |
-| **Installer script** | `curl -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
+| **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest` | `docker pull looptroopai/looptroop:latest` | ✅ |
 | **Chocolatey** (Windows) | `choco install looptroop` | `choco upgrade looptroop` | ⏳ |
 | **WinGet** (Windows) | `winget install LoopTroopAI.LoopTroop` | `looptroop stop`<br>`winget upgrade LoopTroopAI.LoopTroop` | ⏳ |
 | **AUR** (Arch Linux) | `yay -S looptroop-bin` | `yay -Syu looptroop-bin` | ⏳ |
@@ -232,12 +231,23 @@ of this — LoopTroop works in git worktrees under `<project>/.looptroop/`, and
 
 ## Running in a container
 
-Published for `linux/amd64` and `linux/arm64`. Docker is the only thing the host
+Published for `linux/amd64` and `linux/arm64`, to **Docker Hub** and to
+**GitHub Container Registry**. A container runtime is the only thing the host
 needs — Node, git and `gh` are in the image:
 
 ```bash
 docker pull looptroopai/looptroop:latest
 ```
+
+```bash
+docker pull ghcr.io/looptroop-ai/looptroop:latest
+```
+
+The same image runs under **Podman** — substitute `podman` for `docker` in every
+command on this page. Podman's rootless default maps your user to the container's
+root, which changes the uid question at the end of this section: with
+`podman run --userns=keep-id` the mounted checkout stays owned by you and the
+`--user` flag below is unnecessary.
 
 Two things it still needs from you, both deliberately not baked in.
 

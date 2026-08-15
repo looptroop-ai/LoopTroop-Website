@@ -221,7 +221,19 @@
               <button onclick="switchInstall(5)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="5">pnpm</button>
               <button onclick="switchInstall(6)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="6">Docker</button>
             </div>
-            <div class="p-4 sm:p-5 overflow-x-auto">
+            <div class="relative">
+              <!-- The buttons sit outside the scrolling area so they stay put
+                   when a long command scrolls, and their top padding matches the
+                   code block's so they line up with the first command row. -->
+              <div class="absolute top-4 sm:top-5 right-4 sm:right-5 z-10 flex items-center gap-2">
+                <a href="/docs/installation" class="px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all duration-200 border border-zinc-700 hover:border-zinc-600">
+                  <i class="fa-regular fa-book mr-1"></i> Installation guide
+                </a>
+                <button id="copyBtn" onclick="copyCommand()" class="px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all duration-200 border border-zinc-700 hover:border-zinc-600 cursor-pointer" aria-label="Copy command">
+                  <i class="fa-regular fa-clipboard mr-1"></i> Copy
+                </button>
+              </div>
+              <div class="p-4 sm:p-5 pt-12 sm:pt-14 overflow-x-auto">
               <code id="heroCommand" class="text-xs sm:text-sm font-mono text-emerald-400 block leading-relaxed">
                 <span class="install-panel" data-install-panel="0">
                   <span class="terminal-row"><span class="line-num">1</span><span class="text-zinc-500">$</span> <span class="cmd">curl -fsSL https://www.looptroop.ovh/install | sh</span></span>
@@ -252,17 +264,8 @@
                   <span class="terminal-row"><span class="line-num">1</span><span class="text-zinc-500">$</span> <span class="cmd">docker pull looptroopai/looptroop:latest</span></span>
                 </span>
               </code>
-              <button id="copyBtn" onclick="copyCommand()" class="absolute top-3 right-3 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all duration-200 border border-zinc-700 hover:border-zinc-600 cursor-pointer" aria-label="Copy command">
-                <i class="fa-regular fa-clipboard mr-1"></i> Copy
-              </button>
+              </div>
             </div>
-          </div>
-
-          <!-- Install channels -->
-          <div class="mb-8 -mt-4">
-            <p class="text-xs text-zinc-500 dark:text-zinc-500">
-              <a href="/docs/installation" class="underline decoration-dotted underline-offset-2 hover:text-brand-600 dark:hover:text-brand-400">Every channel, what each one needs, and the standalone executable</a>.
-            </p>
           </div>
 
           <!-- CTA buttons -->
@@ -311,84 +314,8 @@
   </section>
 
 
-  <!-- ============ WHY LOOP TROOP ============ -->
-  <section class="pt-10 pb-20 md:pt-16 md:pb-28">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-      <!-- Statement card -->
-      <div class="fade-up relative">
-        <div class="relative rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 sm:p-12 md:p-16 shadow-sm overflow-hidden">
-          <!-- Decorative accent -->
-          <div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-brand-400 via-brand-500 to-brand-600 rounded-r-full"></div>
-          <div class="absolute top-0 right-0 w-64 h-64 bg-brand-50 dark:bg-brand-900/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-
-          <div class="relative z-10">
-            <div class="flex items-center gap-3 mb-8">
-              <div class="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-700/40">
-                <i class="fa-solid fa-bullseye text-brand-600 dark:text-brand-400"></i>
-              </div>
-              <span class="text-sm font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider">Why LoopTroop</span>
-            </div>
-
-            <p class="text-xl sm:text-2xl font-bold leading-relaxed mb-6 text-zinc-900 dark:text-zinc-50">
-              LoopTroop is a <span class="gradient-text">local GUI orchestrator</span> for long-running, high-correctness AI software delivery &mdash; taking you from a raw idea to merged code. Free and fully open-source.
-            </p>
-
-            <div class="space-y-5 stagger-in" id="whyContainer">
-              <!-- Contrast point 1 -->
-              <div class="why-item flex items-start gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/30">
-                <div class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-500 mt-0.5">
-                  <i class="fa-solid fa-bolt text-sm"></i>
-                </div>
-                <div>
-                  <div class="font-semibold text-sm mb-1">High-speed tools optimize for immediate chat responses</div>
-                  <p class="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">They prioritize fast feedback loops &mdash; great for quick fixes, but they break down on complex, multi-file feature work where alignment and correctness are paramount. Conversation history bloats, the AI gets confused, and code quality falls off a cliff.</p>
-                </div>
-              </div>
-
-              <!-- Contrast point 2 -->
-              <div class="why-item flex items-start gap-4 p-4 rounded-2xl bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-800/30">
-                <div class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 mt-0.5">
-                  <i class="fa-solid fa-diamond text-sm"></i>
-                </div>
-                <div>
-                  <div class="font-semibold text-sm mb-1">LoopTroop optimizes for a &ldquo;slow and perfect&rdquo; paradigm</div>
-                  <p class="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">It intentionally sacrifices raw speed to deliver a final result that matches exactly how you envisioned it. Instead of trusting a single, endless AI chat session, LoopTroop breaks the job into clean, separate stages.</p>
-                </div>
-              </div>
-
-              <!-- Pipeline visualization -->
-              <div class="why-item flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-brand-50 via-white to-amber-50 dark:from-brand-900/10 dark:via-zinc-800/50 dark:to-amber-900/10 border border-zinc-100 dark:border-zinc-700/30 overflow-hidden">
-                <div class="flex items-center gap-2 text-sm font-medium w-full overflow-x-auto pb-1 scrollbar-hide justify-start sm:justify-center">
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                    <i class="fa-solid fa-comments text-brand-500 text-xs"></i> Interview
-                  </span>
-                  <svg class="w-4 h-4 text-brand-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                    <i class="fa-solid fa-file-lines text-brand-500 text-xs"></i> PRD
-                  </span>
-                  <svg class="w-4 h-4 text-brand-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 shadow-sm">
-                    <i class="fa-solid fa-cubes text-amber-500 text-xs"></i> Beads
-                  </span>
-                  <svg class="w-4 h-4 text-amber-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700/40 shadow-sm">
-                    <i class="fa-solid fa-rotate text-rose-500 text-xs"></i> Ralph Loops
-                  </span>
-                  <svg class="w-4 h-4 text-emerald-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 shadow-sm">
-                    <i class="fa-solid fa-user-check text-emerald-500 text-xs"></i> Review
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- ============ SCREENSHOTS SHOWCASE ============ -->
-  <section id="screenshots" class="py-20 md:py-28 bg-zinc-50/50 dark:bg-zinc-900/30">
+  <section id="screenshots" class="pt-12 pb-20 md:pt-16 md:pb-28 bg-zinc-50/50 dark:bg-zinc-900/30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-16 fade-up">
         <span class="inline-block px-3 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 rounded-full border border-brand-200 dark:border-brand-700/40 mb-4 uppercase tracking-wider">App Preview</span>
@@ -639,6 +566,82 @@
                   <li class="flex items-start gap-2.5 text-sm text-zinc-600 dark:text-zinc-400"><i class="fa-solid fa-check text-brand-500 mt-0.5 text-xs"></i> Identical fresh-context recovery</li>
                   <li class="flex items-start gap-2.5 text-sm text-zinc-600 dark:text-zinc-400"><i class="fa-solid fa-check text-brand-500 mt-0.5 text-xs"></i> Side-by-side error comparison</li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHY LOOP TROOP ============ -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Statement card -->
+      <div class="fade-up relative">
+        <div class="relative rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 sm:p-12 md:p-16 shadow-sm overflow-hidden">
+          <!-- Decorative accent -->
+          <div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-brand-400 via-brand-500 to-brand-600 rounded-r-full"></div>
+          <div class="absolute top-0 right-0 w-64 h-64 bg-brand-50 dark:bg-brand-900/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+
+          <div class="relative z-10">
+            <div class="flex items-center gap-3 mb-8">
+              <div class="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-700/40">
+                <i class="fa-solid fa-bullseye text-brand-600 dark:text-brand-400"></i>
+              </div>
+              <span class="text-sm font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider">Why LoopTroop</span>
+            </div>
+
+            <p class="text-xl sm:text-2xl font-bold leading-relaxed mb-6 text-zinc-900 dark:text-zinc-50">
+              LoopTroop is a <span class="gradient-text">local GUI orchestrator</span> for long-running, high-correctness AI software delivery &mdash; taking you from a raw idea to merged code. Free and fully open-source.
+            </p>
+
+            <div class="space-y-5 stagger-in" id="whyContainer">
+              <!-- Contrast point 1 -->
+              <div class="why-item flex items-start gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/30">
+                <div class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-500 mt-0.5">
+                  <i class="fa-solid fa-bolt text-sm"></i>
+                </div>
+                <div>
+                  <div class="font-semibold text-sm mb-1">High-speed tools optimize for immediate chat responses</div>
+                  <p class="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">They prioritize fast feedback loops &mdash; great for quick fixes, but they break down on complex, multi-file feature work where alignment and correctness are paramount. Conversation history bloats, the AI gets confused, and code quality falls off a cliff.</p>
+                </div>
+              </div>
+
+              <!-- Contrast point 2 -->
+              <div class="why-item flex items-start gap-4 p-4 rounded-2xl bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-800/30">
+                <div class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 mt-0.5">
+                  <i class="fa-solid fa-diamond text-sm"></i>
+                </div>
+                <div>
+                  <div class="font-semibold text-sm mb-1">LoopTroop optimizes for a &ldquo;slow and perfect&rdquo; paradigm</div>
+                  <p class="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">It intentionally sacrifices raw speed to deliver a final result that matches exactly how you envisioned it. Instead of trusting a single, endless AI chat session, LoopTroop breaks the job into clean, separate stages.</p>
+                </div>
+              </div>
+
+              <!-- Pipeline visualization -->
+              <div class="why-item flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-brand-50 via-white to-amber-50 dark:from-brand-900/10 dark:via-zinc-800/50 dark:to-amber-900/10 border border-zinc-100 dark:border-zinc-700/30 overflow-hidden">
+                <div class="flex items-center gap-2 text-sm font-medium w-full overflow-x-auto pb-1 scrollbar-hide justify-start sm:justify-center">
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                    <i class="fa-solid fa-comments text-brand-500 text-xs"></i> Interview
+                  </span>
+                  <svg class="w-4 h-4 text-brand-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                    <i class="fa-solid fa-file-lines text-brand-500 text-xs"></i> PRD
+                  </span>
+                  <svg class="w-4 h-4 text-brand-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 shadow-sm">
+                    <i class="fa-solid fa-cubes text-amber-500 text-xs"></i> Beads
+                  </span>
+                  <svg class="w-4 h-4 text-amber-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700/40 shadow-sm">
+                    <i class="fa-solid fa-rotate text-rose-500 text-xs"></i> Ralph Loops
+                  </span>
+                  <svg class="w-4 h-4 text-emerald-400 shrink-0 flow-arrow-animated" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 shadow-sm">
+                    <i class="fa-solid fa-user-check text-emerald-500 text-xs"></i> Review
+                  </span>
+                </div>
               </div>
             </div>
           </div>

@@ -92,7 +92,7 @@ looptroop open
 
 That is both steps: `open` starts LoopTroop in the background if it is not
 already running, then points a browser at it. It serves the interface and the API
-from **one address on port 3000** — there is no separate web server to configure.
+from **one address on port 3000**.
 
 What `open` gives the browser is a **signed-in link**: a single-use code in the
 URL fragment, exchanged for a session cookie. The fragment never reaches an
@@ -102,23 +102,14 @@ access log, and there is no password to set. Sessions last 12 hours; run
 ```bash
 looptroop status    # is it running?
 looptroop logs -f   # what is it doing?
-looptroop doctor    # can this machine run it?
 looptroop stop
 ```
 
-`looptroop doctor` is the one to run when something looks wrong: it names what is
-missing rather than letting the first ticket fail, and tells you which channel
-this copy came from and the exact command that upgrades it.
-
-> [!IMPORTANT]
-> If OpenCode is running on a port other than `4096`, point LoopTroop at it:
-> `export LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:YOUR_PORT`
-
-The daemon binds loopback only and will not bind wider by omission. Every
-command and flag is in the [CLI Reference](cli.md); the two variables that change
-the bind, and the token they require, are in
-[Configuration](configuration.md); what to do when it misbehaves is in
-[Runtime Diagnostics](diagnostics.md).
+Every command and flag is in the [CLI Reference](cli.md). Settings, ports and the
+configuration directory are in [Configuration](configuration.md); when something
+misbehaves, [Runtime Diagnostics](diagnostics.md) covers `looptroop doctor` and
+the rest; [Installation](installation.md) covers upgrading and uninstalling; and
+[Operations](operations.md) covers running it day to day.
 
 ## 4. Setting Up Your AI Council
 
@@ -177,9 +168,6 @@ Free APIs can experience rate-limiting or latency spikes. Community trackers hel
 4. If the repository already has a `.looptroop` state folder, choose whether to restore everything, keep the project settings while clearing all tickets, or delete that state and start fresh. The two destructive choices show exactly what will be deleted and require confirmation.
 5. Create your first **Ticket** with a description of the feature or fix you want.
 
-> [!WARNING]
-> Clearing tickets or starting fresh also removes active ticket data, artifacts, logs, and managed worktrees. It does not delete repository source files, commits, or branches. Clearing tickets resets numbering, so the next ticket starts at `<SHORTNAME>-1` and can reuse an identifier found on an older surviving branch.
-
 Once submitted, LoopTroop kicks off an **interview phase** to clarify your intent, then generates a structured spec and implementation plan before any code is written. You review and approve at each gate.
 
 ## What Happens After Your First Ticket?
@@ -193,13 +181,6 @@ Your ticket flows through a structured pipeline — each stage has a clear purpo
 5. **Review** — you inspect the final diff, commits, and changes before merging.
 
 For the full lifecycle, see [Ticket Flow](ticket-flow.md).
-
-## Working on LoopTroop itself
-
-Everything above installs LoopTroop to use it. To develop LoopTroop instead,
-run it from a checkout — that is the development stack, with Vite and hot
-reload, and it is covered in
-[Installation](installation.md#working-on-looptroop-itself).
 
 ## Next Steps
 
