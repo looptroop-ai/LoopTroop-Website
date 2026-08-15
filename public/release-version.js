@@ -1,6 +1,17 @@
 const RELEASE_API_URL = 'https://api.github.com/repos/looptroop-ai/LoopTroop/releases/latest'
 const CACHE_KEY = 'looptroop.latest-release'
-export const CACHE_TTL_MS = 6 * 60 * 60 * 1000
+
+/**
+ * How long a cached version is served without asking GitHub again.
+ *
+ * This was six hours, which meant the badge kept naming the previous release
+ * for most of a day after one shipped — the cache was fresh, so nothing
+ * refetched, and the page looked like the release had not happened. Fifteen
+ * minutes still spares GitHub's unauthenticated rate limit (60/hour per IP,
+ * shared by everyone behind the same NAT) while making a release visible in
+ * minutes rather than hours.
+ */
+export const CACHE_TTL_MS = 15 * 60 * 1000
 
 export function normalizeReleaseTag(value) {
   if (typeof value !== 'string') return null
