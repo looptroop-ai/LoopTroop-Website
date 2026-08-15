@@ -47,11 +47,11 @@ The session cookie is set `HttpOnly` so no script on the page can read it,
 `SameSite=Strict` so another site cannot drive the control API with it. Sessions
 last 12 hours.
 
-There is no way to authenticate by query string, with one deliberate exception
-noted below for `EventSource`. Requests are also restricted to this machine and
-to this daemon's own address, so a page served from a different port on the same
-loopback interface cannot drive it with a cookie the browser would otherwise
-attach — cookies carry no port scope of their own.
+There is no way to authenticate by query string, including for `EventSource`.
+Requests are also restricted to this machine and to this daemon's own address,
+so a page served from a different port on the same loopback interface cannot
+drive it with a cookie the browser would otherwise attach — cookies carry no
+port scope of their own.
 
 ## Conventions
 
@@ -67,12 +67,14 @@ attach — cookies carry no port scope of their own.
 > [!IMPORTANT]
 > **The paragraph below is the development stack only.** An installed daemon
 > uses the credentials in [Reaching An Installed Daemon](#reaching-an-installed-daemon)
-> above, and its middleware is a different one with different rules — in
-> particular it accepts **no query-string token at all**. Do not mix the two.
+> above, and its middleware is a different one with different rules. Do not mix
+> the two.
 
-In the development stack (`npm run dev`), when `LOOPTROOP_API_TOKEN` is configured, every `/api/*` route requires either `X-LoopTroop-Token: <token>` or `Authorization: Bearer <token>`. There, `/api/stream` also accepts `apiToken=<token>` as a query parameter, because browser `EventSource` clients cannot set custom headers; that path is less secure than header auth, because URLs reach access logs and browser history. `npm run dev` generates an ephemeral token when needed and keeps it server-side; the Vite dev proxy injects it for same-origin `/api` requests.
+In the development stack (`npm run dev`), when `LOOPTROOP_API_TOKEN` is configured, every `/api/*` route requires either `X-LoopTroop-Token: <token>` or `Authorization: Bearer <token>`. `npm run dev` generates an ephemeral token when needed and keeps it server-side; the Vite dev proxy injects it for same-origin `/api` requests, including `/api/stream`. Query-string authentication is not accepted.
 
-**The installed daemon has no equivalent.** Its session middleware accepts a session cookie or a bearer token and nothing else — there is deliberately no query-parameter path, and a same-origin `EventSource` sends the cookie on its own, so the one case that needed it no longer does.
+**The installed daemon uses a different authentication path.** Its session middleware accepts a session cookie or a bearer token and nothing else. A same-origin browser `EventSource` sends the session cookie on its own.
+
+The development proxy also preserves the backend's cross-origin protection when the frontend is reached through another same-origin address, such as an HTTPS Tailscale URL. Before proxying to the loopback backend, Vite normalizes the `Origin` header only when the browser marks the request as same-origin and the `Origin` authority exactly matches the incoming frontend `Host`. An `Origin` from an unrelated site stays unchanged, so the backend rejects it with `403`.
 
 Invalid or missing credentials return `401`. If auth is required but no backend token is configured and unauthenticated mode is not allowed, the middleware returns `503`.
 
@@ -90,7 +92,7 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | `GET` | `/api/workflow/meta` | Current workflow groups and phases |
 | `GET` | `/api/stream?ticketId=<id>` | Ticket-scoped SSE stream using the composite ticket ref; validates the ticket and enforces stream caps |
 
-`/api/stream` also accepts a `lastEventId` query parameter. In the development stack it additionally accepts `apiToken` when header auth is not available; **an installed daemon does not** — its middleware takes a session cookie or a bearer token only, and a same-origin `EventSource` sends the cookie itself. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible. The stream route rejects the 7th concurrent client for the same ticket and rejects new streams once the global total reaches 100 active clients.
+`/api/stream` also accepts a `lastEventId` query parameter. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible. The stream route rejects the 7th concurrent client for the same ticket and rejects new streams once the global total reaches 100 active clients.
 
 After a completed assistant turn is recorded, an `ai_metrics` event carries only `ticketId`, `phase`, `phaseAttempt`, `modelId`, and `updatedAt`. It invalidates an already-open AI/model details query; token and cost values remain in the authenticated REST response rather than the SSE replay buffer.
 
