@@ -131,15 +131,18 @@ The docs links on each control point back to this page, but the UI itself also h
 - **Duplicate model selection is prevented.** The main implementer is auto-included in the council, and the picker disables models already chosen in another council slot.
 - **Effort controls are conditional.** The effort / thinking picker only appears when the selected model advertises variants, and the saved variant is stored per slot.
 - **Numeric validation is strict.** All numeric fields must be whole numbers. AI Response Timeout, Execution Setup Timeout, Per-Iteration Timeout, and OpenCode Retry Grace Window keep total seconds as the saved value and show compact synchronized Minutes and Seconds editors inside the same field; changing either representation updates the other immediately. Coverage remains displayed in percent, while the API stores timeout/delay values in milliseconds.
-- **The `About` button opens a separate window for application details.** It starts with the current runtime environment, then shows the application's storage locations and a short note explaining that each attached project also keeps local LoopTroop state inside `<repo>/.looptroop/`.
+- **The `About` button opens a separate window for application and update details.** The version beside the header title opens the same window. A quiet monochrome icon appears beside that version only when a newer published release is available.
 
 ### About Window
 
-The **About** window is a read-only summary of the current runtime environment and storage layout.
+The **About** window is a read-only summary of updates, the current runtime environment, and storage layout.
 
 It shows:
 
-- the app version;
+- the current and latest published app versions;
+- whether an update is available and which install channel owns this copy;
+- the exact ordered upgrade, restart, or container-recreation guidance for that channel;
+- a **Changelog** button that opens the latest GitHub release and shows its complete release body on hover or keyboard focus;
 - the operating system / runtime environment;
 - the application location;
 - the app database path;
@@ -147,8 +150,9 @@ It shows:
 - the current number of attached projects;
 - a short note explaining that each attached project also keeps local LoopTroop state inside its own `.looptroop/` folder.
 
-This is meant to answer two quick questions without opening logs or artifacts:
+This is meant to answer three quick questions without opening logs or artifacts:
 
+- "Is there a newer version, and how do I update this particular installation?"
 - "Where does the app keep its own data?"
 - "Where does each project keep its local LoopTroop state?"
 

@@ -3,6 +3,11 @@
 `looptroop` runs LoopTroop as a background service. Installing it puts one
 command on your `PATH`; everything else happens through that.
 
+The commands people use to identify, inspect, or launch LoopTroop —
+`--version`, `status`, `doctor`, `start`, and `open` — check the cached latest
+published GitHub release. Human-readable output adds channel-aware update steps
+only when a newer version exists. The check never installs anything.
+
 ## Commands and options
 
 The block below is generated from the CLI's own usage text, so it cannot drift
@@ -59,6 +64,10 @@ looptroop restart         # stop, then start
 looptroop stop
 ```
 
+`status --json` includes an `update` object with current/latest versions,
+availability, install channel, ordered upgrade commands, and GitHub release
+details. It remains JSON-only even when an update is available.
+
 > [!IMPORTANT]
 > **One daemon per configuration directory.** The lock records which process
 > holds it rather than only when it last checked in, so a suspended laptop does
@@ -107,11 +116,17 @@ looptroop doctor
 looptroop doctor --json
 ```
 
-`doctor` runs thirteen checks: Node, `git`, `gh` and its authentication, the
+`doctor` runs fourteen checks: the current and latest published LoopTroop
+versions; Node; `git`; `gh` and its authentication; the
 configuration directory, how this copy was installed, the database schema, the
 last start, the project's git ignores, the OpenCode CLI and OpenCode itself, the
 port, and the daemon. See [Runtime Diagnostics](diagnostics.md) for what each
 check means and what to do when one fails.
+
+Unlike the other human-readable commands, Doctor always prints both version
+values. If GitHub cannot be reached and no cached answer exists, latest is shown
+as `unavailable`. `doctor --json` emits `{ ok, update, checks }`; scripts do not
+need to parse the human version line.
 
 > [!NOTE]
 > **`doctor` exits non-zero when any check fails**, which is what makes it usable

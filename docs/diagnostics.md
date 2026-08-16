@@ -23,8 +23,9 @@ looptroop doctor
 looptroop doctor --json
 ```
 
-It checks the machine rather than a ticket, in thirteen checks: the Node version
-against the floor this release requires; `git` and `gh`, plus whether `gh` is
+It checks the machine rather than a ticket, in fourteen checks: the current and
+latest published LoopTroop versions; the Node version against the floor this
+release requires; `git` and `gh`, plus whether `gh` is
 authenticated; the configuration directory; which channel this copy came from;
 the database schema; why the last start failed, if it did; whether the project's
 git ignores are in place; the OpenCode CLI and whether OpenCode is reachable;
@@ -40,8 +41,9 @@ ticket and nothing before it.
 > in a script, and it means a fresh machine with no OpenCode configured yet
 > reports a failure by design rather than by fault.
 
-`--json` emits `{ ok, checks }` on stdout and nothing else, so it can be piped
-into a parser.
+`--json` emits `{ ok, update, checks }` on stdout and nothing else, so it can be
+piped into a parser. `update` contains the current/latest versions, availability,
+install channel, ordered upgrade commands, and latest GitHub release details.
 
 ### The install check
 
@@ -64,9 +66,11 @@ are inferred from the install path. The answer can legitimately be **unknown** â
 an archive unpacked by hand has no evidence to read â€” and in that case the advice
 is generic rather than confidently wrong.
 
-LoopTroop also checks the registry once a day for a newer version and prints the
-right upgrade command for this channel. It prints nothing at all when the check
-cannot reach the registry.
+Doctor always shows the current and latest known versions. Release discovery uses
+the latest published stable GitHub release, with a 15-minute cache shared by the
+CLI and interface. When GitHub cannot be reached, the last known release is kept;
+with no cached answer, Doctor prints `latest unavailable`. Other human-readable
+commands stay silent unless a newer version is known.
 
 ## 2. Runtime Stall Report
 

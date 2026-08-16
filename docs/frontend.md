@@ -40,6 +40,7 @@ Most modal routes and workspace views are also lazy-loaded through `lazyWithChun
 - centered modal routes for Configuration (`/config`), Projects (`/project/new`), and New Ticket (`/ticket/new`)
 - deep-link ticket selection from `/ticket/:externalId`
 - header controls for dashboard search, New Ticket, Projects, Configuration, Docs, Refresh, and theme switching; on desktop the ticket search sits beside **New Ticket**, while mobile uses a search popover to preserve header space
+- a clickable version beside the LoopTroop title that opens About; when `/api/health/update` reports a newer published release, the badge gains a deliberately quiet monochrome update icon without changing color
 - display-only mock/demo ticket IDs render with a superscript `(M)` marker in board cards and selected-ticket dashboard surfaces while keeping the raw external ID for routing, file paths, and artifacts; the dashboard exposes Cancel for non-terminal mock/demo tickets while keeping runnable workflow controls hidden
 
 ### Ticket Dashboard Coordination
@@ -323,6 +324,13 @@ This is why keeping the docs aligned with `workflowMeta` matters: the UI is buil
 ## 10. Configuration, Projects, And Settings UI
 
 `ProfileSetup` (`src/components/config/ProfileSetup.tsx`) is the main configuration form. It is opened from the app header and lets you set all model and workflow defaults. The adjacent Projects modal (`ProjectsPanel` / `ProjectForm`) handles repository attachment, restore, and cleanup operations for local projects.
+
+The About modal also consumes `useUpdateStatus`. It shows current/latest
+versions, the install channel and ordered update lifecycle, while its Changelog
+hover/focus card renders the complete latest GitHub release body in a bounded
+scroll area. Clicking Changelog opens the same release on GitHub. React Query
+keeps this data fresh on window focus while the backend owns the shared
+15-minute network/cache policy.
 
 ### Model Selection
 

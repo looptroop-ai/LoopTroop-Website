@@ -203,14 +203,45 @@ gh attestation verify looptroop-<version>-linux-x64.tar.gz --repo looptroop-ai/L
 looptroop doctor
 ```
 
-tells you which channel your copy came from and the exact command that upgrades
-it. Use that rather than guessing: **each package manager only upgrades its own
-installation.** Running `npm install -g looptroop@latest` against a bun or pnpm
-installation does not upgrade it — it installs a second copy under npm's prefix,
-leaves the first one where it is, and which one runs afterwards depends on the
-order of your `PATH`.
+tells you the current version, the latest published GitHub version, which channel
+your copy came from, and the exact ordered commands that upgrade it. The same
+update notice appears after `looptroop --version`, `looptroop status`,
+`looptroop start`, and `looptroop open` whenever a newer release exists.
 
-Two channels have a caveat worth knowing in advance:
+In the interface, click the version beside the LoopTroop title to open
+**About**. A small monochrome update icon appears beside that version when an
+update is available. About shows the current and latest versions, channel-aware
+upgrade steps, and a **Changelog** button. Hover or focus the button to read the
+complete latest GitHub release notes; click it to open that release on GitHub.
+
+Release information is refreshed from GitHub and cached for 15 minutes. A failed
+lookup keeps the last known release and is also briefly cached, so an offline
+machine does not wait on the same network timeout for every command. Only a
+published GitHub release is announced: drafts and prereleases are not treated as
+the next stable update.
+
+GitHub is the common release signal, but a downstream package channel can still
+take longer to publish or index that version. The displayed guidance retains the
+correct channel-specific caveat: pnpm commonly waits about 24 hours, Chocolatey
+and WinGet can be held for review, and other managed channels or the container
+tag can briefly lag. If the manager says the displayed version is unavailable,
+keep the existing installation and retry later.
+
+Use the detected command rather than guessing: **each package manager only
+upgrades its own installation.** Running `npm install -g looptroop@latest`
+against a bun or pnpm installation does not upgrade it — it installs a second
+copy under npm's prefix, leaves the first one where it is, and which one runs
+afterwards depends on the order of your `PATH`.
+
+For npm, bun, pnpm, Yarn, Homebrew, Scoop, Chocolatey, AUR and source installs,
+the displayed final step is `looptroop restart`. Replacing package files does not
+replace the code already loaded by a running daemon. The standalone installer
+stops, verifies, rolls back if necessary, and restarts the daemon itself. A
+container is different: after pulling the image, recreate the container with the
+same volumes, ports and environment settings; a pull alone does not replace a
+running container.
+
+Channel caveats worth knowing in advance:
 
 - **pnpm arrives about a day late.** pnpm will not resolve a tag to a version
   published within roughly the last 24 hours — a supply-chain protection, on by
@@ -226,7 +257,8 @@ Two channels have a caveat worth knowing in advance:
 - **WinGet needs the daemon stopped first.** Windows will not replace a running
   executable, and the daemon holds it open. `looptroop stop` is printed as a
   separate line rather than joined with `&&`, because no single joining operator
-  is valid in both PowerShell 5.1 and `cmd.exe`.
+  is valid in both PowerShell 5.1 and `cmd.exe`. After the upgrade, the displayed
+  `looptroop open` step starts the new version and opens the interface.
 
 ## Uninstalling
 
