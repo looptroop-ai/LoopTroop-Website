@@ -318,8 +318,12 @@ function sendJson(response, status, payload, cacheControl) {
 }
 
 export default async function handler(request, response) {
-  if (request.method !== 'GET') {
-    response.setHeader('Allow', 'GET')
+  // HEAD is served exactly like GET. Anything that answers GET is expected to
+  // answer HEAD, and uptime monitors, link checkers and CDN probes all reach for
+  // it — refusing gave them a 405 for an endpoint that was in fact healthy. Node
+  // drops the body for a HEAD response on its own, so this needs no other care.
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    response.setHeader('Allow', 'GET, HEAD')
     sendJson(response, 405, { error: 'Method not allowed' }, ERROR_CACHE_CONTROL)
     return
   }

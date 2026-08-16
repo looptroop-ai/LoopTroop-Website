@@ -82,11 +82,6 @@ The commands are listed because they are what will work, unchanged, the day each
 clears. Until then every ✅ row is a real alternative on the same platform — Arch
 users can install with npm, and Windows users with Scoop.
 
-## Download statistics
-
-```project-stats
-```
-
 ## What each channel actually installs
 
 Four different things travel under the same version number, and the difference
@@ -512,3 +507,8 @@ For the full preflight specification, see [Operations Guide](operations.md).
 
 For non-mutating startup, forced maintenance, and manual maintenance commands, see [Operations Guide](operations.md).
 :::
+
+## Download statistics
+
+```project-stats
+```

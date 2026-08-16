@@ -132,7 +132,9 @@ export function renderProjectStats(documentRef, stats) {
     element.textContent = downloads
   }
 
-  const stars = ` · ${formatProjectCount(stats.repository.stars)}`
+  // Just the number: it sits before the icon and the label, so it carries no
+  // separator of its own — the button's own gap spacing does that.
+  const stars = formatProjectCount(stats.repository.stars)
   for (const element of documentRef?.querySelectorAll?.('[data-project-stars]') ?? []) {
     element.textContent = stars
     element.hidden = false

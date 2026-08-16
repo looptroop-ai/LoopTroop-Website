@@ -124,7 +124,7 @@ test('renders exact localized downloads and stars after a live response', async 
 
   assert.equal(result?.stale, false)
   assert.equal(targets.downloads[0].textContent, `${formatProjectCount(1_075)} downloads`)
-  assert.equal(targets.stars[0].textContent, ` · ${formatProjectCount(119)}`)
+  assert.equal(targets.stars[0].textContent, formatProjectCount(119), 'the count carries no separator; it leads the button')
   assert.equal(targets.stars[0].hidden, false)
   assert.equal(formatProjectCount(123_456, 'en-US'), '123,456')
 })

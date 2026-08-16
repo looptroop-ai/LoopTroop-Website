@@ -237,9 +237,29 @@ test('a non-GET request is refused without touching an upstream', async () => {
   await handler({ method: 'POST' }, response)
 
   assert.equal(response.statusCode, 405)
-  assert.equal(response.getHeader('allow'), 'GET')
+  assert.equal(response.getHeader('allow'), 'GET, HEAD')
   // Deterministic, so unlike an upstream failure there is nothing to re-check.
   assert.equal(response.getHeader('cache-control'), ERROR_CACHE_CONTROL)
+})
+
+test('HEAD is answered like GET, because monitors and link checkers use it', async (t) => {
+  const originalFetch = globalThis.fetch
+  t.after(() => { globalThis.fetch = originalFetch })
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/repos/looptroop-ai/LoopTroop')) return jsonResponse({ stargazers_count: 1 })
+    if (url.includes('/releases?')) return jsonResponse([release([asset('looptroop-1.0.0.tgz', 2)])])
+    if (url === 'https://registry.npmjs.org/looptroop') {
+      return jsonResponse({ time: { created: '2026-08-01T00:00:00.000Z' } })
+    }
+    if (url.includes('api.npmjs.org/downloads/point')) return jsonResponse({ downloads: 3 })
+    return jsonResponse({ pull_count: 4 })
+  }
+
+  const response = createResponse()
+  await handler({ method: 'HEAD' }, response)
+
+  assert.equal(response.statusCode, 200)
+  assert.equal(response.getHeader('cache-control'), SUCCESS_CACHE_CONTROL)
 })
 
 test('successful responses carry the one-hour CDN cache policy', async (t) => {
