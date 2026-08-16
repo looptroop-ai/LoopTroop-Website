@@ -190,11 +190,16 @@ Get-FileHash looptroop-<version>-win-x64.zip -Algorithm SHA256
 is what the installers check against — `checksums.sha256` is generated from it,
 so the two cannot disagree.
 
-The four executables also carry a **build provenance attestation**: a signed
-statement of which workflow, repository and commit produced those exact bytes.
+Every downloadable asset also carries a **build provenance attestation**: a
+signed statement of which workflow, repository and commit produced those exact
+bytes. That covers the four executables, the npm tarball, the bundle, both
+installer scripts, `release-manifest.json` and `checksums.sha256` — so the
+scripts you pipe into a shell are verifiable, not only the executables you
+unpack.
 
 ```bash
 gh attestation verify looptroop-<version>-linux-x64.tar.gz --repo looptroop-ai/LoopTroop
+gh attestation verify install.sh --repo looptroop-ai/LoopTroop
 ```
 
 ## Upgrading
