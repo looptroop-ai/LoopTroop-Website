@@ -36,7 +36,7 @@ Everything else differs by channel, so read the row you are actually using.
 | Channel | Node | git | `gh` |
 | --- | --- | --- | --- |
 | **Installer script** | you provide it — the installer is a Node program and never installs Node | you provide it | you provide it |
-| **npm, bun, pnpm** | you provide **24.15.0+** (and npm **11.12.1+**) | you provide it | you provide it |
+| **npm, bun, pnpm, Yarn** | you provide **24.15.0+** (and npm **11.12.1+**) | you provide it | you provide it |
 | **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
 | **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
 | **Chocolatey** ⏳ | installed for you (`nodejs-lts`) | installed for you | installed for you |
@@ -59,12 +59,13 @@ rather than failing.
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
 | **pnpm** (everywhere) | `pnpm add -g looptroop` | `pnpm add -g looptroop@latest` | ✅ |
+| **Yarn Classic** (everywhere) | `yarn global add looptroop` | `yarn global upgrade looptroop@latest` | ✅ |
 | **Homebrew** (macOS, Linux) | `brew install looptroop-ai/tap/looptroop` | `brew upgrade looptroop` | ✅ |
 | **Scoop** (Windows) | `scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket`<br>`scoop install looptroop` | `scoop update looptroop` | ✅ |
 | **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest`<br>or `docker pull ghcr.io/looptroop-ai/looptroop:latest` | pull again | ✅ |
 | **Chocolatey** (Windows) | `choco install looptroop` | `choco upgrade looptroop` | ⏳ |
 | **WinGet** (Windows) | `winget install LoopTroopAI.LoopTroop` | `looptroop stop`<br>`winget upgrade LoopTroopAI.LoopTroop` | ⏳ |
-| **AUR** (Arch Linux) | `yay -S looptroop-bin` | `yay -Syu looptroop-bin` | ⏳ |
+| **AUR** (Arch Linux) | `yay -S looptroop-bin`<br>or `paru -S looptroop-bin` | `yay -Syu looptroop-bin`<br>or `paru -Syu looptroop-bin` | ⏳ |
 
 ### ⏳ means the command does not work yet
 
@@ -216,6 +217,12 @@ Two channels have a caveat worth knowing in advance:
   default — so `pnpm add -g looptroop@latest` installs the newest release older
   than that window. Asking for an exact version (`pnpm add -g looptroop@1.2.3`)
   bypasses it.
+- **Yarn means Yarn Classic.** Yarn 2 removed `yarn global` and never replaced
+  it, so there is no global install in modern Yarn — `yarn global add looptroop`
+  on Yarn 4 does not report an unknown command, it reads `global` as a package
+  name and fails with a confusing lockfile error. On modern Yarn, either run it
+  without installing (`yarn dlx looptroop`) or install it with one of the other
+  channels on this page.
 - **WinGet needs the daemon stopped first.** Windows will not replace a running
   executable, and the daemon holds it open. `looptroop stop` is printed as a
   separate line rather than joined with `&&`, because no single joining operator
@@ -239,7 +246,7 @@ looptroop stop
 | **Scoop** | `scoop uninstall looptroop` |
 | ⏳ **Chocolatey** | `choco uninstall looptroop` |
 | ⏳ **WinGet** | `winget uninstall LoopTroopAI.LoopTroop` |
-| ⏳ **AUR** | `yay -R looptroop-bin` |
+| ⏳ **AUR** | `yay -R looptroop-bin`, or `paru -R looptroop-bin` |
 | **Installer script (default mode)** | `npm uninstall -g looptroop` — it installs through npm, so npm removes it |
 | **Installer script (`--binary`)** | no command; remove the install directory, below |
 | **Container** | `docker rmi looptroopai/looptroop:latest`<br>or `docker rmi ghcr.io/looptroop-ai/looptroop:latest` |

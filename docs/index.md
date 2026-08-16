@@ -61,6 +61,11 @@ pnpm add -g looptroop
 looptroop open
 ```
 
+```bash [Yarn]
+yarn global add looptroop
+looptroop open
+```
+
 ```bash [Docker]
 docker pull looptroopai/looptroop:latest
 ```

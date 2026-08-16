@@ -2034,6 +2034,14 @@ search: false
 
 ## Low Priority
 
+*   **More install channels (only on real demand):** LoopTroop already installs from npm, bun, pnpm, Yarn Classic, Homebrew, Scoop, a one-line installer, a standalone executable and a container, with Chocolatey, WinGet and the AUR built and waiting on other people's queues. Everything below is a channel nobody has asked for yet. Each entry names the actual obstacle, because they are not all the same size — some are work, and two are a conflict with what LoopTroop does.
+    *   **apt / deb and dnf / rpm:** the packaging is routine; the cost is standing up signed repositories and then owning the signing keys, their rotation and their compromise story, forever. Only worth it if enough Linux users ask for a system package that the installer script does not satisfy.
+    *   **Nix flake:** was deliberately dropped during the CLI distribution work as scope nobody had asked for. Listing it again is a reversal, not an oversight — pick it up only if Nix users actually appear.
+    *   **Snap:** needs `classic` confinement, which requires a manual review and justification from Canonical. Strict confinement cannot work: LoopTroop runs git, `gh`, OpenCode and arbitrary project test commands against a repository anywhere on disk, which is what confinement exists to prevent.
+    *   **Flatpak:** the same conflict, and worse — it would need `--filesystem=host` plus host command execution, which removes most of the sandbox that is the reason to ship a Flatpak at all.
+    *   **Microsoft Store:** MSIX packaging and identity, plus store review. The WinGet manifest already covers most Windows users who want a package, so this is mainly discoverability.
+    *   **Mac App Store:** effectively closed. App Store sandboxing forbids running arbitrary user binaries, which is LoopTroop's whole job. Homebrew is the macOS answer.
+    *   **Others worth considering if asked for:** `asdf`/`mise` plugins (developer-tool version managers, cheap to add), Arch's official `extra` repository (needs a Trusted User to adopt it), MacPorts, and `pkgx`.
 *   **OSS Kanban Integration:** Containerized integration directly within an existing Open Source Kanban application.
 *   **Idle Status Display:** Display tips and informative text (or educational, entertainment, or news content) during long, unattended loops. Can be math, quizzes, trivia, small games, etc.
 *   **Analytics:** Dashboard for usage statistics and performance metrics, including execution trends over time, job volume, success rates, team activity, and current/pending jobs.

@@ -229,7 +229,8 @@
               <button onclick="switchInstall(3)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="3">Scoop</button>
               <button onclick="switchInstall(4)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="4">bun</button>
               <button onclick="switchInstall(5)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="5">pnpm</button>
-              <button onclick="switchInstall(6)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="6">Docker</button>
+              <button onclick="switchInstall(6)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="6">Yarn</button>
+              <button onclick="switchInstall(7)" class="install-tab shrink-0 px-3 py-2 text-xs font-medium font-mono border-b-2 border-transparent transition-colors text-zinc-400 hover:text-brand-400 cursor-pointer" data-install-tab="7">Docker</button>
             </div>
             <div>
               <div class="p-4 sm:p-5 overflow-x-auto">
@@ -260,6 +261,10 @@
                   <span class="terminal-row"><span class="line-num">2</span><span class="text-zinc-500">$</span> <span class="cmd">looptroop open</span></span>
                 </span>
                 <span class="install-panel hidden" data-install-panel="6">
+                  <span class="terminal-row"><span class="line-num">1</span><span class="text-zinc-500">$</span> <span class="cmd">yarn global add looptroop</span></span>
+                  <span class="terminal-row"><span class="line-num">2</span><span class="text-zinc-500">$</span> <span class="cmd">looptroop open</span></span>
+                </span>
+                <span class="install-panel hidden" data-install-panel="7">
                   <span class="terminal-row"><span class="line-num">1</span><span class="text-zinc-500">$</span> <span class="cmd">docker pull looptroopai/looptroop:latest</span></span>
                 </span>
               </code>
