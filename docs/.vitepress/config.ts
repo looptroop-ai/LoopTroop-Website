@@ -138,6 +138,10 @@ export default defineConfig({
           return `<MermaidBlock encoded="${encoded}" />`
         }
 
+        if (token.info.trim() === 'project-stats') {
+          return '<ProjectStats />'
+        }
+
         if (defaultFence) {
           return defaultFence(tokens, idx, options, env, self)
         }

@@ -288,6 +288,22 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
   flex-shrink: 0;
 }
 
+.project-stats-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgb(63 63 70 / 0.75);
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .project-stats-link {
+    margin-left: 8px;
+    padding-left: 8px;
+  }
+}
+
 /* Connector line for layers */
 .layer-connector {
   position: absolute;

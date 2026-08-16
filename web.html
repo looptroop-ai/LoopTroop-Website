@@ -25,6 +25,7 @@
   <link rel="icon" type="image/png" sizes="256x256" href="/favicon.png?v=20260429" />
   <link rel="apple-touch-icon" href="/trans-logo.png?v=20260429" />
   <script type="module" src="/release-version.js"></script>
+  <script type="module" src="/project-stats.js"></script>
   <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
   <meta property="og:title" content="LoopTroop — LLM Councils Plan It. Ralph Loops Perfect It. OpenCode Worktrees Ship It.">
@@ -190,7 +191,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
         <!-- Left: Text content -->
-        <div class="fade-up">
+        <div class="fade-up min-w-0">
           <!-- Eyebrow Pill (1 of max 3 on page) -->
           <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50/80 dark:bg-brand-950/40 border border-brand-200/80 dark:border-brand-800/50 mb-6 shadow-2xs backdrop-blur-xs">
             <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
@@ -216,6 +217,9 @@
               <div class="browser-dot bg-yellow-500/80"></div>
               <div class="browser-dot bg-green-500/80"></div>
               <span class="ml-3 text-xs text-zinc-400 font-mono font-medium">terminal</span>
+              <a href="/docs/installation#download-statistics" title="Download statistics" class="project-stats-link text-[11px] text-zinc-500 hover:text-zinc-200 transition-colors">
+                <i class="fa-solid fa-arrow-down text-[9px] mr-1.5" aria-hidden="true"></i><span data-project-downloads>Download stats</span>
+              </a>
               <!-- Quiet enough to read as window chrome rather than a call to
                    action: the CTAs below the terminal are the loud ones. -->
               <div class="ml-auto flex items-center gap-4">
@@ -283,7 +287,7 @@
               <i class="fa-solid fa-rocket text-xs"></i> Get Started Free
             </a>
             <a href="https://github.com/looptroop-ai/LoopTroop" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl border border-zinc-200 dark:border-zinc-700 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]">
-              <i class="fa-solid fa-star text-amber-400 text-xs"></i> Star on GitHub
+              <i class="fa-solid fa-star text-amber-400 text-xs"></i><span>Star on GitHub<span data-project-stars hidden></span></span>
             </a>
             <a href="/docs/" class="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl border border-zinc-200 dark:border-zinc-700 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]">
               <i class="fa-solid fa-book text-xs"></i> Docs
