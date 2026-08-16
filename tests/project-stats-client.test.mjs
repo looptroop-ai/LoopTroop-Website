@@ -10,16 +10,17 @@ import {
 } from '../public/project-stats.js'
 
 const stats = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   updatedAt: '2026-08-16T12:00:00.000Z',
   repository: { stars: 119 },
   downloads: {
-    total: 1_069,
+    total: 1_075,
     npmRegistry: 522,
     dockerHub: 525,
     github: {
       bundle: 7,
       standalone: 15,
+      npmTarball: 6,
       installerScripts: { posix: 67, powershell: 36, total: 103 },
     },
   },
@@ -39,7 +40,8 @@ function cacheValue(fetchedAt, value = stats) {
 
 test('accepts only complete, internally consistent statistics', () => {
   assert.deepEqual(normalizeProjectStats(stats), stats)
-  assert.equal(normalizeProjectStats({ ...stats, schemaVersion: 2 }), null)
+  assert.equal(normalizeProjectStats({ ...stats, schemaVersion: 1 }), null, 'a superseded schema is not read')
+  assert.equal(normalizeProjectStats({ ...stats, schemaVersion: 3 }), null)
   assert.equal(normalizeProjectStats({ ...stats, repository: {} }), null)
   assert.equal(normalizeProjectStats({
     ...stats,
@@ -121,7 +123,7 @@ test('renders exact localized downloads and stars after a live response', async 
   })
 
   assert.equal(result?.stale, false)
-  assert.equal(targets.downloads[0].textContent, `${formatProjectCount(1_069)} downloads`)
+  assert.equal(targets.downloads[0].textContent, `${formatProjectCount(1_075)} downloads`)
   assert.equal(targets.stars[0].textContent, ` · ${formatProjectCount(119)}`)
   assert.equal(targets.stars[0].hidden, false)
   assert.equal(formatProjectCount(123_456, 'en-US'), '123,456')

@@ -6,7 +6,7 @@ import {
 } from '../../../public/project-stats.js'
 
 interface ProjectStatsPayload {
-  schemaVersion: 1
+  schemaVersion: 2
   updatedAt: string
   repository: {
     stars: number
@@ -18,6 +18,7 @@ interface ProjectStatsPayload {
     github: {
       bundle: number
       standalone: number
+      npmTarball: number
       installerScripts: {
         posix: number
         powershell: number
@@ -55,9 +56,16 @@ const sources = computed(() => {
     {
       label: 'npm registry',
       value: downloads.npmRegistry,
-      description: 'Shared by npm, bun, pnpm, Yarn, and the default installer.',
+      description: 'Shared by npm, bun, pnpm, and Yarn.',
       href: 'https://www.npmjs.com/package/looptroop',
       linkLabel: 'View on npm',
+    },
+    {
+      label: 'Release tarball',
+      value: downloads.github.npmTarball,
+      description: 'The package archive the installer script downloads and hands to npm.',
+      href: 'https://github.com/looptroop-ai/LoopTroop/releases',
+      linkLabel: 'View GitHub releases',
     },
     {
       label: 'Docker Hub',
@@ -108,8 +116,8 @@ onMounted(async () => {
           <span>downloads</span>
         </p>
         <p class="project-stats__summary-copy">
-          A source-deduplicated total from the npm registry, Docker Hub, and GitHub
-          release bundles and standalone archives.
+          A source-deduplicated total from the npm registry, Docker Hub, and the
+          GitHub release bundles, standalone archives and package tarball.
         </p>
       </div>
 
@@ -146,8 +154,10 @@ onMounted(async () => {
           </div>
         </dl>
         <p>
-          These fetches are supplemental and excluded from the total because each
-          script goes on to use npm or download a standalone archive already counted above.
+          Fetching a script is not installing. These are excluded from the total
+          because a run that gets as far as installing then downloads the release
+          tarball or a standalone archive, both counted above — and most fetches
+          never get that far.
         </p>
       </div>
 
@@ -175,9 +185,14 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr>
-              <td>npm, bun, pnpm, Yarn, default installer</td>
+              <td>npm, bun, pnpm, Yarn</td>
               <td>Shared npm-registry downloads</td>
               <td>Yes, once</td>
+            </tr>
+            <tr>
+              <td>Installer script, default mode</td>
+              <td>GitHub release-tarball downloads — it installs that file rather than contacting the registry</td>
+              <td>Yes</td>
             </tr>
             <tr>
               <td>Homebrew, Scoop, AUR</td>
@@ -205,7 +220,12 @@ onMounted(async () => {
               <td>No; shown as supplemental</td>
             </tr>
             <tr>
-              <td>Chocolatey and GHCR</td>
+              <td>Chocolatey</td>
+              <td>Publicly reported, but nothing to count until the package clears moderation</td>
+              <td>Not yet</td>
+            </tr>
+            <tr>
+              <td>GHCR</td>
               <td>Not publicly reported</td>
               <td>No</td>
             </tr>

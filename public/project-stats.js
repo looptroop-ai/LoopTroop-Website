@@ -14,7 +14,7 @@ function isCount(value) {
  * sudden loss of every download the project has ever had.
  */
 export function normalizeProjectStats(value) {
-  if (!value || typeof value !== 'object' || value.schemaVersion !== 1) return null
+  if (!value || typeof value !== 'object' || value.schemaVersion !== 2) return null
 
   const updatedAt = typeof value.updatedAt === 'string' ? value.updatedAt : ''
   if (!updatedAt || !Number.isFinite(Date.parse(updatedAt))) return null
@@ -30,6 +30,7 @@ export function normalizeProjectStats(value) {
     downloads?.dockerHub,
     github?.bundle,
     github?.standalone,
+    github?.npmTarball,
     scripts?.posix,
     scripts?.powershell,
     scripts?.total,
@@ -40,11 +41,12 @@ export function normalizeProjectStats(value) {
     + downloads.dockerHub
     + github.bundle
     + github.standalone
+    + github.npmTarball
   if (downloads.total !== expectedTotal) return null
   if (scripts.total !== scripts.posix + scripts.powershell) return null
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: new Date(updatedAt).toISOString(),
     repository: { stars },
     downloads: {
@@ -54,6 +56,7 @@ export function normalizeProjectStats(value) {
       github: {
         bundle: github.bundle,
         standalone: github.standalone,
+        npmTarball: github.npmTarball,
         installerScripts: {
           posix: scripts.posix,
           powershell: scripts.powershell,

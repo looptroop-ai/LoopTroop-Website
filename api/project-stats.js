@@ -9,6 +9,19 @@ export const GITHUB_PAGE_SIZE = 100
 export const SUCCESS_CACHE_CONTROL = 'public, s-maxage=3600, stale-while-revalidate=86400'
 export const ERROR_CACHE_CONTROL = 'no-store'
 
+/**
+ * Failures are cached briefly, which is the opposite of the obvious choice.
+ *
+ * An uncached error means every page view during an outage launches another
+ * full fan-out: two GitHub requests, two npm, one Docker Hub. GitHub allows 60
+ * unauthenticated requests an hour per address, so the one failure this endpoint
+ * is most likely to hit is *being rate limited* — and with no negative caching
+ * the response to being throttled is to throttle harder, indefinitely. A minute
+ * of cached failure breaks that loop and still recovers faster than anyone
+ * watching a counter would notice.
+ */
+export const UPSTREAM_ERROR_CACHE_CONTROL = 'public, s-maxage=60'
+
 const DAY_MS = 24 * 60 * 60 * 1_000
 const MAX_NPM_WINDOW_DAYS = 365
 const MAX_GITHUB_PAGES = 100
@@ -17,6 +30,16 @@ const BUNDLE_PATTERN = new RegExp(`^looptroop-${VERSION}-bundle\\.tar\\.gz$`)
 const STANDALONE_PATTERN = new RegExp(
   `^looptroop-${VERSION}-(?:linux-x64|linux-arm64|darwin-arm64)\\.tar\\.gz$|^looptroop-${VERSION}-win-x64\\.zip$`,
 )
+/**
+ * The npm package tarball, attached to every release.
+ *
+ * Counted, because the installer script in its default mode downloads *this*
+ * and hands the local file to `npm install -g` — it never contacts the
+ * registry, so npm's own download figure does not see those installs at all.
+ * Leaving it out made the headline `curl … | sh` route invisible in a total
+ * that claimed to cover it.
+ */
+const NPM_TARBALL_PATTERN = new RegExp(`^looptroop-${VERSION}\\.tgz$`)
 
 function fail(message) {
   throw new TypeError(message)
@@ -72,13 +95,17 @@ function githubHeaders() {
 }
 
 export function classifyReleaseAsset(name) {
+  if (typeof name !== 'string') return null
   if (name === 'install.sh') return 'installer-posix'
   if (name === 'install.ps1') return 'installer-powershell'
-  if (typeof name !== 'string') return null
   if (BUNDLE_PATTERN.test(name)) return 'bundle'
   if (STANDALONE_PATTERN.test(name)) return 'standalone'
+  if (NPM_TARBALL_PATTERN.test(name)) return 'npm-tarball'
   return null
 }
+
+/** Categories that represent somebody obtaining the application itself. */
+const DISTRIBUTION_CATEGORIES = new Set(['bundle', 'standalone', 'npm-tarball'])
 
 export function aggregateGithubReleaseDownloads(releases) {
   if (!Array.isArray(releases)) fail('GitHub releases must be an array')
@@ -86,8 +113,18 @@ export function aggregateGithubReleaseDownloads(releases) {
   const counts = {
     bundle: 0,
     standalone: 0,
+    npmTarball: 0,
     installerScripts: { posix: 0, powershell: 0, total: 0 },
   }
+
+  // Asset names are matched by pattern, and an unrecognised name is skipped
+  // rather than counted — so a renamed or newly added artefact would drop out
+  // of the total in silence, which is the one failure this file cannot detect
+  // by validating harder. Releases are immutable, so drift can only appear in
+  // the newest one: if that release published assets and none of them is a way
+  // to obtain the application, the patterns have fallen behind the release
+  // workflow and the total is wrong.
+  let newestPublished = null
 
   for (const release of releases) {
     if (
@@ -100,6 +137,7 @@ export function aggregateGithubReleaseDownloads(releases) {
       fail('GitHub returned an invalid release')
     }
     if (release.draft || release.prerelease) continue
+    newestPublished ??= { assets: release.assets.length, distribution: 0 }
 
     for (const asset of release.assets) {
       if (!asset || typeof asset !== 'object' || typeof asset.name !== 'string') {
@@ -109,9 +147,11 @@ export function aggregateGithubReleaseDownloads(releases) {
       const category = classifyReleaseAsset(asset.name)
       if (!category) continue
       const downloads = requireSafeCount(asset.download_count, `Download count for ${asset.name}`)
+      if (newestPublished && DISTRIBUTION_CATEGORIES.has(category)) newestPublished.distribution += 1
 
       if (category === 'bundle') counts.bundle = addCounts(counts.bundle, downloads)
       if (category === 'standalone') counts.standalone = addCounts(counts.standalone, downloads)
+      if (category === 'npm-tarball') counts.npmTarball = addCounts(counts.npmTarball, downloads)
       if (category === 'installer-posix') {
         counts.installerScripts.posix = addCounts(counts.installerScripts.posix, downloads)
       }
@@ -119,6 +159,10 @@ export function aggregateGithubReleaseDownloads(releases) {
         counts.installerScripts.powershell = addCounts(counts.installerScripts.powershell, downloads)
       }
     }
+  }
+
+  if (newestPublished && newestPublished.assets > 0 && newestPublished.distribution === 0) {
+    fail('The newest published release has no recognised distribution asset')
   }
 
   counts.installerScripts.total = addCounts(
@@ -208,6 +252,7 @@ export function normalizeGithubDownloadCounts(github) {
 
   const bundle = requireSafeCount(github.bundle, 'GitHub bundle download count')
   const standalone = requireSafeCount(github.standalone, 'GitHub standalone download count')
+  const npmTarball = requireSafeCount(github.npmTarball, 'GitHub npm tarball download count')
   const posix = requireSafeCount(github.installerScripts.posix, 'POSIX installer download count')
   const powershell = requireSafeCount(
     github.installerScripts.powershell,
@@ -217,6 +262,7 @@ export function normalizeGithubDownloadCounts(github) {
   return {
     bundle,
     standalone,
+    npmTarball,
     installerScripts: { posix, powershell, total: addCounts(posix, powershell) },
   }
 }
@@ -230,11 +276,19 @@ export function buildProjectStats({ stars, npmRegistry, dockerHub, github, updat
   if (!Number.isFinite(timestamp.getTime())) fail('Statistics update time must be a valid date')
 
   return {
-    schemaVersion: 1,
+    // 2 adds `downloads.github.npmTarball` and folds it into the total. The
+    // client rejects any other version outright, which retires stale caches.
+    schemaVersion: 2,
     updatedAt: timestamp.toISOString(),
     repository: { stars: safeStars },
     downloads: {
-      total: addCounts(safeNpm, safeDocker, safeGithub.bundle, safeGithub.standalone),
+      total: addCounts(
+        safeNpm,
+        safeDocker,
+        safeGithub.bundle,
+        safeGithub.standalone,
+        safeGithub.npmTarball,
+      ),
       npmRegistry: safeNpm,
       dockerHub: safeDocker,
       github: safeGithub,
@@ -278,7 +332,7 @@ export default async function handler(request, response) {
       response,
       502,
       { error: 'Project statistics are temporarily unavailable' },
-      ERROR_CACHE_CONTROL,
+      UPSTREAM_ERROR_CACHE_CONTROL,
     )
   }
 }
