@@ -3,33 +3,65 @@
 LoopTroop installs like ordinary software and runs as a background service. Pick
 a channel, start it, open it.
 
-```bash
+::: code-group
+
+```bash [macOS, Linux, WSL]
 curl -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
+
+```powershell [Windows PowerShell]
+irm https://www.looptroop.ovh/install.ps1 | iex
+looptroop open
+```
+
+:::
 
 `open` starts LoopTroop in the background if it is not already running, then
 points a browser at it with a signed-in link. Use `looptroop start` if you want
 the service without a browser.
 
 > [!IMPORTANT]
-> Everything here still needs **Node.js 24.15.0 or newer** and **git**, with one
-> exception: the [standalone executable](#standalone-executable) carries its own
-> Node runtime and needs only git. You also need
-> [OpenCode](https://opencode.ai) with a configured provider before LoopTroop can
-> run a coding task — see [Getting Started](getting-started.md).
+> Whichever channel you pick, LoopTroop needs **[OpenCode](https://opencode.ai)
+> with a configured provider** before it can run a coding task. LoopTroop starts
+> OpenCode if it is installed and adopts one you are already running, but it will
+> not install it, and it refuses to start with no OpenCode to reach. See
+> [Getting Started](getting-started.md).
+
+## What you need first, per channel
+
+Everything else differs by channel, so read the row you are actually using.
+`looptroop doctor` checks all of it and names anything missing.
+
+| Channel | Node | git | `gh` |
+| --- | --- | --- | --- |
+| **Installer script** | you provide it — the installer is a Node program and never installs Node | you provide it | you provide it |
+| **npm, bun, pnpm** | you provide **24.15.0+** (and npm **11.12.1+**) | you provide it | you provide it |
+| **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
+| **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
+| **Chocolatey** ⏳ | installed for you (`nodejs-lts`) | installed for you | installed for you |
+| **WinGet** ⏳ | not needed — the executable carries its own | installed for you | installed for you |
+| **AUR** ⏳ | installed for you (`nodejs>=24`) | installed for you | installed for you |
+| **Standalone executable** | needed to *install*, not to *run* | you provide it | you provide it |
+| **Container** | in the image | in the image | in the image |
+
+`gh` is only used for the pull-request step at the end of a ticket, and it must
+be authenticated (`gh auth login`) for that step to work. Everything before it
+runs without `gh`, which is why `looptroop doctor` warns about a missing `gh`
+rather than failing.
 
 ## Channels
 
 | | Install | Upgrade | |
 | --- | --- | --- | --- |
-| **Installer script** (everywhere) | `curl -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
+| **Installer script** (macOS, Linux, WSL) | `curl -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
+| **Installer script** (Windows) | `irm https://www.looptroop.ovh/install.ps1 \| iex` | run it again | ✅ |
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
 | **pnpm** (everywhere) | `pnpm add -g looptroop` | `pnpm add -g looptroop@latest` | ✅ |
 | **Homebrew** (macOS, Linux) | `brew install looptroop-ai/tap/looptroop` | `brew upgrade looptroop` | ✅ |
 | **Scoop** (Windows) | `scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket`<br>`scoop install looptroop` | `scoop update looptroop` | ✅ |
-| **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest` | `docker pull looptroopai/looptroop:latest` | ✅ |
+| **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest`<br>or `docker pull ghcr.io/looptroop-ai/looptroop:latest` | pull again | ✅ |
 | **Chocolatey** (Windows) | `choco install looptroop` | `choco upgrade looptroop` | ⏳ |
 | **WinGet** (Windows) | `winget install LoopTroopAI.LoopTroop` | `looptroop stop`<br>`winget upgrade LoopTroopAI.LoopTroop` | ⏳ |
 | **AUR** (Arch Linux) | `yay -S looptroop-bin` | `yay -Syu looptroop-bin` | ⏳ |
@@ -51,19 +83,25 @@ users can install with npm, and Windows users with Scoop.
 
 ## What each channel actually installs
 
-Three different things travel under the same version number, and the difference
+Four different things travel under the same version number, and the difference
 matters when you compare two machines.
 
-**Homebrew, Scoop and Chocolatey install a locked bundle.** The application plus
-every dependency, resolved once at build time and archived. Everyone on those
-channels runs the exact versions the release was tested against.
+**Homebrew, Scoop, Chocolatey and the AUR install a locked bundle.** The
+application plus every dependency, resolved once at build time and archived.
+Everyone on those channels runs the exact versions the release was tested
+against.
 
 **npm, bun and pnpm resolve version ranges on your machine.** That is how those
 tools are supposed to work, and it means two installations of the same LoopTroop
-version can carry slightly different dependency versions.
+version can carry slightly different dependency versions. The installer script in
+its default mode is this too — it hands the package to npm.
 
-**The standalone executable carries its own Node runtime.** One file, no
-dependency resolution at all, and nothing needed on the machine but git.
+**WinGet and `--binary` install the standalone executable.** One file carrying
+its own Node runtime, no dependency resolution at all. WinGet takes this rather
+than the bundle because its repository refuses a portable package whose entry
+point is anything but an `.exe`.
+
+**The container carries everything**, including git and `gh`.
 
 ## Standalone executable
 
@@ -88,9 +126,12 @@ Everything the installer accepts, in either mode:
 | --- | --- | --- |
 | `--binary` | `-Binary` | Install the standalone executable instead of going through npm |
 | `--version X.Y.Z` | `-Version X.Y.Z` | Install an exact version rather than the newest release |
-| `--prefix DIR` | `-Prefix DIR` | Choose where the executable goes, instead of `~/.looptroop` |
+| `--prefix DIR` | `-Prefix DIR` | Choose where the executable goes, instead of `~/.looptroop`. Applies only with `--binary` — an npm install goes wherever npm's global prefix points, which you change with `npm config set prefix` |
 | `--tarball PATH` | `-Tarball PATH` | Install a tarball you already have, skipping the download |
 | `--dry-run` | — | Report what it would do and change nothing. POSIX only; `install.ps1` has no equivalent |
+
+`LOOPTROOP_INSTALL_DIR` sets the same location as `--prefix`, for when you would
+rather not repeat the flag on every upgrade.
 
 Run the same command again to upgrade. The upgrade is transactional: it verifies
 the download against the checksum the release published, stops a running daemon
@@ -199,20 +240,27 @@ looptroop stop
 | ⏳ **Chocolatey** | `choco uninstall looptroop` |
 | ⏳ **WinGet** | `winget uninstall LoopTroopAI.LoopTroop` |
 | ⏳ **AUR** | `yay -R looptroop-bin` |
-| **Installer script (npm mode)** | `npm uninstall -g looptroop` — it installs through npm, so npm removes it |
-| **Docker** | `docker rmi looptroopai/looptroop:latest` |
+| **Installer script (default mode)** | `npm uninstall -g looptroop` — it installs through npm, so npm removes it |
+| **Installer script (`--binary`)** | no command; remove the install directory, below |
+| **Container** | `docker rmi looptroopai/looptroop:latest`<br>or `docker rmi ghcr.io/looptroop-ai/looptroop:latest` |
 
-**The standalone executable has no uninstall command.** Remove it by hand:
+**The standalone executable has no uninstall command.** Remove the whole install
+directory by hand — the executable lives in `bin/` inside it, but other files
+from the archive sit alongside, so deleting only `bin/` leaves them behind:
 
 ```bash
 looptroop stop
-rm -rf ~/.looptroop/bin
+rm -rf ~/.looptroop
 ```
 
 ```powershell
 looptroop stop
-Remove-Item -Recurse -Force "$env:USERPROFILE\.looptroop\bin"
+Remove-Item -Recurse -Force "$env:USERPROFILE\.looptroop"
 ```
+
+If you installed with `--prefix` or `LOOPTROOP_INSTALL_DIR`, remove that
+directory instead. This is the *install* directory only — your configuration,
+database and logs live somewhere else entirely, and are covered below.
 
 ### What uninstalling leaves behind
 
