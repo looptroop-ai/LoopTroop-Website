@@ -50,7 +50,7 @@ stacks.
 | Task | Command |
 | --- | --- |
 | Check the machine can run it | `looptroop doctor` — see [Runtime Diagnostics](diagnostics.md) |
-| Find out which copy this is, and how to upgrade it | `looptroop doctor` names the channel and its own upgrade command |
+| Find out whether an update exists and how to apply it | `looptroop doctor` shows current/latest versions, names the channel, and prints its ordered upgrade and restart steps |
 | Remove worktrees left by cancelled tickets | `looptroop clean`, then `looptroop clean --apply` |
 
 `looptroop clean` is worktree housekeeping: it removes git worktrees left behind

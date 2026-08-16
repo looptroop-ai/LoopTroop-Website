@@ -87,6 +87,7 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | `GET` | `/api/health` | Basic process health; exempt from the normal read-rate bucket |
 | `GET` | `/api/health/opencode` | OpenCode reachability and version |
 | `GET` | `/api/health/startup` | Startup recovery and restore status |
+| `GET` | `/api/health/update` | Current/latest release, detected install channel, ordered update steps, and complete latest GitHub release metadata |
 | `POST` | `/api/health/startup/restore-notice/dismiss` | Dismiss startup restore notice |
 | `GET` | `/api/models` | Models from configured providers; pass `scope=all` to request the full catalog |
 | `GET` | `/api/workflow/meta` | Current workflow groups and phases |
