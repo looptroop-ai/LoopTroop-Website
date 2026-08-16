@@ -28,6 +28,11 @@ the service without a browser.
 > not install it, and it refuses to start with no OpenCode to reach. See
 > [Getting Started](getting-started.md).
 
+## Download statistics
+
+```project-stats
+```
+
 ## What you need first, per channel
 
 Everything else differs by channel, so read the row you are actually using.

@@ -25,6 +25,8 @@ The existing LoopTroop Vercel project deploys this repository's `main` branch. `
 
 The marketing page reads the latest stable LoopTroop version from the public GitHub Releases API in the visitor's browser. No release token or cross-repository synchronization is required.
 
+`GET /api/project-stats` supplies the live GitHub-star and distribution counters used by the marketing page and installation documentation. The Vercel function aggregates public npm-registry downloads, Docker Hub pulls, and GitHub release-asset downloads without a database, secret, analytics event, or application telemetry. Successful responses are cached at the CDN for one hour and may be served stale for up to 24 hours while Vercel refreshes them; the browser client can retain the last valid response for seven days as an outage fallback. Installer-script asset downloads are displayed separately and excluded from the aggregate because the scripts subsequently use npm or a standalone archive already counted in the total.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Product bugs and application feature requests belong in the [LoopTroop issue tracker](https://github.com/looptroop-ai/LoopTroop/issues).

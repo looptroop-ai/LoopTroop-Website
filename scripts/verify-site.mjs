@@ -2,6 +2,7 @@ import { access, readFile } from 'node:fs/promises'
 
 const requiredFiles = [
   'site/index.html',
+  'site/project-stats.js',
   'site/release-version.js',
   'site/robots.txt',
   'site/sitemap.xml',
@@ -66,6 +67,22 @@ const indexHtml = await readFile('site/index.html', 'utf8')
 if (indexHtml.includes('{{VERSION}}')) throw new Error('Marketing output still contains a build-time version placeholder.')
 if (!indexHtml.includes('data-release-version')) throw new Error('Marketing output is missing release-version targets.')
 if (!indexHtml.includes('/release-version.js')) throw new Error('Marketing output is missing the GitHub release client.')
+if (!indexHtml.includes('/project-stats.js')) throw new Error('Marketing output is missing the project-statistics client.')
+if (!indexHtml.includes('data-project-downloads')) throw new Error('Marketing output is missing the download counter target.')
+if (!indexHtml.includes('data-project-stars')) throw new Error('Marketing output is missing the GitHub star counter target.')
+if (!indexHtml.includes('/docs/installation#download-statistics')) {
+  throw new Error('The marketing download counter does not link to its installation-page breakdown.')
+}
+
+await access('api/project-stats.js')
+
+const installationHtml = await readFile('site/docs/installation.html', 'utf8')
+if (!installationHtml.includes('id="download-statistics"')) {
+  throw new Error('Installation output is missing the download-statistics anchor.')
+}
+if (!installationHtml.includes('project-stats')) {
+  throw new Error('Installation output is missing the project-statistics component.')
+}
 
 const sitemap = await readFile('site/sitemap.xml', 'utf8')
 for (const url of ['https://www.looptroop.ovh/', 'https://www.looptroop.ovh/docs/', 'https://www.looptroop.ovh/docs/changelog']) {
