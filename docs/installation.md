@@ -208,6 +208,10 @@ your copy came from, and the exact ordered commands that upgrade it. The same
 update notice appears after `looptroop --version`, `looptroop status`,
 `looptroop start`, and `looptroop open` whenever a newer release exists.
 
+The notice goes to stderr, never stdout. `looptroop --version` still prints the
+bare version and nothing else, so a script that captures it keeps getting a
+value it can compare.
+
 In the interface, click the version beside the LoopTroop title to open
 **About**. A small monochrome update icon appears beside that version when an
 update is available. About shows the current and latest versions, channel-aware
