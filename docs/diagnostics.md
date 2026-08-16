@@ -43,7 +43,10 @@ ticket and nothing before it.
 
 `--json` emits `{ ok, update, checks }` on stdout and nothing else, so it can be
 piped into a parser. `update` contains the current/latest versions, availability,
-install channel, ordered upgrade commands, and latest GitHub release details.
+install channel, ordered upgrade commands, and the latest release's version, name,
+URL and publication date. The release body is left out here — it is prose, often
+several kilobytes of it; `GET /api/health/update` returns it in full for the
+interface to render.
 
 ### The install check
 
