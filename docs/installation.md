@@ -28,11 +28,6 @@ the service without a browser.
 > not install it, and it refuses to start with no OpenCode to reach. See
 > [Getting Started](getting-started.md).
 
-## Download statistics
-
-```project-stats
-```
-
 ## What you need first, per channel
 
 Everything else differs by channel, so read the row you are actually using.
@@ -87,6 +82,11 @@ The commands are listed because they are what will work, unchanged, the day each
 clears. Until then every ✅ row is a real alternative on the same platform — Arch
 users can install with npm, and Windows users with Scoop.
 
+## Download statistics
+
+```project-stats
+```
+
 ## What each channel actually installs
 
 Four different things travel under the same version number, and the difference
@@ -100,7 +100,10 @@ against.
 **npm, bun and pnpm resolve version ranges on your machine.** That is how those
 tools are supposed to work, and it means two installations of the same LoopTroop
 version can carry slightly different dependency versions. The installer script in
-its default mode is this too — it hands the package to npm.
+its default mode is this too, with one difference worth knowing: it downloads the
+package archive from the GitHub release and hands npm *that file*, rather than
+asking the registry for it. You get the same result, and it is why the installer
+can pin an exact version and verify a checksum before npm sees anything.
 
 **WinGet and `--binary` install the standalone executable.** One file carrying
 its own Node runtime, no dependency resolution at all. WinGet takes this rather

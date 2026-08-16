@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import handler, {
   ERROR_CACHE_CONTROL,
+  UPSTREAM_ERROR_CACHE_CONTROL,
   GITHUB_PAGE_SIZE,
   SUCCESS_CACHE_CONTROL,
   aggregateGithubReleaseDownloads,
@@ -45,8 +46,10 @@ test('classifies only current release artifacts', () => {
   assert.equal(classifyReleaseAsset('install.sh'), 'installer-posix')
   assert.equal(classifyReleaseAsset('install.ps1'), 'installer-powershell')
 
+  assert.equal(classifyReleaseAsset('looptroop-1.2.3.tgz'), 'npm-tarball')
+
+  // The bundle ZIP was removed from releases; nothing should resurrect it.
   assert.equal(classifyReleaseAsset('looptroop-1.2.3-bundle.zip'), null)
-  assert.equal(classifyReleaseAsset('looptroop-1.2.3.tgz'), null)
   assert.equal(classifyReleaseAsset('looptroop-1.2.3-linux-x64.tar.gz.sha256'), null)
   assert.equal(classifyReleaseAsset('release-manifest.json'), null)
   assert.equal(classifyReleaseAsset('INSTALL.SH'), null)
@@ -72,6 +75,7 @@ test('aggregates stable releases while excluding drafts and prereleases', () => 
   assert.deepEqual(result, {
     bundle: 10,
     standalone: 14,
+    npmTarball: 1_000,
     installerScripts: { posix: 6, powershell: 7, total: 13 },
   })
 })
@@ -110,12 +114,13 @@ test('deduplicated total excludes both installer script counters', () => {
     github: {
       bundle: 30,
       standalone: 40,
+      npmTarball: 50,
       installerScripts: { posix: 9_000, powershell: 8_000, total: 999_999 },
     },
     updatedAt: new Date('2026-08-16T12:34:56.000Z'),
   })
 
-  assert.equal(result.downloads.total, 370)
+  assert.equal(result.downloads.total, 420)
   assert.deepEqual(result.downloads.github.installerScripts, {
     posix: 9_000,
     powershell: 8_000,
@@ -134,6 +139,7 @@ test('collects the complete response schema from all public APIs', async () => {
       return jsonResponse([release([
         asset('looptroop-0.5.0-bundle.tar.gz', 3),
         asset('looptroop-0.5.0-win-x64.zip', 4),
+        asset('looptroop-0.5.0.tgz', 7),
         asset('install.sh', 5),
         asset('install.ps1', 6),
       ])])
@@ -154,16 +160,17 @@ test('collects the complete response schema from all public APIs', async () => {
   })
 
   assert.deepEqual(result, {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: '2026-08-16T12:34:56.000Z',
     repository: { stars: 12 },
     downloads: {
-      total: 57,
+      total: 64,
       npmRegistry: 20,
       dockerHub: 30,
       github: {
         bundle: 3,
         standalone: 4,
+        npmTarball: 7,
         installerScripts: { posix: 5, powershell: 6, total: 11 },
       },
     },
@@ -208,7 +215,7 @@ test('aborts an upstream request at its timeout', async () => {
   assert.equal(signal.aborted, true)
 })
 
-test('handler returns an uncached 502 instead of partial statistics', async (t) => {
+test('handler returns a briefly cached 502 instead of partial statistics', async (t) => {
   const originalFetch = globalThis.fetch
   t.after(() => { globalThis.fetch = originalFetch })
   globalThis.fetch = async () => jsonResponse({}, { ok: false, status: 503 })
@@ -217,10 +224,22 @@ test('handler returns an uncached 502 instead of partial statistics', async (t) 
   await handler({ method: 'GET' }, response)
 
   assert.equal(response.statusCode, 502)
-  assert.equal(response.getHeader('cache-control'), ERROR_CACHE_CONTROL)
+  // Briefly cached, so an outage does not turn every page view into another
+  // upstream fan-out against a rate limit that is already the likely cause.
+  assert.equal(response.getHeader('cache-control'), UPSTREAM_ERROR_CACHE_CONTROL)
   assert.deepEqual(JSON.parse(response.body), {
     error: 'Project statistics are temporarily unavailable',
   })
+})
+
+test('a non-GET request is refused without touching an upstream', async () => {
+  const response = createResponse()
+  await handler({ method: 'POST' }, response)
+
+  assert.equal(response.statusCode, 405)
+  assert.equal(response.getHeader('allow'), 'GET')
+  // Deterministic, so unlike an upstream failure there is nothing to re-check.
+  assert.equal(response.getHeader('cache-control'), ERROR_CACHE_CONTROL)
 })
 
 test('successful responses carry the one-hour CDN cache policy', async (t) => {

@@ -4,6 +4,11 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": "site",
+  "functions": {
+    "api/project-stats.js": {
+      "maxDuration": 20
+    }
+  },
   "cleanUrls": true,
   "redirects": [
     {
