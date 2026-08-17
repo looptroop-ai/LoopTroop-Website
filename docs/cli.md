@@ -30,14 +30,14 @@ LoopTroop — local AI coding orchestration
 Usage: looptroop <command> [options]
 
 Commands:
-  setup          Attach a project and open the interface
+  open           Open the interface, starting LoopTroop if it is not running
   start          Start the daemon in the background
   stop           Stop the running daemon
   restart        Stop and start again
   status         Show whether the daemon is running
-  open           Open the interface, starting LoopTroop if it is not running
   logs           Show the daemon log
   doctor         Check that this machine can run LoopTroop
+  setup          Attach a project from the terminal, then open the interface
   clean          List, and optionally remove, abandoned worktrees
 
 Options:
@@ -50,6 +50,8 @@ Options:
   --yes, -y      Accept every default without asking (setup)
   --version      Print the version
   --help         Print this message
+
+Run `looptroop <command> --help` for what a single command does and takes.
 ```
 
 ## `start`, `stop`, `restart` — running as a service
@@ -125,12 +127,12 @@ looptroop doctor
 looptroop doctor --json
 ```
 
-`doctor` runs fourteen checks: the current and latest published LoopTroop
-versions; Node; `git`; `gh` and its authentication; the
-configuration directory, how this copy was installed, the database schema, the
-last start, the project's git ignores, the OpenCode CLI and OpenCode itself, the
-port, and the daemon. See [Runtime Diagnostics](diagnostics.md) for what each
-check means and what to do when one fails.
+`doctor` runs fifteen checks: the LoopTroop version; Node; npm; `git`; `gh` and
+its authentication; the configuration directory, how this copy was installed and
+what upgrades it, the database schema, the last start, the project's git ignores,
+the OpenCode CLI and OpenCode itself, the port, and the daemon. See
+[Runtime Diagnostics](diagnostics.md) for what each check means, what the `✓`,
+`!` and `✗` marks distinguish, and what to do when one fails.
 
 Unlike the other human-readable commands, Doctor always prints both version
 values. If GitHub cannot be reached and no cached answer exists, latest is shown
