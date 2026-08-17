@@ -184,11 +184,37 @@ export default defineConfig({
             /**
              * Where a word appears decides what the page is *about*. A term in a
              * heading is the subject; the same term in a paragraph is often an
-             * aside — `npm` appears on nearly every page, and only one is about
-             * installing with it. `titles` is the breadcrumb of parent headings,
-             * so a match inside the right section outranks a stray mention.
+             * aside.
+             *
+             * `titles` — the breadcrumb of parent headings — is weighted *down*
+             * rather than up, which is the opposite of the obvious choice. A term
+             * repeated in both a heading and its breadcrumb scored twice, so
+             * deeply nested sections like "Workspace Setup > Execution Setup
+             * Timeout" beat the page actually titled after the thing.
              */
-            boost: { title: 4, titles: 2, text: 1 },
+            boost: { title: 8, titles: 1, text: 1 },
+            /**
+             * Which page a section belongs to, weighted above how often the word
+             * appears in it.
+             *
+             * These docs use several words in two unrelated senses. "setup" is
+             * both the `looptroop setup` command and an internal execution-setup
+             * concept discussed across four workflow pages; the internal sense
+             * wins on frequency every time, so searching a command name returned
+             * everything except the command. No amount of term weighting fixes
+             * that, because both senses are genuinely about "setup".
+             *
+             * Someone typing into this box is nearly always trying to *use*
+             * LoopTroop, so the pages that tell them how come first, the
+             * exhaustive references next, and the pages describing internals last
+             * — they are still found, just not ahead of the answer.
+             */
+            boostDocument: (_id: string, _term: string, stored?: Record<string, unknown>) => {
+              const page = String((stored?.titles as string[] | undefined)?.[0] ?? stored?.title ?? '')
+              if (/^(CLI Reference|Installation|Getting Started|Runtime Diagnostics|Operations)/.test(page)) return 4
+              if (/^(Configuration Reference|API Reference)/.test(page)) return 1.5
+              return 1
+            },
             /**
              * Enough to survive a typo or a plural, not enough to start matching
              * unrelated words. Prefix matching is what makes results appear while
