@@ -16,9 +16,23 @@ itself — so upgrading, reinstalling, or switching channels does not lose it:
 | **Windows** | `%APPDATA%\looptroop` |
 | **Any** | `LOOPTROOP_CONFIG_DIR`, which overrides both |
 
-It holds `config.json`, the application database, the daemon record and the log.
 The directory is created owner-only (`0700`), and files that can carry a token or
 session state are written `0600`.
+
+| File | What it is | Safe to delete? |
+| --- | --- | --- |
+| `config.json` | Your settings. The only file here meant to be edited by hand. | Resets settings to defaults |
+| `app.sqlite` | Projects, tickets and workflow state. The `-wal` and `-shm` files beside it belong to SQLite. | No — this is your work |
+| `daemon.json` | Where the running daemon is: host, port, process id, and the token the interface authenticates with. Written at start, cleared at stop. | Yes, when nothing is running |
+| `daemon.lock` | Held for the lifetime of the daemon, so a second one cannot start against the same directory. | Yes, when nothing is running |
+| `logs/` | What `looptroop logs` reads. | Yes |
+| `update-check.json` | The last published LoopTroop release seen, and when it was last looked for. | Yes — costs one lookup |
+| `tool-versions.json` | The newest published Node, npm and OpenCode versions, behind the comparison `doctor` prints. | Yes — costs one lookup |
+| `opencode/` | State for an OpenCode that LoopTroop started, kept apart from one you run yourself. | Yes, when nothing is running |
+
+Both caches record the time of the last *attempt*, failures included, so an
+offline machine does not retry on every command. Neither holds anything that
+cannot be fetched again.
 
 `XDG_CONFIG_HOME` is deliberately ignored on Windows: it is a freedesktop
 convention, so honouring it there would split one user's data across two

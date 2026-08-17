@@ -168,6 +168,37 @@ export default defineConfig({
     sidebar,
     search: {
       provider: 'local',
+      options: {
+        miniSearch: {
+          searchOptions: {
+            /**
+             * Every term must match, rather than any of them.
+             *
+             * MiniSearch defaults to OR, so "container port" returned every page
+             * mentioning either word — which on a reference this size is most of
+             * them, in no useful order. This is the single change that turns a
+             * long list of near-misses into a short list of pages that discuss
+             * both things.
+             */
+            combineWith: 'AND',
+            /**
+             * Where a word appears decides what the page is *about*. A term in a
+             * heading is the subject; the same term in a paragraph is often an
+             * aside — `npm` appears on nearly every page, and only one is about
+             * installing with it. `titles` is the breadcrumb of parent headings,
+             * so a match inside the right section outranks a stray mention.
+             */
+            boost: { title: 4, titles: 2, text: 1 },
+            /**
+             * Enough to survive a typo or a plural, not enough to start matching
+             * unrelated words. Prefix matching is what makes results appear while
+             * still typing.
+             */
+            fuzzy: 0.2,
+            prefix: true,
+          },
+        },
+      },
     },
     outline: {
       level: [2, 3],
