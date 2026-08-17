@@ -13,6 +13,15 @@ only when a newer version exists. The check never installs anything.
 The block below is generated from the CLI's own usage text, so it cannot drift
 from what the command prints.
 
+Every command also documents itself. `looptroop <command> --help` prints that
+command's own options, what it does with them, and which commands to reach for
+instead — more than fits in the summary below:
+
+```bash
+looptroop open --help
+looptroop doctor --help
+```
+
 <!-- generated from server/cli/cli.ts; run npm run sync:cli -->
 
 ```text
@@ -43,7 +52,7 @@ Options:
   --help         Print this message
 ```
 
-## Running as a service
+## `start`, `stop`, `restart` — running as a service
 
 ```bash
 looptroop start
@@ -77,7 +86,7 @@ details. It remains JSON-only even when an update is available.
 To run more than one, give each its own configuration directory and port — see
 [Configuration](configuration.md).
 
-## Opening the interface
+## `open` — opening the interface
 
 ```bash
 looptroop open
@@ -98,7 +107,7 @@ refused. Run `looptroop open` again.
 
 Automation uses a bearer token instead — see [API Reference](api-reference.md).
 
-## Logs
+## `logs` — reading the daemon log
 
 ```bash
 looptroop logs             # the recent log
@@ -109,7 +118,7 @@ looptroop logs --lines 200
 The log lives in the [configuration directory](configuration.md) and survives
 restarts.
 
-## Checking the machine
+## `doctor` — checking the machine
 
 ```bash
 looptroop doctor
@@ -133,7 +142,7 @@ need to parse the human version line.
 > in a script. On a machine with no OpenCode configured yet, that is expected
 > rather than broken.
 
-## Attaching a project
+## `setup` — attaching a project
 
 ```bash
 looptroop setup
@@ -146,7 +155,7 @@ without asking, for an unattended install.
 A project needs to be a git repository with a GitHub `origin`. LoopTroop works in
 git worktrees under `<project>/.looptroop/worktrees/`, never in your checkout.
 
-## Cleaning up worktrees
+## `clean` — cleaning up worktrees
 
 ```bash
 looptroop clean           # list what could be removed

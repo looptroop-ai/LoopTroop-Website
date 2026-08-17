@@ -23,18 +23,32 @@ looptroop doctor
 looptroop doctor --json
 ```
 
-It checks the machine rather than a ticket, in fourteen checks: the current and
-latest published LoopTroop versions; the Node version against the floor this
-release requires; `git` and `gh`, plus whether `gh` is
-authenticated; the configuration directory; which channel this copy came from;
-the database schema; why the last start failed, if it did; whether the project's
-git ignores are in place; the OpenCode CLI and whether OpenCode is reachable;
-whether the port is free; and whether a daemon is already running. Each failing
-check prints what to do about it.
+It checks the machine rather than a ticket, in fifteen checks: the LoopTroop
+version; Node against the floor this release requires; npm; `git` and `gh`, plus
+whether `gh` is authenticated; the configuration directory; which channel this
+copy came from and how to upgrade it; the database schema; why the last start
+failed, if it did; whether the project's git ignores are in place; the OpenCode
+CLI and whether OpenCode is reachable; whether the port is free; and whether a
+daemon is already running. Each failing check prints what to do about it.
+
+**Versions are shown against the newest published one** — `v26.7.0 (latest
+v27.1.0)` — for LoopTroop, Node, npm and the OpenCode CLI. When you already have
+the newest, no `(latest …)` is printed, so the only versions that draw the eye
+are the ones you could do something about. The LoopTroop version is emphasised,
+because it is the one this machine can act on directly. Those lookups are cached
+for fifteen minutes, failures included, and never delay the local checks: offline,
+you get versions without a `latest` beside them.
+
+**Three marks, and the difference matters.** `✓` is fine. `✗` means *not
+installed* — the thing is absent from this machine. `!` means installed but
+unhappy, such as a `gh` that is present and not signed in. Missing and degraded
+are different problems with different fixes, so they read differently at a
+glance.
 
 `git` is required and `gh` is not: a missing `git` fails the run, a missing `gh`
 only warns, because `gh` is needed for the pull-request step at the end of a
-ticket and nothing before it.
+ticket and nothing before it. A missing `gh` still prints `✗` — the mark
+describes what is there, the severity decides the exit code.
 
 > [!NOTE]
 > **`doctor` exits non-zero when any check fails.** That is what makes it usable
