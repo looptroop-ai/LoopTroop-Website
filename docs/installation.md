@@ -61,11 +61,11 @@ rather than failing.
 | **pnpm** (everywhere) | `pnpm add -g looptroop` | `pnpm add -g looptroop@latest` | ✅ |
 | **Yarn Classic** (everywhere) | `yarn global add looptroop` | `yarn global upgrade looptroop@latest` | ✅ |
 | **Homebrew** (macOS, Linux) | `brew install looptroop-ai/tap/looptroop` | `brew upgrade looptroop` | ✅ |
-| **Scoop** (Windows) | `scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket`<br>`scoop install looptroop` | `scoop update looptroop` | ✅ |
-| **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest`<br>or `docker pull ghcr.io/looptroop-ai/looptroop:latest` | pull again | ✅ |
+| **Scoop** (Windows) | `scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket`, then `scoop install looptroop` | `scoop update looptroop` | ✅ |
+| **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest` or `docker pull ghcr.io/looptroop-ai/looptroop:latest` | pull again | ✅ |
 | **Chocolatey** (Windows) | `choco install looptroop` | `choco upgrade looptroop` | ⏳ |
-| **WinGet** (Windows) | `winget install LoopTroopAI.LoopTroop` | `looptroop stop`<br>`winget upgrade LoopTroopAI.LoopTroop` | ⏳ |
-| **AUR** (Arch Linux) | `yay -S looptroop-bin`<br>or `paru -S looptroop-bin` | `yay -Syu looptroop-bin`<br>or `paru -Syu looptroop-bin` | ⏳ |
+| **WinGet** (Windows) | `winget install LoopTroopAI.LoopTroop` | `looptroop stop`, then `winget upgrade LoopTroopAI.LoopTroop` | ⏳ |
+| **AUR** (Arch Linux) | `yay -S looptroop-bin` or `paru -S looptroop-bin` | `yay -Syu looptroop-bin` or `paru -Syu looptroop-bin` | ⏳ |
 
 ### ⏳ means the command does not work yet
 
@@ -293,7 +293,7 @@ looptroop stop
 | ⏳ **AUR** | `yay -R looptroop-bin`, or `paru -R looptroop-bin` |
 | **Installer script (default mode)** | `npm uninstall -g looptroop` — it installs through npm, so npm removes it |
 | **Installer script (`--binary`)** | no command; remove the install directory, below |
-| **Container** | `docker rmi looptroopai/looptroop:latest`<br>or `docker rmi ghcr.io/looptroop-ai/looptroop:latest` |
+| **Container** | `docker rmi looptroopai/looptroop:latest` or `docker rmi ghcr.io/looptroop-ai/looptroop:latest` |
 
 **The standalone executable has no uninstall command.** Remove the whole install
 directory by hand — the executable lives in `bin/` inside it, but other files
