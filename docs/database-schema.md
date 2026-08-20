@@ -51,7 +51,7 @@ The app database is the global control-plane store.
 
 ### `profiles`
 
-This row is the default configuration source that projects and tickets inherit from until they override or lock values.
+This row is the default configuration source. Its Advanced values seed concrete settings for future projects; editing the profile does not rewrite projects that are already attached.
 
 Important columns:
 
@@ -60,7 +60,8 @@ Important columns:
 - timeout settings in milliseconds: `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`
 - coverage controls: `coverage_follow_up_budget_percent`, `max_coverage_passes`, `max_prd_coverage_passes`, `max_beads_coverage_passes`
 - Manual QA baseline: `manual_qa_enabled` (non-null boolean, default `false`)
-- internal Git behavior: `git_hook_policy` (non-null text, default `validate_explicitly`)
+- internal Git behavior: `git_hook_policy` (non-null text, default `validate_advisory`)
+- LoopTroop folder ignore destination: `ignore_mode` (non-null text, default `local`)
 - OpenCode retry controls: `opencode_retry_limit`, `opencode_retry_delay`, `opencode_steps`
 - tool log truncation limits: `tool_input_max_chars`, `tool_output_max_chars`, `tool_error_max_chars`
 
@@ -95,7 +96,7 @@ The project database is the operational store for one attached repository. LoopT
 
 | Table | Purpose |
 | --- | --- |
-| `projects` | Project metadata plus project-level configuration overrides |
+| `projects` | Project metadata, concrete Advanced choices, and other project-level configuration overrides |
 | `tickets` | Ticket records, workflow status, progress counters, and serialized machine snapshot |
 | `phase_artifacts` | Phase-scoped structured artifacts, reports, approvals, UI companions, and read models |
 | `ticket_phase_attempts` | Archived/active phase-version history for non-implementation phases |
@@ -112,7 +113,8 @@ The project database is the operational store for one attached repository. LoopT
 Important columns:
 
 - display/identity: `name`, `shortname`, `icon`, `color`, `folder_path`
-- nullable overrides: `council_members`, `max_iterations`, `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`, `min_council_quorum`, `interview_questions`, `manual_qa_override`, `git_hook_policy`
+- saved project settings: `manual_qa_override`, `git_hook_policy`, `ignore_mode`
+- nullable overrides: `council_members`, `max_iterations`, `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`, `min_council_quorum`, `interview_questions`
 - sequencing: `ticket_counter`
 - metadata: `profile_id`
 
@@ -121,15 +123,17 @@ Operational notes:
 - `ticket_counter` is the source for `tickets.external_id`; new tickets are generated as `<shortname>-<counter>`
 - `council_members` is a JSON array string when present
 - `profile_id` is **not** a cross-database foreign key; SQLite cannot enforce a foreign key into the separate app DB, so this column is metadata only
-- project-level overrides are read directly from this row at runtime; they do not require joining back into the app DB
-- project `git_hook_policy` overrides the profile baseline when a Draft ticket has no local choice; the final ticket → project → profile result is frozen at Start and never rewrites the target repository's Git configuration
+- project-level settings are read directly from this row at runtime; they do not require joining back into the app DB
+- new projects store concrete Manual QA, Git-hook, and ignore choices copied from the profile defaults unless the attach request supplies explicit values; legacy nullable values remain readable
+- project `git_hook_policy` is the only editable Git-hook policy for that project; Start freezes it for the ticket run and never rewrites the target repository's Git configuration
+- `ignore_mode` records whether attach-time rules were appended to `.gitignore` (`repo`), this clone's Git exclude (`local`), or nowhere (`skip`)
 
 ### Reattaching Existing Project State
 
 Selecting a repository with an existing `.looptroop/db.sqlite` exposes three storage operations:
 
 - **Restore** preserves the project row and all ticket-owned rows/files. Current visible form edits are applied, and `projects.folder_path` plus the app-level `attached_projects.folder_path` are aligned to the repository root on the current machine.
-- **Clear tickets** preserves the complete project row, including its short name, appearance, creation timestamp, profile association, and nullable overrides. It removes every ticket and all dependent records, artifacts, attempts, QA operations/metrics, status/error history, OpenCode session ownership, ticket files, and managed worktrees. It then sets `ticket_counter` to `0`, applies current visible form edits, updates `folder_path`, and advances `updated_at`.
+- **Clear tickets** preserves the complete project row, including its short name, appearance, creation timestamp, profile association, saved Advanced settings, and nullable overrides. It removes every ticket and all dependent records, artifacts, attempts, QA operations/metrics, status/error history, OpenCode session ownership, ticket files, and managed worktrees. It then sets `ticket_counter` to `0`, applies current visible form edits, updates `folder_path`, and advances `updated_at`.
 - **Start fresh** removes managed worktrees, prunes Git worktree registrations, deletes the entire `.looptroop` directory, and creates a new project database from the current form.
 
 Clear/start-fresh cleanup includes active tickets; it is not constrained by the normal project-deletion rule. Repository source files, commits, and branches remain outside these deletion boundaries. Resetting `ticket_counter` makes the next ticket `<SHORTNAME>-1`, so a surviving old branch can share the restarted ticket identifier.
@@ -145,7 +149,7 @@ Important columns:
 - execution progress: `branch_name`, `current_bead`, `total_beads`, `percent_complete`
 - failure surface: `error_message`
 - Manual QA and reconciliation: nullable Draft-only `manual_qa_override`, frozen `locked_manual_qa_enabled`, frozen `locked_manual_qa_source`, and monotonic `workflow_revision`
-- Git-hook behavior: nullable Draft-only `git_hook_policy`, frozen `locked_git_hook_policy`, and frozen `locked_git_hook_policy_source`
+- Git-hook behavior: frozen `locked_git_hook_policy` and `locked_git_hook_policy_source`; fresh schemas have no ticket-level Git-hook override
 - frozen-on-start settings: `locked_main_implementer`, `locked_main_implementer_variant`, `locked_council_members`, `locked_council_member_variants`, `locked_interview_questions`, `locked_coverage_follow_up_budget_percent`, `locked_max_coverage_passes`, `locked_max_prd_coverage_passes`, `locked_max_beads_coverage_passes`, `locked_structured_retry_count`
 - lifecycle times: `started_at`, `planned_date`, `created_at`, `updated_at`
 
@@ -155,7 +159,7 @@ Operational notes:
 - `external_id` is the stable human-facing identifier; the API turns it into a public ticket ref by prefixing the public project id
 - locked configuration columns freeze the profile/project settings that were in force when the ticket started
 - `manual_qa_override` uses SQL `NULL` for Inherit and booleans for Enabled/Disabled; resolution order is ticket → project → profile, and missing locked values on older started tickets mean disabled
-- `git_hook_policy` uses SQL `NULL` for Inherit; resolution order is ticket → project → profile, and Start freezes both the effective policy and its source for execution-setup planning
+- Start snapshots the project's `git_hook_policy` and its project source for execution-setup planning. Older databases may retain an obsolete ticket `git_hook_policy` column and data, but current create/update/read resolution ignores it; no compatibility migration is required.
 - `workflow_revision` increases on status transitions and lets polling/SSE consumers reject stale state even when the workflow moves backward from Manual QA to Coding
 - `branch_name = '__looptroop_display_only_mock__'` is reserved for board-only mock/demo tickets; these rows are returned for display, projected through the API with `isDisplayOnlyMock: true`, excluded from startup hydration and runnable workflow actions, and expose only Cancel while non-terminal
 - runtime details shown in the UI are enriched from **both** this row and ticket-owned files under `.ticket/**`

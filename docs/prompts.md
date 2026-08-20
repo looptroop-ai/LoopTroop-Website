@@ -1498,7 +1498,7 @@ Inspect the approved planning context and the current workspace state, decide wh
 11. Command Families: Discover project-level command families for prepare/bootstrap, full test, full lint, and full typecheck when possible. If a family is unavailable, return an empty list rather than inventing commands.
 12. Quality Gate Policy: Default to bead test commands first, then impacted-or-package scoped lint/typecheck, and never block later phases on unrelated baseline debt.
 13. Functional Workspace Probes: Propose at least one safe repository-level command that loads or discovers the actual project whenever project command families or bead test commands exist. Tool/runtime version checks alone are not workspace probes.
-14. Git Hook Validation: Inspect repository hook configuration and propose explicit, safe validation commands for hooks you can identify. Do not invent commands for unknown hooks. The backend supplies read-only detected-hook evidence and the configured policy.
+14. Git Hook Validation: Inspect repository hook configuration and propose explicit, safe validation commands for hooks you can identify. Do not invent commands for unknown hooks. The backend supplies the ticket-locked project policy and detected-hook evidence after parsing; do not echo or guess those fields.
 15. Original Checkout Audit: Compare the current ticket worktree with the original checkout provided in `workspace_locations`. Check whether the original checkout contains an ignored or untracked file or directory that explains a setup failure or readiness gap. Confirm that it is absent from the ticket worktree and needed to prepare, load, build, test, lint, or otherwise operate the project.
 16. Workspace Input Evidence: Add an item only when concrete repository evidence or a prior workspace-setup failure connects it to a readiness problem. Do not list unrelated ignored files, caches, dependencies, temporary output, or the complete ignored-file inventory.
 17. Workspace Inputs: Record every necessary ignored or untracked file or directory in `workspace_inputs`. Use repository-relative paths. For each item, record whether it is a file or directory, whether it is ignored or untracked, and a concise reason it is needed. Do not include file contents and do not add shell copy commands to `steps`.
@@ -1526,8 +1526,6 @@ JSON or YAML inside `<EXECUTION_SETUP_PLAN>...</EXECUTION_SETUP_PLAN>` with this
   "workspace_inputs": [{"path":"relative/path","kind":"file|directory","source_status":"ignored|untracked","reason":"why setup needs it"}],
   "workspace_probes": [{"id": "workspace-1", "command": "<safe repository-level command>", "purpose": "prove the project can be loaded"}],
   "git_hooks": {
-    "policy": "validate_explicitly",
-    "detected": [],
     "validation_commands": [{"id": "hook-1", "hook": "pre-commit", "command": "<project validation command>", "purpose": "run the hook check explicitly"}]
   },
   "steps": [],
@@ -1625,8 +1623,6 @@ JSON or YAML inside `<EXECUTION_SETUP_PLAN>...</EXECUTION_SETUP_PLAN>` with this
   "workspace_inputs": [{"path":"relative/path","kind":"file|directory","source_status":"ignored|untracked","reason":"why setup needs it"}],
   "workspace_probes": [{"id": "workspace-1", "command": "<safe repository-level command>", "purpose": "prove the project can be loaded"}],
   "git_hooks": {
-    "policy": "validate_explicitly",
-    "detected": [],
     "validation_commands": [{"id": "hook-1", "hook": "pre-commit", "command": "<project validation command>", "purpose": "run the hook check explicitly"}]
   },
   "steps": [],
@@ -1714,7 +1710,7 @@ Execute the approved setup plan, initialize reusable execution state, discover a
 15. Discovery Goal: Discover project-level command families for prepare/bootstrap, full test, full lint, and full typecheck when possible. If a command family is unavailable, return an empty list for that field instead of inventing a fake command.
 16. Tooling Probes: Record non-mutating, rerunnable `tooling_probe_commands` that prove the prepared environment works. If a wrapper is required, the probe command itself should use that wrapper, for example `./.ticket/runtime/execution-setup/run <tool> --version`; LoopTroop also applies the resolved wrapper centrally and avoids double wrapping. LoopTroop reruns these probes before coding and rejects profiles with broken wrappers or missing probes for declared command families.
 17. Workspace Probes: Copy the approved `workspace_probes` into the profile. They must be repository-level functional checks, not tool version probes. LoopTroop executes them independently before coding.
-18. Git Hooks: Copy the approved `git_hooks.policy` and editable `git_hooks.validation_commands` into the profile. Do not modify backend-supplied `git_hooks.detected` evidence. LoopTroop runs explicit commands itself when the policy is `validate_explicitly`.
+18. Git Hooks: Do not echo the approved Git-hook policy, detected evidence, or validation commands. LoopTroop copies those backend-authoritative fields into the runtime profile after parsing your result.
 19. Approved Workspace Inputs: LoopTroop materializes the approved `workspace_inputs` before this setup session begins. Use those inputs as part of the prepared worktree. Do not copy additional ignored or untracked paths that are not present in the approved plan. If an approved input is unavailable or materialization failed, report the exact path as a workspace failure.
 20. Quality Gate Policy: Default to bead test commands first, then impacted-or-package scoped lint/typecheck, and never block later phases on unrelated baseline debt.
 21. Honest Outcome: Return `ready` only when every setup check passes. If any check fails or a required tool is `failed` or `not_provisionable`, return `blocked`, identify the cause and attempted approaches, and preserve the evidence needed for recovery.
@@ -1737,11 +1733,6 @@ JSON or YAML inside `<EXECUTION_SETUP_RESULT>...</EXECUTION_SETUP_RESULT>` with 
     "bootstrap_commands": ["..."],
     "tooling_probe_commands": ["./.ticket/runtime/execution-setup/run <tool> --version"],
     "workspace_probes": [{"id": "workspace-1", "command": "<safe repository-level command>", "purpose": "prove the project can be loaded"}],
-    "git_hooks": {
-      "policy": "validate_explicitly",
-      "detected": [],
-      "validation_commands": []
-    },
     "tool_requirements": [
       {
         "launcher": "<required command launcher>",

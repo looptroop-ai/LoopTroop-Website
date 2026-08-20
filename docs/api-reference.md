@@ -142,7 +142,9 @@ Example profile update payload:
   "mainImplementerVariant": "high",
   "councilMembers": "[\"openai/gpt-5.4\",\"anthropic/claude-sonnet-4\"]",
   "councilMemberVariants": "{\"openai/gpt-5.4\": \"high\"}",
-  "gitHookPolicy": "validate_explicitly",
+  "manualQaEnabled": false,
+  "gitHookPolicy": "validate_advisory",
+  "ignoreMode": "local",
   "minCouncilQuorum": 2,
   "perIterationTimeout": 1200000,
   "executionSetupTimeout": 1200000,
@@ -181,7 +183,8 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `maxCoveragePasses` | `1` to `10` | Shared generic coverage loop |
 | `maxPrdCoveragePasses`, `maxBeadsCoveragePasses` | `2` to `20` | PRD and beads coverage loops have a stricter lower bound |
 | `maxIterations` | `0` to `20` | `0` is allowed for tickets that should not iterate |
-| `gitHookPolicy` | `validate_explicitly`, `use_on_internal_commits`, `ignore_internal_only` | Controls LoopTroop-owned commits and pushes; it does not alter repository Git configuration |
+| `gitHookPolicy` | `observe_only`, `validate_advisory`, `validate_required`, `use_native_hooks` | Future-project default for LoopTroop-owned Git operations; `validate_advisory` is the built-in default |
+| `ignoreMode` | `repo`, `local`, `skip` | Future-project folder-ignore default; `local` is the built-in default |
 | `toolInputMaxChars`, `toolErrorMaxChars` | `500` to `50000` | Applied to OpenCode tool transcript truncation |
 | `toolOutputMaxChars` | `1000` to `100000` | Higher lower bound because tool output is usually larger |
 
@@ -199,7 +202,7 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `GET` | `/api/projects/:id/worktrees/size` | Get the total disk size of all worktrees for a project |
 | `DELETE` | `/api/projects/:id/worktrees` | Delete worktrees for completed and canceled tickets only, including same-user read-only cache trees; active ticket worktrees are left untouched |
 
-`GET /api/projects/check-git` returns attach-flow metadata in addition to simple validity. When relevant, the response also includes `scope` (`root` or `subfolder`), `repoRoot`, `githubRepoSlug`, `hasLoopTroopState`, `existingProject`, `alreadyAttached`, `attachedProject`, and `performanceWarning` for WSL mounted-drive performance warnings. `alreadyAttached` is based on the canonical Git repository root, so a subfolder, symlink, trailing slash, or alternate path for an attached repository reports the same conflict. `attachedProject` contains the attached project's `id`, `name`, `shortname`, and canonical `folderPath`; clients should block the create action when `alreadyAttached` is true. GitHub origin inspection adds `githubOriginWriteAccess` (`writable`, `read_only`, or `unknown`) and `githubViewerPermission`; a confirmed `READ` or `TRIAGE` permission also adds `githubWriteWarning`. This warning is advisory and leaves `status` as `valid`, because the active GitHub CLI identity may differ from the credentials used by Git push. The `existingProject` preview contains the saved `name`, `shortname`, `icon`, `color`, `ticketCounter`, total `ticketCount`, `activeTicketCount`, `gitHookPolicy`, and `manualQaOverride`. `activeTicketCount` counts statuses other than `DRAFT`, `COMPLETED`, and `CANCELED`. This lets clients show exactly which project settings and ticket data each attachment action keeps or removes before submitting.
+`GET /api/projects/check-git` returns attach-flow metadata in addition to simple validity. When relevant, the response also includes `scope` (`root` or `subfolder`), `repoRoot`, `githubRepoSlug`, `hasLoopTroopState`, `existingProject`, `alreadyAttached`, `attachedProject`, and `performanceWarning` for WSL mounted-drive performance warnings. `alreadyAttached` is based on the canonical Git repository root, so a subfolder, symlink, trailing slash, or alternate path for an attached repository reports the same conflict. `attachedProject` contains the attached project's `id`, `name`, `shortname`, and canonical `folderPath`; clients should block the create action when `alreadyAttached` is true. GitHub origin inspection adds `githubOriginWriteAccess` (`writable`, `read_only`, or `unknown`) and `githubViewerPermission`; a confirmed `READ` or `TRIAGE` permission also adds `githubWriteWarning`. This warning is advisory and leaves `status` as `valid`, because the active GitHub CLI identity may differ from the credentials used by Git push. The `existingProject` preview contains the saved `name`, `shortname`, `icon`, `color`, `ticketCounter`, total `ticketCount`, `activeTicketCount`, `gitHookPolicy`, `manualQaOverride`, and `ignoreMode`. `activeTicketCount` counts statuses other than `DRAFT`, `COMPLETED`, and `CANCELED`. This lets clients show exactly which project settings and ticket data each attachment action keeps or removes before submitting.
 
 Example existing-state preview:
 
@@ -222,8 +225,9 @@ Example existing-state preview:
     "ticketCounter": 7,
     "ticketCount": 7,
     "activeTicketCount": 2,
-    "gitHookPolicy": "validate_explicitly",
-    "manualQaOverride": false
+    "gitHookPolicy": "validate_advisory",
+    "manualQaOverride": false,
+    "ignoreMode": "local"
   },
   "message": "Existing LoopTroop project found at repository root"
 }
@@ -239,6 +243,9 @@ Example project attachment payload:
   "icon": "📁",
   "color": "#3b82f6",
   "profileId": 1,
+  "manualQaOverride": false,
+  "gitHookPolicy": "validate_advisory",
+  "ignoreMode": "local",
   "existingStateAction": "restore"
 }
 ```
@@ -248,10 +255,10 @@ When the resolved repository root already contains `.looptroop` project state an
 | Value | Behavior |
 | --- | --- |
 | `restore` | Keeps tickets, workflow/artifact state, ticket counter, saved short name, and project-level overrides. Applies current form edits to visible project settings. |
-| `clear_tickets` | Keeps the project row, saved short name, appearance, creation time, profile association, and every project-level override; applies current visible form edits; removes all ticket-linked database state, ticket content, and managed worktrees; then resets `ticketCounter` to `0` and advances the update time. |
+| `clear_tickets` | Keeps the project row, saved short name, appearance, creation time, profile association, Advanced choices, and every project-level override; applies current visible form edits; removes all ticket-linked database state, ticket content, and managed worktrees; then resets `ticketCounter` to `0` and advances the update time. |
 | `start_fresh` | Removes managed worktrees and the complete `.looptroop` folder, then creates a new project from the submitted form values. |
 
-The field is optional for API compatibility and defaults to `restore` when existing state is found. All three existing-state paths update the saved `folderPath` to the repository root resolved on the current machine. Destructive modes remove active tickets as well as terminal tickets, but never delete repository source files, commits, or local/remote branches. Because `clear_tickets` resets numbering, its next ticket is `<SHORTNAME>-1`; an old branch retained in the repository can therefore have the same ticket identifier.
+The field is optional for API compatibility and defaults to `restore` when existing state is found. When the corresponding request fields are omitted, restore and clear-tickets retain the saved `manualQaOverride`, `gitHookPolicy`, and `ignoreMode`, backfilling a legacy missing value from Configuration; explicit form/API values win. Start-fresh uses the submitted choices or current profile defaults. All three existing-state paths update the saved `folderPath` to the repository root resolved on the current machine. Destructive modes remove active tickets as well as terminal tickets, but never delete repository source files, commits, or local/remote branches. Because `clear_tickets` resets numbering, its next ticket is `<SHORTNAME>-1`; an old branch retained in the repository can therefore have the same ticket identifier.
 
 Creating an already-attached repository returns HTTP `409` with `code: "PROJECT_ALREADY_ATTACHED"`. Creating or renaming a project with a name or short name already used by another attached project returns HTTP `409` with `code: "PROJECT_IDENTITY_CONFLICT"`; names compare case-insensitively after trimming, and short names compare in uppercase form. The response includes a `conflicts` array whose entries identify `folder`, `name`, or `shortname` conflicts.
 
@@ -264,6 +271,7 @@ Direct attachment/update validation and mutability rules:
 | `folderPath` | required | not accepted | Must resolve to a git repository; outside tests, the repository must also have a GitHub `origin` |
 | `profileId` | optional | not accepted | Attach-time only |
 | `icon`, `color` | optional | optional | `color` must be `#RRGGBB` |
+| `ignoreMode` | optional | not accepted | Attach-time project choice: `repo`, `local`, or `skip`; omission uses the profile default, then built-in `local` |
 | `existingStateAction` | optional | not accepted | Existing state only: `restore`, `clear_tickets`, or `start_fresh`; defaults to `restore` |
 | Project overrides listed below | optional | optional | Apply only to future ticket starts |
 
@@ -272,7 +280,8 @@ Create and update routes also accept optional project-level overrides for future
 ```json
 {
   "councilMembers": "[\"openai/gpt-5.4\",\"anthropic/claude-sonnet-4\"]",
-  "gitHookPolicy": "use_on_internal_commits",
+  "manualQaOverride": true,
+  "gitHookPolicy": "use_native_hooks",
   "maxIterations": 7,
   "perIterationTimeout": 1500000,
   "executionSetupTimeout": 1800000,
@@ -282,7 +291,9 @@ Create and update routes also accept optional project-level overrides for future
 }
 ```
 
-These fields override the profile baseline only for newly started tickets in that project. Existing tickets keep their locked values.
+The Manual QA and Git-hook choices submitted for a new project are concrete saved project settings. If either is omitted at creation, LoopTroop copies the current profile default; an explicit value wins. Project updates affect future ticket starts, while existing tickets keep their locked values. `ignoreMode` is likewise concrete, but it is attach-time only and controls where LoopTroop appends its runtime-folder rules rather than ticket execution.
+
+Project list/detail responses expose the persisted `manualQaOverride`, `gitHookPolicy`, and effective `ignoreMode`. Newly created or restored projects hold concrete values, so clients do not need to recompute them from the current profile.
 
 Worktree size response:
 
@@ -318,8 +329,8 @@ Ticket routes are implemented using a modular handler architecture located in `s
 | `GET` | `/api/tickets` | Optionally filtered with `?project=` or `?projectId=` |
 | `GET` | `/api/tickets/:id` | Get one ticket by composite ticket ref |
 | `GET` | `/api/tickets/:id/size` | Recursively measure the ticket worktree and return logs/artifacts/source breakdown; returns `{ "size": 0, "exists": false }` when no worktree exists yet |
-| `POST` | `/api/tickets` | Create a ticket; title max 500 characters, description max 50,000 characters, priority `1` through `5`, with optional Manual QA and Git-hook overrides |
-| `PATCH` | `/api/tickets/:id` | Update title, description, priority, Manual QA, or Git-hook settings; the two configuration overrides are Draft-only |
+| `POST` | `/api/tickets` | Create a ticket; title max 500 characters, description max 50,000 characters, priority `1` through `5`, with an optional Manual QA choice |
+| `PATCH` | `/api/tickets/:id` | Update title, description, priority, or Manual QA; Manual QA is Draft-only |
 | `DELETE` | `/api/tickets/:id` | Only allowed for `COMPLETED` or `CANCELED` |
 | `GET` | `/api/tickets/:id/ui-state?scope=...` | Read persisted UI state |
 | `PUT` | `/api/tickets/:id/ui-state` | Save persisted UI state |
@@ -332,14 +343,13 @@ Example ticket creation payload:
   "title": "Implement refresh-token rotation",
   "description": "Rotate refresh tokens and invalidate the family on reuse.",
   "priority": 2,
-  "manualQaOverride": null,
-  "gitHookPolicy": "validate_explicitly"
+  "manualQaOverride": null
 }
 ```
 
-Create-ticket validation requires a non-empty title up to 500 characters. The optional description is capped at 50,000 characters. `gitHookPolicy` accepts `validate_explicitly`, `ignore_internal_only`, `use_on_internal_commits`, or `null`; `manualQaOverride` accepts a boolean or `null`. Update validation is slightly narrower: patched titles are capped at 200 characters, configuration overrides return `409` outside Draft, and `status` is API-protected so workflow transitions must go through the action routes below.
+Create-ticket validation requires a non-empty title up to 500 characters. The optional description is capped at 50,000 characters, and `manualQaOverride` accepts a boolean or `null`. Update validation is slightly narrower: patched titles are capped at 200 characters, Manual QA changes return `409` outside Draft, and `status` is API-protected so workflow transitions must go through the action routes below. Ticket create/update payloads do not accept `gitHookPolicy`; Git-hook policy belongs to the project.
 
-Before Start, ticket responses expose the stored overrides plus `effectiveGitHookPolicy` / `effectiveGitHookPolicySource` and the equivalent Manual QA effective fields. At Start, LoopTroop freezes `lockedGitHookPolicy` and `lockedGitHookPolicySource` using ticket → project → profile precedence, so later parent-setting changes do not alter that run.
+Before Start, ticket responses expose the stored Manual QA choice and its effective fields. Git-hook fields remain read-only workflow data: `effectiveGitHookPolicy` reflects the saved project choice, and Start snapshots it into `lockedGitHookPolicy` with a project source so later project edits do not alter that run. A legacy project whose saved policy is missing may still report `profile` as the fallback source until it is restored or resaved.
 
 All ticket route params shown as `:id` or `:ticketId` use the composite public ticket ref, such as `1:AUTH-12`. The browser URL uses only the external ticket id (`/ticket/AUTH-12`), but API callers should send the composite ref returned by ticket list/detail payloads.
 
@@ -659,7 +669,7 @@ Execution setup plan read response:
       }
     ],
     "gitHooks": {
-      "policy": "validate_explicitly",
+      "policy": "validate_advisory",
       "detected": [
         {
           "name": "pre-commit",
@@ -703,7 +713,7 @@ Execution setup plan reads may select archived versions with `phaseAttempt`. Dra
 
 Successful `PUT /execution-setup-plan` responses return the saved `raw`, normalized `plan`, `contentSha256`, and current route state (`status`, `state`, `ticket`) so the client does not need an immediate follow-up fetch.
 
-`workspaceInputs`, `workspaceProbes`, and `gitHooks.validationCommands` are ordered editable lists. Each workspace input contains `path`, `kind`, `sourceStatus`, and `reason`; the server checks it against the original checkout before accepting the plan. `gitHooks.detected` is refreshed from repository/Git evidence and cannot be changed through the plan editor. An empty validation-command list is valid; no waiver field or secondary confirmation is required.
+`workspaceInputs`, `workspaceProbes`, and `gitHooks.validationCommands` are ordered editable lists. Each workspace input contains `path`, `kind`, `sourceStatus`, and `reason`; the server checks it against the original checkout before accepting the plan. `gitHooks.detected` is refreshed from repository/Git evidence and cannot be changed through the plan editor. `gitHooks.policy` is also backend-authoritative: both raw and structured saves replace an attempted policy edit with the ticket's locked project value. An empty validation-command list is valid; no waiver field or secondary confirmation is required.
 
 `PUT /execution-setup-plan` and `POST /regenerate-execution-setup-plan` are normally accepted only while the ticket is in `WAITING_EXECUTION_SETUP_APPROVAL`. A manual save stays at approval. Regeneration durably preserves the commentary plus the supplied structured or raw baseline, archives the current drafting/approval attempts, creates fresh attempts, and immediately returns `GENERATING_EXECUTION_SETUP_PLAN`; the runner later publishes the new plan/report into approval through normal artifact, log, and SSE updates. The request reference survives backend restart and blocked-error retry so one requested version is neither lost nor duplicated.
 

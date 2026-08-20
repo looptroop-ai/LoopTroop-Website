@@ -151,8 +151,11 @@ looptroop setup
 looptroop setup --yes
 ```
 
-`setup` attaches a project and opens the interface. `--yes` accepts every default
-without asking, for an unattended install.
+`setup` attaches a project and opens the interface. Interactive setup offers the
+three [LoopTroop folder-ignore modes](configuration.md#looptroop-folder-ignore-policy)
+and preselects the Configuration default. `--yes` accepts that configured choice
+without asking; if no saved profile choice exists, both paths fall back to **This
+clone only** (`local`).
 
 A project needs to be a git repository with a GitHub `origin`. LoopTroop works in
 git worktrees under `<project>/.looptroop/worktrees/`, never in your checkout.

@@ -110,7 +110,7 @@ LoopTroop deliberately separates app-level state from project-level runtime stat
 | `<repo>/tmp/dev-maintenance-state.json` | Daily maintenance timestamps and invalidation bookkeeping for dependency sync, audit remediation, and OpenCode upgrade | Lets normal startup defer already-run daily maintenance until relevant inputs change |
 | `~/.local/share/opencode/log/` | Default local OpenCode log directory | Used for managed OpenCode DEBUG logs and generic provider-error enrichment unless `LOOPTROOP_OPENCODE_LOG_DIR` points elsewhere |
 
-LoopTroop adds `/.looptroop/` and `/.ticket/` to the repository-local `.git/info/exclude` file when a project is attached. That keeps project-level runtime state and ticket-local artifacts out of normal Git status without modifying the project's committed `.gitignore`.
+When a project is attached, LoopTroop applies its saved [folder-ignore policy](configuration.md#looptroop-folder-ignore-policy) to `/.looptroop/` and `/.ticket/`. **This clone only** (`local`) is the default and appends the rules to the clone's Git exclude file, normally `.git/info/exclude`, without modifying tracked files. **Repository `.gitignore`** (`repo`) appends them to the project's `.gitignore`, while **Do not add rules** (`skip`) deliberately writes neither destination and leaves a visible warning. Ticket initialization reapplies the saved project policy; for non-skip projects, it uses the shared Git exclude only when a new worktree does not yet see effective rules. Existing rules are never removed automatically.
 
 The `tmp/*.json` maintenance files are repository-local helpers, not durable source-of-truth data. Removing them only causes LoopTroop to regenerate them on the next relevant run.
 
@@ -363,11 +363,11 @@ git commit -m "Stop tracking LoopTroop runtime data"
 
 This removes LoopTroop runtime paths from the Git index without deleting the local runtime files from disk.
 
-After cleanup, `git status --short .looptroop` should not show tracked `.looptroop` entries. Runtime files may still exist locally, but they should be ignored by the repo-local exclude. Ticket worktree artifacts under `.ticket/**` are also ignored locally and excluded from future bead commits; they remain available to LoopTroop but are not intended for target repository branches.
+After cleanup, `git status --short .looptroop` should not show tracked `.looptroop` entries. Runtime files may still exist locally, but they should be ignored according to the project's saved policy unless **Do not add rules** was chosen. Ticket worktree artifacts under `.ticket/**` are likewise excluded from future bead commits; they remain available to LoopTroop but are not intended for target repository branches.
 
 Other ticket initialization errors from the Git hygiene check:
 
-- `INIT_LOOPTROOP_EXCLUDE_FAILED` — LoopTroop could not write the `.looptroop/` exclusion to `.git/info/exclude`. Check that the project's `.git` directory is writable.
+- `INIT_LOOPTROOP_EXCLUDE_FAILED` — LoopTroop could not apply the project's saved `.looptroop/` and `.ticket/` ignore policy. Check that the selected `.gitignore` or Git exclude destination is writable.
 - `INIT_LOOPTROOP_TRACKED_CHECK_FAILED` — The `git ls-files` check itself failed. Verify that the attached project path is a valid, accessible Git repository.
 
 ## 9. Worktree Disk Cleanup

@@ -172,6 +172,7 @@ Free APIs can experience rate-limiting or latency spikes. Community trackers hel
 3. LoopTroop verifies it is a valid git repo with a GitHub origin.
 4. If the repository is already attached, LoopTroop warns you and stops the duplicate add. Project names and short names must also be unused by other attached projects.
 5. If the repository has a `.looptroop` state folder but is not currently attached, choose whether to restore everything, keep the project settings while clearing all tickets, or delete that state and start fresh. The two destructive choices show exactly what will be deleted and require confirmation.
+6. Open **Advanced** to review the concrete Manual QA, Git-hook, and [folder-ignore](configuration.md#looptroop-folder-ignore-policy) choices seeded from Configuration. Folder ignores default to **This clone only**, which keeps `/.looptroop/` and `/.ticket/` out of Git status through this clone's exclude file without modifying the repository's `.gitignore`.
 6. Create your first **Ticket** with a description of the feature or fix you want.
 
 Once submitted, LoopTroop kicks off an **interview phase** to clarify your intent, then generates a structured spec and implementation plan before any code is written. You review and approve at each gate.

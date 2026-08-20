@@ -69,7 +69,7 @@ The setup-plan artifact is structured around a small, explicit contract:
 | `host_context` | Backend-detected current host, execution environment, architecture, available shells, and preferred shell. The plan is reusable on this host, not promised to run unchanged on every host. |
 | `workspace_inputs` | Ignored or untracked non-reproducible files and directories needed for setup. Each entry records a repository-relative path, kind, category, Git status, reason, and copy preview. Generated dependencies, caches, and build output must be recreated instead of copied. |
 | `workspace_probes` | Ordered repository-level structured commands that prove the prepared checkout can actually perform project work; each entry has an `id`, `command`, and `purpose`. |
-| `git_hooks` | The resolved policy, read-only detected-hook evidence, and an ordered editable list of explicit validation commands. |
+| `git_hooks` | The read-only ticket-start snapshot of the project policy, read-only detected-hook evidence, and an ordered editable list of explicit validation commands. |
 | `steps` | Ordered setup actions with structured commands plus `id`, `title`, `purpose`, `required`, `rationale`, and step-level `cautions`. |
 | `project_commands` | Discovered project-wide command families such as prepare, full test, lint, and typecheck. |
 | `quality_gate_policy` | The default policy later coding and final-test phases should follow for tests, lint, typecheck, and full-project fallback behavior. |
@@ -93,7 +93,7 @@ The drafting attempt's generation report preserves raw model output, validation 
 
 ### 3.2 Approval handoff and rewind behavior
 
-Approving the plan first refreshes the host and Git-hook evidence. If either changed, LoopTroop updates the draft hash and asks for review again. Approval then stores a receipt with the reviewed `content_sha256`, host, step count, command count, approved workspace inputs, selected ticket-run Git-hook policy, detected evidence, workspace probes, and exact validation-command list. Detected evidence is read-only, while the inherited hook policy is only the initial choice and may be overridden for this run without changing its project or profile source.
+Approving the plan first refreshes the host and Git-hook evidence. If either changed, LoopTroop updates the draft hash and asks for review again. Approval then stores a receipt with the reviewed `content_sha256`, host, step count, command count, approved workspace inputs, locked project Git-hook policy, detected evidence, workspace probes, and exact validation-command list. Detected evidence and policy are read-only and backend-authoritative. The user can still edit the validation commands, but raw or structured plan edits cannot override the policy captured from the project when the ticket started.
 
 While the ticket is still in `PREPARING_EXECUTION_ENV`, editing or regenerating the setup plan triggers a **runtime rewind** rather than an in-place overwrite:
 
@@ -161,7 +161,7 @@ Before setup commands run, LoopTroop validates every approved workspace input ag
 
 LoopTroop also audits the worktree after each ready-looking attempt. Committable project changes left behind by setup fail the attempt. Generated noise is kept as a warning and copied into the profile cautions with suggested `.gitignore` entries. The setup agent may not copy any additional ignored or untracked path that the user did not approve.
 
-Hook discovery is evidence, not an ecosystem assumption. LoopTroop inspects Git's resolved hook path, actual hook files, and recognizable manager configuration as different evidence kinds. Runnable state is **yes**, **no**, or **unknown**; native Windows evidence can remain unknown. Known managers may supply a hint, but unknown managers remain visible without an invented command. Ticket → project → profile inheritance provides the initial selection, and setup approval may override it for this ticket run:
+Hook discovery is evidence, not an ecosystem assumption. LoopTroop inspects Git's resolved hook path, actual hook files, and recognizable manager configuration as different evidence kinds. Runnable state is **yes**, **no**, or **unknown**; native Windows evidence can remain unknown. Known managers may supply a hint, but unknown managers remain visible without an invented command. The project owns the selection, and ticket Start snapshots it for stable execution and audit reporting. Plan generation, regeneration, raw editing, and structured editing all reimpose that locked value:
 
 - **Observe** (`observe_only`) bypasses hooks for internal commits and pushes and records that explicit validation was skipped
 - **Check** (`validate_advisory`, recommended) bypasses native hooks and runs approved commands as visible advisory checks; failure or timeout warns but does not block

@@ -15,7 +15,7 @@ Each section shows the status as it appears in the app, its available actions, a
 | Phase | Status | Available Actions |
 |-------|--------|-------------------|
 | **Setup** | [Project Creation](#project-creation) | Create project, attach repository, select attachment mode |
-| **Setup** | [Configuration](#configuration) | Select main implementer, council members, effort levels, Git-hook policy, Manual QA toggle |
+| **Setup** | [Configuration](#configuration) | Select main implementer, council members, effort levels, and Advanced project defaults |
 | **To Do** | [Backlog](#backlog) | Edit ticket details, configure model overrides, start the workflow, or cancel the ticket |
 | **Discovery** | [Scanning Relevant Files](#scanning-relevant-files) | Review scanned codebase files and rationales |
 | **Interview** | [Council Drafting Questions](#council-drafting-questions) | Monitor parallel council question drafting |
@@ -67,7 +67,8 @@ Each section shows the status as it appears in the app, its available actions, a
 - Set the project name, description, and appearance.
 - Attach a local Git repository that has a GitHub remote.
 - Choose how to attach a repository that LoopTroop has used before: restore its tickets, clear its tickets, or start fresh.
-- Change advanced options inherited from the global configuration.
+- Open Project **Advanced** to choose concrete Manual QA, Git-hook, and folder-ignore settings seeded from Configuration.
+- Choose whether `/.looptroop/` and `/.ticket/` rules go to the repository `.gitignore`, this clone's Git exclude (the default), or nowhere. [?](configuration.md#looptroop-folder-ignore-policy "Open full documentation")
 
 ---
 
@@ -83,8 +84,8 @@ Each section shows the status as it appears in the app, its available actions, a
 - Select the main implementer. This model is also a council member and handles implementation and other single-model steps. [?](configuration.md#main-implementer-model "Open full documentation")
 - Select models for multi-model planning phases. [?](configuration.md#council-members "Open full documentation")
 - Set supported effort levels for each council member and, where available, an OpenRouter routing variant such as `:floor` or `:nitro`. [?](configuration.md#effort--thinking-variant "Open full documentation")
-- Configure the Git-hook policy: validate explicitly, run hooks for internal commits, or ignore internal-only hooks. [?](configuration.md#git-hook-policy "Open full documentation")
-- Enable or disable Manual QA for tickets in this project. [?](configuration.md#manual-qa "Open full documentation")
+- In collapsed **Advanced**, set future-project defaults for Git-hook policy and LoopTroop folder ignores. [?](configuration.md#git-hook-policy "Open full documentation") [?](configuration.md#looptroop-folder-ignore-policy "Open full documentation")
+- Set the future-project Manual QA default. [?](configuration.md#manual-qa "Open full documentation")
 - Set the log preview length for model tool calls. This limits only the text shown in the AI Model logs, not the content sent to the tool. [?](configuration.md#logging "Open full documentation")
 
 **OpenCode provider recovery** [?](configuration.md#opencode-provider-recovery "Open full documentation")
@@ -126,7 +127,7 @@ Each section shows the status as it appears in the app, its available actions, a
 
 **What you can do:**
 - Edit the ticket title, description, priority, and ticket-level options.
-- Change advanced options that otherwise inherit from the project and global configuration.
+- In Advanced, choose only whether this ticket uses Manual QA. Git-hook and folder-ignore policies remain project settings.
 - Click **Create Ticket** to keep the ticket in the Backlog until you are ready to start it.
 - Click **Create & Start** to start it immediately.
 - When the workflow starts, LoopTroop runs initial checks and moves the ticket to Scanning Relevant Files. The ticket is then locked for editing. To change it, cancel the ticket and create a new one.
@@ -474,11 +475,11 @@ There is no new screenshot for this status yet; this guide intentionally documen
 
 ::: details Screenshot
 ![Approving Workspace Setup](media/ticket-lifecycle/23-waiting-execution-setup-approval.png)
-*Review the setup plan before implementation: readiness assessment, workspace inputs, setup steps, Git hooks, and policy.*
+*Review the setup plan before implementation: readiness assessment, workspace inputs, setup steps, Git hooks, and the locked project policy.*
 :::
 
 **What you can do:**
-- Review readiness assessment, temporary setup steps, workspace probes, command families, read-only detected Git hooks, and editable validation commands
+- Review readiness assessment, temporary setup steps, workspace probes, command families, read-only detected Git hooks and project policy, and editable validation commands
 - Edit setup steps or validation commands
 - Click **Regenerate with commentary** to preserve the current draft and input durably, archive the current generation/approval attempts, and enter **Drafting Workspace Setup Plan** for a fresh version
 

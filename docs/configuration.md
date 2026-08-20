@@ -88,12 +88,14 @@ LoopTroop applies configuration in three layers:
 
 | Layer | What it controls | When it applies |
 | --- | --- | --- |
-| Profile | App-wide baseline values | Used whenever no project override exists |
-| Project override | Optional overrides for a small execution/planning subset, including Manual QA and Git hooks | Applied when the value is resolved |
-| Ticket override | Optional Draft-only Manual QA and Git-hook choices | Wins over project and profile when the ticket starts |
+| Profile | App-wide baseline values | Advanced values preselect future-project choices; other supported values resolve through normal inheritance |
+| Project setting | Saved Manual QA, Git-hook, and folder-ignore choices | Manual QA seeds new tickets; Git-hook and folder-ignore policy stay project-scoped |
+| Ticket choice | Draft-only Manual QA choice | Wins over the project choice when the ticket starts |
 | Ticket start lock | Frozen planning-critical values captured on **Start** | Stays fixed for that ticket run |
 
-The Configuration dialog edits the singleton profile. Project-level overrides are stored by the project API/local project state; the Project form provides focused Manual QA and Git-hook editors, while the other project overrides do not have a general editor in the Configuration dialog. The overrideable fields are:
+The Configuration dialog edits the singleton profile. Its collapsed **Advanced** section contains the defaults for Manual QA, Git-hook policy, and [LoopTroop folder ignore policy](#looptroop-folder-ignore-policy). The Project form copies those defaults into concrete saved choices for a newly attached project and exposes all three in Project **Advanced** before attachment. Restoring an existing project keeps its saved choices. Later Configuration edits affect only projects created after the edit.
+
+Other project-level fields may still override the profile where supported. The project fields are:
 
 - `councilMembers`
 - `maxIterations` (`Max Bead Retries`)
@@ -104,8 +106,9 @@ The Configuration dialog edits the singleton profile. Project-level overrides ar
 - `interviewQuestions`
 - `manualQaOverride`
 - `gitHookPolicy`
+- `ignoreMode` (attach-time only)
 
-If a project override is set, it wins over the profile for that field. Fields without project-override support always come from the profile.
+For the nullable general overrides, a project value wins over the profile and an unset field continues to inherit. The three Advanced project choices are concrete on new projects instead: they are copied from Configuration at creation and do not follow later profile edits. Fields without project support always come from the profile.
 
 ### What locks when you press Start
 
@@ -120,7 +123,7 @@ These values are captured before the ticket enters `SCANNING_RELEVANT_FILES` and
 | Interview / PRD / Beads Coverage Passes | Coverage-loop budgets must stay stable for that ticket |
 | Structured Output Retries | Repair behavior must stay stable across the ticket's structured phases |
 | Manual QA effective value + source | The post-test route must not change after work starts; missing locks on older/in-progress tickets mean disabled |
-| Git-hook policy effective value + source | Repository-hook behavior must stay stable throughout setup, internal commits, and integration |
+| Project Git-hook policy + project source | Repository-hook behavior must stay stable throughout setup, internal commits, and integration |
 
 ### What is read later instead of locked
 
@@ -144,6 +147,7 @@ The docs links on each control point back to this page, but the UI itself also h
 - **Model pickers load configured providers only by default.** Inside the picker you can search by model name, provider, or family and filter to free models. The much larger full OpenCode catalog is not requested until you enable **Show all providers**; turning the option off returns to the configured-provider list.
 - **Duplicate model selection is prevented.** The main implementer is auto-included in the council, and the picker disables models already chosen in another council slot.
 - **Effort controls are conditional.** The effort / thinking picker only appears when the selected model advertises variants, and the saved variant is stored per slot.
+- **Advanced is collapsed by default.** Open it to set the Manual QA, Git-hook, and folder-ignore defaults copied into future projects; saving Configuration does not update projects that are already attached.
 - **Numeric validation is strict.** All numeric fields must be whole numbers, and edits below or above a field's range show an error and block saving. AI Response Timeout, Execution Setup Timeout, Per-Iteration Timeout, and OpenCode Retry Grace Window keep total seconds as the saved value and show compact synchronized Minutes and Seconds editors inside the same field; changing either representation updates the other immediately. Coverage remains displayed in percent, while the API stores timeout/delay values in milliseconds.
 - **The `About` button opens a separate window for application and update details.** The version beside the header title opens the same window. A quiet monochrome icon appears beside that version only when a newer published release is available.
 
@@ -195,8 +199,9 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | [Interview Coverage Passes](#interview-coverage-passes) | 2 | 1–10 | Coverage | ticket start lock |
 | [PRD Coverage Passes](#prd-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
 | [Beads Coverage Passes](#beads-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
-| [Manual QA](#manual-qa) | disabled | enabled / disabled | Post-Implementation | ticket start lock |
-| [Git Hook Policy](#git-hook-policy) | Check | Observe / Check / Require / Run | Pre-Implementation | setup-plan approval |
+| [Manual QA](#manual-qa) | disabled | enabled / disabled | Advanced | ticket start lock |
+| [Git Hook Policy](#git-hook-policy) | Check | Observe / Check / Require / Run | Advanced | ticket start lock |
+| [LoopTroop Folder Ignore Policy](#looptroop-folder-ignore-policy) | This clone only | Repository `.gitignore` / This clone only / Do not add rules | Advanced | project attachment |
 | [Per-Iteration Timeout](#per-iteration-timeout) | 1200 s | 0–3600 s | Implementation & Workspace Setup | next coding/final-test attempt |
 | [Execution Setup Timeout](#execution-setup-timeout) | 1200 s | 0–3600 s | Implementation & Workspace Setup | next execution-setup attempt |
 | [Max Bead Retries](#max-bead-retries) | 5 | 0–20 | Implementation & Workspace Setup | next execution/final-test attempt |
@@ -206,7 +211,7 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 
 ## Manual QA
 
-Manual QA is an optional human verification loop between final tests and integration. Its profile default is `manualQaEnabled: false`. Configuration places it in **Post-Implementation**, while Project **Advanced** settings place it beside Git hooks in one collapsed section. Ticket controls expose it in Advanced and the Draft workspace until **Start**. All scopes offer only `Enabled / Disabled`; new project and ticket saves persist the selected boolean explicitly. Legacy unset values remain readable and display their resolved parent/default boolean until the user chooses an explicit value.
+Manual QA is an optional human verification loop between final tests and integration. Its profile default is `manualQaEnabled: false`. Configuration and Project place it in their collapsed **Advanced** sections. Ticket controls expose it in Advanced and the Draft workspace until **Start**. All scopes offer only `Enabled / Disabled`; new project and ticket saves persist the selected boolean explicitly. Legacy unset values remain readable and display their resolved parent/default boolean until the user chooses an explicit value.
 
 Hovering **Enabled** or **Disabled** explains the resulting workflow route, including whether LoopTroop creates a checklist and waits for user verification. The help button beside each Manual QA control explains that scope and opens this section in the locally served documentation started with the application.
 
@@ -221,6 +226,24 @@ On Start, LoopTroop persists both `lockedManualQaEnabled` and `lockedManualQaSou
 Manual QA Improvement drafts use the same explicit Enabled/Disabled choice for the new child ticket. Their collapsed Advanced control starts from the current effective project/profile value and is stored with the chosen P1–P5 priority, so child creation does not depend on a later configuration change.
 
 When the lock is disabled, `TESTS_PASSED` keeps the direct `RUNNING_FINAL_TEST → INTEGRATING_CHANGES` route. When enabled, it enters `GENERATING_QA_CHECKLIST → WAITING_MANUAL_QA`; a submitted failure creates QA-fix beads and loops through Coding and fresh final tests before the next checklist version.
+
+---
+
+## LoopTroop Folder Ignore Policy
+
+LoopTroop stores project state under `/.looptroop/` and ticket-owned runtime artifacts under `/.ticket/`. The folder-ignore policy decides where LoopTroop appends rules for those two paths when a project is attached. It is a project setting, not a ticket setting, because every ticket and worktree for the project uses the same storage boundary.
+
+The profile field is `ignoreMode`, and its built-in default is `local` (**This clone only**). Configuration **Advanced** chooses the default for future projects. Project **Advanced** shows the same cards after the selected folder has been validated as a Git repository, lets you change the choice before attachment, and saves the effective value with the project. Restoring existing LoopTroop state restores that saved choice. Configuration changes never rewrite an attached project's ignore destination.
+
+| Choice | Stored value | Destination and effect |
+| --- | --- | --- |
+| **Repository `.gitignore`** | `repo` | Appends `/.looptroop/` and `/.ticket/` to the repository's `.gitignore`. The file is visible to Git and, if committed, the rules apply to every clone. |
+| **This clone only** (default) | `local` | Appends the rules to this clone's Git exclude file, normally `.git/info/exclude`. Nothing is added to the project's tracked files. |
+| **Do not add rules** | `skip` | Does not add ignore rules. LoopTroop warns that its runtime folders can appear in Git status and must not be committed. |
+
+Rules are appended safely without deleting existing ignore content, and LoopTroop does not remove a rule automatically if the project setting later changes. Ticket initialization reapplies the project's saved destination to the main checkout. For either non-skip mode, if a new worktree still lacks effective rules—for example because a repository `.gitignore` change has not been committed yet—LoopTroop closes that gap through the shared Git exclude.
+
+The `?` beside the folder-ignore controls summarizes what `/.looptroop/` and `/.ticket/` contain and where each choice writes. Hover or focus opens that summary; activating it opens this section.
 
 ---
 
@@ -618,10 +641,10 @@ Once coverage is clean or this cap is reached, LoopTroop advances to `EXPANDING_
 
 ### Git Hook Policy
 
-**Type:** four-choice inherited policy
+**Type:** four-choice project policy
 **Default:** **Check** (recommended)
 
-Choose how LoopTroop handles repository hooks. The same linked buttons appear in Configuration, Project **Advanced** settings, and the new-ticket **Advanced** settings; the effective choice is visibly highlighted as soon as each screen opens. A project or ticket with no explicit override continues to inherit its parent value, so a Configuration change flows through projects and unstarted tickets that still inherit. Draft tickets can choose an override before Start. The setup-plan approval editor may then override that inherited choice for the current ticket run without changing the parent setting. Hovering each button summarizes whether hooks are bypassed, whether explicit checks run, and whether a failure can block.
+Choose how LoopTroop handles repository hooks. The linked buttons appear in Configuration **Advanced** and Project **Advanced**; the selected choice is visibly highlighted as soon as each screen opens. Configuration supplies the initial choice for a new project, and the project saves that concrete choice. Tickets do not expose a Git-hook control. Hovering each button summarizes whether hooks are bypassed, whether explicit checks run, and whether a failure can block.
 
 | Choice | Stored value | What LoopTroop does |
 | --- | --- | --- |
@@ -632,15 +655,9 @@ Choose how LoopTroop handles repository hooks. The same linked buttons appear in
 
 **Check, Require, and Run are not the same.** Check and Require turn off hooks for internal Git commands and perform the reviewed commands explicitly, where output and file effects are auditable. Check continues with a warning; Require blocks. Run leaves repository hooks active inside Git itself.
 
-Resolution is deterministic:
+When a project is created without an explicit API/CLI choice, LoopTroop copies the current profile `gitHookPolicy`; the built-in fallback is `validate_advisory`. An explicit project choice wins. LoopTroop snapshots that project policy when a ticket starts, so later project edits cannot alter the run.
 
-1. a non-null ticket `gitHookPolicy` wins;
-2. otherwise a non-null project `gitHookPolicy` wins;
-3. otherwise the profile `gitHookPolicy` is used.
-
-LoopTroop locks the resolved choice when the ticket starts. Parent changes continue to flow through unset project and ticket overrides before Start, but do not alter a started ticket. The setup approval editor can still choose a non-strict ticket-run override. The approved plan becomes authoritative for that run; regeneration preserves the override.
-
-Execution setup shows detected hooks as read-only evidence and lets you add, edit, reorder, or remove validation commands. An unknown hook never causes LoopTroop to invent an ecosystem-specific command. Removing all validation commands is allowed and the approval receipt records that exact decision.
+Execution setup shows the locked project policy and detected hooks as read-only, backend-authoritative fields. You may add, edit, reorder, or remove validation commands. Raw-YAML or structured edits that try to change `git_hooks.policy` are replaced with the locked project policy when the plan is parsed or saved. An unknown hook never causes LoopTroop to invent an ecosystem-specific command. Removing all validation commands is allowed and the approval receipt records that exact decision.
 
 This policy affects only LoopTroop's internal Git operations. It does not alter the repository's hook configuration for your own Git commands. The `?` beside each control opens this section.
 
