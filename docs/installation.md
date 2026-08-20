@@ -266,6 +266,20 @@ Channel caveats worth knowing in advance:
   name and fails with a confusing lockfile error. On modern Yarn, either run it
   without installing (`yarn dlx looptroop`) or install it with one of the other
   channels on this page.
+- **Yarn does not put its global binaries on your `PATH`.** This is the one that
+  looks like a failed install and is not: `yarn global add looptroop` reports
+  success, and then `looptroop` is not a command. Yarn links global executables
+  into its own directory and leaves adding it to you. Check where, and add it:
+
+  ```bash
+  yarn global bin                 # usually ~/.yarn/bin
+  export PATH="$(yarn global bin):$PATH"
+  ```
+
+  Put that `export` in your shell profile — `~/.bashrc`, `~/.zshrc` — or the next
+  terminal will have forgotten it. npm, bun and pnpm each install into a
+  directory that is normally already on `PATH`, which is why this catches people
+  out on Yarn specifically.
 - **WinGet needs the daemon stopped first.** Windows will not replace a running
   executable, and the daemon holds it open. `looptroop stop` is printed as a
   separate line rather than joined with `&&`, because no single joining operator
@@ -342,11 +356,25 @@ docker pull looptroopai/looptroop:latest
 docker pull ghcr.io/looptroop-ai/looptroop:latest
 ```
 
-The same image runs under **Podman** — substitute `podman` for `docker` in every
-command on this page. Podman's rootless default maps your user to the container's
-root, which changes the uid question at the end of this section: with
-`podman run --userns=keep-id` the mounted checkout stays owned by you and the
-`--user` flag below is unnecessary.
+The same image runs under **Podman**, with one difference that is not a
+substitution: **Podman needs the registry in the name.** Docker assumes Docker
+Hub for a bare `looptroopai/looptroop`; Podman does not, and depending on the
+`unqualified-search-registries` in its `registries.conf` it will either refuse
+the name or stop to ask you which registry you meant. Say it outright:
+
+```bash
+podman pull docker.io/looptroopai/looptroop:latest
+# or
+podman pull ghcr.io/looptroop-ai/looptroop:latest
+```
+
+The GHCR name already carries its registry, so that one is the same under both.
+Everywhere else on this page, `podman` does substitute for `docker` directly.
+
+Podman's rootless default maps your user to the container's root, which changes
+the uid question at the end of this section: with `podman run --userns=keep-id`
+the mounted checkout stays owned by you and the `--user` flag below is
+unnecessary.
 
 Two things it still needs from you, both deliberately not baked in.
 
