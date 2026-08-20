@@ -89,6 +89,42 @@ CLI and interface. When GitHub cannot be reached, the last known release is kept
 with no cached answer, Doctor prints `latest unavailable`. Other human-readable
 commands stay silent unless a newer version is known.
 
+### The interface says "Signed out"
+
+This screen means the daemon refused this browser's session. It is not a broken
+install, and there are four reasons it appears, with different fixes.
+
+**You opened the origin, not the sign-in link.** `looptroop open` prints
+`Opened http://127.0.0.1:3000` — the address, deliberately without the
+single-use nonce that actually signs a browser in, because that nonce is a live
+credential and this line ends up in scrollback and screenshots. Opening that
+address by hand therefore always lands here. Use the tab `looptroop open`
+itself opens.
+
+**No browser opened at all.** Over SSH, in WSL, in a fresh virtual machine, or on
+a machine with nothing registered for `http`, there may be no browser for
+`looptroop open` to launch. To get a link you can paste into any browser on that
+machine, use `looptroop start`, which prints the full sign-in URL:
+
+```bash
+looptroop stop
+looptroop start
+```
+
+The URL it prints ends in `#bootstrap=…`. It signs one browser in and then
+expires, so treat it as a password: do not paste it into a bug report.
+
+**The daemon restarted.** Session tokens live in the daemon's memory and are
+regenerated on every start, so `looptroop restart`, a crash, or an upgrade ends
+every browser session immediately. Sessions otherwise last 12 hours. Sign in
+again with `looptroop open`.
+
+**The page is on `localhost` rather than `127.0.0.1`.** Session cookies are
+host-only: one obtained at `127.0.0.1:3000` is never sent to `localhost:3000`,
+even though they are the same server on the same port. Signing in again does not
+help, because `looptroop open` signs you in at `127.0.0.1` and a `localhost`
+bookmark still has no cookie. Use the `127.0.0.1` address.
+
 ## 2. Runtime Stall Report
 
 Run the report while `npm run dev` is still running, ideally during the slowdown:

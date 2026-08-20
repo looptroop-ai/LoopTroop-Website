@@ -35,7 +35,7 @@ Everything else differs by channel, so read the row you are actually using.
 
 | Channel | Node | git | `gh` |
 | --- | --- | --- | --- |
-| **Installer script** | you provide it — the installer is a Node program and never installs Node | you provide it | you provide it |
+| **Installer script** | you provide **24.15.0+** (and npm **11.12.1+**) — the installer is a Node program, never installs Node, and hands the package to npm | you provide it | you provide it |
 | **npm, bun, pnpm, Yarn** | you provide **24.15.0+** (and npm **11.12.1+**) | you provide it | you provide it |
 | **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
 | **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
@@ -280,6 +280,19 @@ Channel caveats worth knowing in advance:
   terminal will have forgotten it. npm, bun and pnpm each install into a
   directory that is normally already on `PATH`, which is why this catches people
   out on Yarn specifically.
+- **On Windows, a Node installed by unpacking an archive leaves npm's global
+  directory off `PATH`.** The installer script hands the package to npm and lets
+  npm place the shim, so the install genuinely succeeded and `looptroop` still is
+  not a command. It prints the fix when its own verification notices, but only
+  then. Check where npm puts global binaries and add that directory:
+
+  ```powershell
+  npm prefix -g                   # usually %APPDATA%\npm
+  ```
+
+  A new terminal is needed either way: a `PATH` change does not reach the one
+  that is already open. Node installed from the official Windows installer, from
+  winget or from Scoop sets this up for you.
 - **WinGet needs the daemon stopped first.** Windows will not replace a running
   executable, and the daemon holds it open. `looptroop stop` is printed as a
   separate line rather than joined with `&&`, because no single joining operator

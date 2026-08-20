@@ -76,7 +76,7 @@ docker pull looptroopai/looptroop:latest
 
 | Channel | What it needs first |
 | --- | --- |
-| **curl / irm** | Node and npm. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
+| **curl / irm** | Node 24.15.0+, npm 11.12.1+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
 | **npm** | Node 24.15.0+, npm 11.12.1+, git, `gh` |
 | **Homebrew** | Nothing else — it pulls in `node@24` and `gh`, and takes git from the OS |
 | **Scoop** | Nothing else — it depends on `nodejs-lts`, `git` and `gh` |
