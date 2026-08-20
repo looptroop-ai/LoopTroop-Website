@@ -189,7 +189,7 @@ Selected validation ranges that are easy to miss when calling the API directly:
 
 | Method | Route | Notes |
 | --- | --- | --- |
-| `GET` | `/api/projects/check-git?path=...` | Validates git/GitHub origin status and previews existing LoopTroop state for a folder |
+| `GET` | `/api/projects/check-git?path=...` | Validates git/GitHub origin status, reports whether the canonical repository is already attached, and previews existing LoopTroop state |
 | `GET` | `/api/projects/ls?path=...` | Directory browser used by the attach-project flow |
 | `GET` | `/api/projects` | List attached projects |
 | `GET` | `/api/projects/:id` | Get one project |
@@ -199,7 +199,7 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `GET` | `/api/projects/:id/worktrees/size` | Get the total disk size of all worktrees for a project |
 | `DELETE` | `/api/projects/:id/worktrees` | Delete worktrees for completed and canceled tickets only, including same-user read-only cache trees; active ticket worktrees are left untouched |
 
-`GET /api/projects/check-git` returns attach-flow metadata in addition to simple validity. When relevant, the response also includes `scope` (`root` or `subfolder`), `repoRoot`, `githubRepoSlug`, `hasLoopTroopState`, `existingProject`, and `performanceWarning` for WSL mounted-drive performance warnings. GitHub origin inspection adds `githubOriginWriteAccess` (`writable`, `read_only`, or `unknown`) and `githubViewerPermission`; a confirmed `READ` or `TRIAGE` permission also adds `githubWriteWarning`. This warning is advisory and leaves `status` as `valid`, because the active GitHub CLI identity may differ from the credentials used by Git push. The `existingProject` preview contains the saved `name`, `shortname`, `icon`, `color`, `ticketCounter`, total `ticketCount`, `activeTicketCount`, `gitHookPolicy`, and `manualQaOverride`. `activeTicketCount` counts statuses other than `DRAFT`, `COMPLETED`, and `CANCELED`. This lets clients show exactly which project settings and ticket data each attachment action keeps or removes before submitting.
+`GET /api/projects/check-git` returns attach-flow metadata in addition to simple validity. When relevant, the response also includes `scope` (`root` or `subfolder`), `repoRoot`, `githubRepoSlug`, `hasLoopTroopState`, `existingProject`, `alreadyAttached`, `attachedProject`, and `performanceWarning` for WSL mounted-drive performance warnings. `alreadyAttached` is based on the canonical Git repository root, so a subfolder, symlink, trailing slash, or alternate path for an attached repository reports the same conflict. `attachedProject` contains the attached project's `id`, `name`, `shortname`, and canonical `folderPath`; clients should block the create action when `alreadyAttached` is true. GitHub origin inspection adds `githubOriginWriteAccess` (`writable`, `read_only`, or `unknown`) and `githubViewerPermission`; a confirmed `READ` or `TRIAGE` permission also adds `githubWriteWarning`. This warning is advisory and leaves `status` as `valid`, because the active GitHub CLI identity may differ from the credentials used by Git push. The `existingProject` preview contains the saved `name`, `shortname`, `icon`, `color`, `ticketCounter`, total `ticketCount`, `activeTicketCount`, `gitHookPolicy`, and `manualQaOverride`. `activeTicketCount` counts statuses other than `DRAFT`, `COMPLETED`, and `CANCELED`. This lets clients show exactly which project settings and ticket data each attachment action keeps or removes before submitting.
 
 Example existing-state preview:
 
@@ -243,7 +243,7 @@ Example project attachment payload:
 }
 ```
 
-When the resolved repository root already contains `.looptroop` project state, `existingStateAction` controls the attachment:
+When the resolved repository root already contains `.looptroop` project state and is not currently registered in the app-level attachment registry, `existingStateAction` controls the attachment:
 
 | Value | Behavior |
 | --- | --- |
@@ -253,12 +253,14 @@ When the resolved repository root already contains `.looptroop` project state, `
 
 The field is optional for API compatibility and defaults to `restore` when existing state is found. All three existing-state paths update the saved `folderPath` to the repository root resolved on the current machine. Destructive modes remove active tickets as well as terminal tickets, but never delete repository source files, commits, or local/remote branches. Because `clear_tickets` resets numbering, its next ticket is `<SHORTNAME>-1`; an old branch retained in the repository can therefore have the same ticket identifier.
 
+Creating an already-attached repository returns HTTP `409` with `code: "PROJECT_ALREADY_ATTACHED"`. Creating or renaming a project with a name or short name already used by another attached project returns HTTP `409` with `code: "PROJECT_IDENTITY_CONFLICT"`; names compare case-insensitively after trimming, and short names compare in uppercase form. The response includes a `conflicts` array whose entries identify `folder`, `name`, or `shortname` conflicts.
+
 Direct attachment/update validation and mutability rules:
 
 | Field | Create | Patch | Notes |
 | --- | --- | --- | --- |
-| `name` | required | optional | `1` to `100` characters |
-| `shortname` | required | not accepted | `3` to `5` uppercase letters or digits |
+| `name` | required | optional | `1` to `100` characters; unique among attached projects after trimming and case folding |
+| `shortname` | required | not accepted | `3` to `5` uppercase letters or digits; unique among attached projects |
 | `folderPath` | required | not accepted | Must resolve to a git repository; outside tests, the repository must also have a GitHub `origin` |
 | `profileId` | optional | not accepted | Attach-time only |
 | `icon`, `color` | optional | optional | `color` must be `#RRGGBB` |

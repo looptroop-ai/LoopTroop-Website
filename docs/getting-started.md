@@ -170,8 +170,9 @@ Free APIs can experience rate-limiting or latency spikes. Community trackers hel
 1. Open the interface with `looptroop open`.
 2. Click **Add Project** and provide the absolute path to your local git repository.
 3. LoopTroop verifies it is a valid git repo with a GitHub origin.
-4. If the repository already has a `.looptroop` state folder, choose whether to restore everything, keep the project settings while clearing all tickets, or delete that state and start fresh. The two destructive choices show exactly what will be deleted and require confirmation.
-5. Create your first **Ticket** with a description of the feature or fix you want.
+4. If the repository is already attached, LoopTroop warns you and stops the duplicate add. Project names and short names must also be unused by other attached projects.
+5. If the repository has a `.looptroop` state folder but is not currently attached, choose whether to restore everything, keep the project settings while clearing all tickets, or delete that state and start fresh. The two destructive choices show exactly what will be deleted and require confirmation.
+6. Create your first **Ticket** with a description of the feature or fix you want.
 
 Once submitted, LoopTroop kicks off an **interview phase** to clarify your intent, then generates a structured spec and implementation plan before any code is written. You review and approve at each gate.
 

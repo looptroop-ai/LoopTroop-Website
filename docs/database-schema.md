@@ -81,9 +81,11 @@ Today it is used for startup/UI metadata such as `startup.restore_notice.dismiss
 
 This table is the app-level registry of attached repositories:
 
-- `folder_path` is unique
+- `folder_path` is unique and stores the canonical Git repository root, so one repository cannot be attached through multiple paths
 - `id` is the **public project id** used by the API
 - deleting or detaching an attached project removes this registry row, not necessarily the project-local `.looptroop` state
+
+Project names and short names are kept in each repository's project database, so their cross-project uniqueness is enforced by the attachment and rename paths rather than by a single SQLite constraint. Names compare case-insensitively after trimming; short names compare in uppercase form. Removing an attachment leaves local state recoverable, but adding a repository that is still present in this registry is rejected.
 
 ## 4. Project Database
 
