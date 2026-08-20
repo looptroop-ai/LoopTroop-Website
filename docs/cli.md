@@ -43,6 +43,8 @@ Commands:
 Options:
   --port <n>     Port to listen on (start, restart)
   --foreground   Run in this terminal instead of the background (start)
+  --opencode-logs=all
+                 Include managed OpenCode DEBUG output (open, start)
   --json         Machine-readable output (status, doctor)
   --follow, -f   Keep streaming (logs)
   --lines <n>    Number of log lines to show (logs)

@@ -99,20 +99,22 @@ install, and there are four reasons it appears, with different fixes.
 single-use nonce that actually signs a browser in, because that nonce is a live
 credential and this line ends up in scrollback and screenshots. Opening that
 address by hand therefore always lands here. Use the tab `looptroop open`
-itself opens.
+itself opens, or `looptroop open --print-url` to get a link you can paste.
 
 **No browser opened at all.** Over SSH, in WSL, in a fresh virtual machine, or on
 a machine with nothing registered for `http`, there may be no browser for
-`looptroop open` to launch. To get a link you can paste into any browser on that
-machine, use `looptroop start`, which prints the full sign-in URL:
+`looptroop open` to launch. Since 0.5.7 it notices — it waits for the browser to
+sign in, and prints the sign-in link itself when none does. To ask for that link
+without an attempt:
 
 ```bash
-looptroop stop
-looptroop start
+looptroop open --print-url
 ```
 
 The URL it prints ends in `#bootstrap=…`. It signs one browser in and then
 expires, so treat it as a password: do not paste it into a bug report.
+
+`looptroop start` prints the same link when it starts the daemon.
 
 **The daemon restarted.** Session tokens live in the daemon's memory and are
 regenerated on every start, so `looptroop restart`, a crash, or an upgrade ends

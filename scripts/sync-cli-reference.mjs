@@ -28,7 +28,7 @@ import path from 'node:path'
  * a release ships, not when `main` changes. Bumping it is part of the release
  * checklist; running this script without `--check` is the other part.
  */
-const CLI_SOURCE_REF = 'v0.5.6'
+const CLI_SOURCE_REF = 'v0.5.7'
 
 const SOURCE_URL = `https://raw.githubusercontent.com/looptroop-ai/LoopTroop/${CLI_SOURCE_REF}/server/cli/cli.ts`
 const PAGE = path.join(process.cwd(), 'docs', 'cli.md')
