@@ -201,7 +201,7 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | [Beads Coverage Passes](#beads-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
 | [Manual QA](#manual-qa) | disabled | enabled / disabled | Advanced | ticket start lock |
 | [Git Hook Policy](#git-hook-policy) | Check | Observe / Check / Require / Run | Advanced | ticket start lock |
-| [LoopTroop Folder Ignore Policy](#looptroop-folder-ignore-policy) | This clone only | Repository `.gitignore` / This clone only / Do not add rules | Advanced | project attachment |
+| [LoopTroop Folder Ignore Policy](#looptroop-folder-ignore-policy) | This clone | Repository / This clone / Nowhere | Advanced | project attachment |
 | [Per-Iteration Timeout](#per-iteration-timeout) | 1200 s | 0–3600 s | Implementation & Workspace Setup | next coding/final-test attempt |
 | [Execution Setup Timeout](#execution-setup-timeout) | 1200 s | 0–3600 s | Implementation & Workspace Setup | next execution-setup attempt |
 | [Max Bead Retries](#max-bead-retries) | 5 | 0–20 | Implementation & Workspace Setup | next execution/final-test attempt |
@@ -233,17 +233,17 @@ When the lock is disabled, `TESTS_PASSED` keeps the direct `RUNNING_FINAL_TEST �
 
 LoopTroop stores project state under `/.looptroop/` and ticket-owned runtime artifacts under `/.ticket/`. The folder-ignore policy decides where LoopTroop appends rules for those two paths when a project is attached. It is a project setting, not a ticket setting, because every ticket and worktree for the project uses the same storage boundary.
 
-The profile field is `ignoreMode`, and its built-in default is `local` (**This clone only**). Configuration **Advanced** chooses the default for future projects. Project **Advanced** shows the same cards after the selected folder has been validated as a Git repository, lets you change the choice before attachment, and saves the effective value with the project. Restoring existing LoopTroop state restores that saved choice. Configuration changes never rewrite an attached project's ignore destination.
+The profile field is `ignoreMode`, and its built-in default is `local` (**This clone**). Configuration **Advanced** chooses the default for future projects. Project **Advanced** shows the same control after the selected folder has been validated as a Git repository, lets you change the choice before attachment, and saves the effective value with the project. Restoring existing LoopTroop state restores that saved choice. Configuration changes never rewrite an attached project's ignore destination.
 
 | Choice | Stored value | Destination and effect |
 | --- | --- | --- |
-| **Repository `.gitignore`** | `repo` | Appends `/.looptroop/` and `/.ticket/` to the repository's `.gitignore`. The file is visible to Git and, if committed, the rules apply to every clone. |
-| **This clone only** (default) | `local` | Appends the rules to this clone's Git exclude file, normally `.git/info/exclude`. Nothing is added to the project's tracked files. |
-| **Do not add rules** | `skip` | Does not add ignore rules. LoopTroop warns that its runtime folders can appear in Git status and must not be committed. |
+| **Repository** | `repo` | Appends `/.looptroop/` and `/.ticket/` to the repository's tracked `.gitignore`. The file is visible to Git and, if committed, the rules apply to every clone. |
+| **This clone** (default) | `local` | Appends the rules to this clone's Git exclude file, normally `.git/info/exclude`. Nothing is added to the project's tracked files. |
+| **Nowhere** | `skip` | Does not add ignore rules. LoopTroop warns that its runtime folders can appear in Git status and must not be committed. |
 
 Rules are appended safely without deleting existing ignore content, and LoopTroop does not remove a rule automatically if the project setting later changes. Ticket initialization reapplies the project's saved destination to the main checkout. For either non-skip mode, if a new worktree still lacks effective rules—for example because a repository `.gitignore` change has not been committed yet—LoopTroop closes that gap through the shared Git exclude.
 
-The `?` beside the folder-ignore controls summarizes what `/.looptroop/` and `/.ticket/` contain and where each choice writes. Hover or focus opens that summary; activating it opens this section.
+Both scopes present the policy as a single row, matching the other **Advanced** options: a short description on the left and a **Repository / This clone / Nowhere** selector on the right. Hovering a choice explains where it writes and what that costs, and choosing **Nowhere** adds a warning below the row. The `?` beside the label summarizes what `/.looptroop/` and `/.ticket/` contain and where each choice writes; activating it opens this section.
 
 ---
 
