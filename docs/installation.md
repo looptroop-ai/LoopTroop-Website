@@ -28,28 +28,6 @@ the service without a browser.
 > not install it, and it refuses to start with no OpenCode to reach. See
 > [Getting Started](getting-started.md).
 
-## What you need first, per channel
-
-Everything else differs by channel, so read the row you are actually using.
-`looptroop doctor` checks all of it and names anything missing.
-
-| Channel | Node | git | `gh` |
-| --- | --- | --- | --- |
-| **Installer script** | you provide **24.15.0+** (and npm **11.12.1+**) — the installer is a Node program, never installs Node, and hands the package to npm | you provide it | you provide it |
-| **npm, bun, pnpm, Yarn** | you provide **24.15.0+** (and npm **11.12.1+**) | you provide it | you provide it |
-| **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
-| **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
-| **Chocolatey** ⏳ | installed for you (`nodejs-lts`) | installed for you | installed for you |
-| **WinGet** ⏳ | not needed — the executable carries its own | installed for you | installed for you |
-| **AUR** ⏳ | installed for you (`nodejs>=24`) | installed for you | installed for you |
-| **Standalone executable** | needed to *install*, not to *run* | you provide it | you provide it |
-| **Container** | in the image | in the image | in the image |
-
-`gh` is only used for the pull-request step at the end of a ticket, and it must
-be authenticated (`gh auth login`) for that step to work. Everything before it
-runs without `gh`, which is why `looptroop doctor` warns about a missing `gh`
-rather than failing.
-
 ## Channels
 
 | | Install | Upgrade | |
@@ -81,6 +59,28 @@ every change. Each is waiting on somebody else:
 The commands are listed because they are what will work, unchanged, the day each
 clears. Until then every ✅ row is a real alternative on the same platform — Arch
 users can install with npm, and Windows users with Scoop.
+
+## What you need first, per channel
+
+Everything else differs by channel, so read the row you are actually using.
+`looptroop doctor` checks all of it and names anything missing.
+
+| Channel | Node | git | `gh` |
+| --- | --- | --- | --- |
+| **Installer script** | you provide **24.15.0+** (and npm **11.12.1+**) — the installer is a Node program, never installs Node, and hands the package to npm | you provide it | you provide it |
+| **npm, bun, pnpm, Yarn** | you provide **24.15.0+** (and npm **11.12.1+**) | you provide it | you provide it |
+| **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
+| **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
+| **Chocolatey** ⏳ | installed for you (`nodejs-lts`) | installed for you | installed for you |
+| **WinGet** ⏳ | not needed — the executable carries its own | installed for you | installed for you |
+| **AUR** ⏳ | installed for you (`nodejs>=24`) | installed for you | installed for you |
+| **Standalone executable** | needed to *install*, not to *run* | you provide it | you provide it |
+| **Container** | in the image | in the image | in the image |
+
+`gh` is only used for the pull-request step at the end of a ticket, and it must
+be authenticated (`gh auth login`) for that step to work. Everything before it
+runs without `gh`, which is why `looptroop doctor` warns about a missing `gh`
+rather than failing.
 
 ## What each channel actually installs
 
