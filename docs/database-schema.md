@@ -59,7 +59,7 @@ Important columns:
 - workflow budgets and limits: `min_council_quorum`, `interview_questions`, `max_iterations`, `structured_retry_count`
 - timeout settings in milliseconds: `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`
 - coverage controls: `coverage_follow_up_budget_percent`, `max_coverage_passes`, `max_prd_coverage_passes`, `max_beads_coverage_passes`
-- Manual QA baseline: `manual_qa_enabled` (non-null boolean, default `false`)
+- Manual QA baseline: `manual_qa_enabled` (non-null boolean, default `true`)
 - internal Git behavior: `git_hook_policy` (non-null text, default `validate_advisory`)
 - LoopTroop folder ignore destination: `ignore_mode` (non-null text, default `local`)
 - OpenCode retry controls: `opencode_retry_limit`, `opencode_retry_delay`, `opencode_steps`

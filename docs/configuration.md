@@ -144,7 +144,7 @@ The docs links on each control point back to this page, but the UI itself also h
 
 - **OpenCode health is checked live.** The dialog shows whether OpenCode is reachable, whether model discovery is still loading, and whether the connected providers currently expose any models.
 - **The reload button performs a strong provider/model refresh.** It spins and remains disabled until the refresh finishes, disposes only LoopTroop's OpenCode catalog/root instance, then fetches the provider catalog again and replaces the cached model query. Use it after adding or changing OpenCode provider credentials, or when the catalog was empty during startup. This does not restart `opencode serve` or interrupt active ticket worktree instances.
-- **Model pickers load configured providers only by default.** Inside the picker you can search by model name, provider, or family and filter to free models. The much larger full OpenCode catalog is not requested until you enable **Show all providers**; turning the option off returns to the configured-provider list.
+- **Model pickers load configured providers only by default.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop registers with OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. The much larger full OpenCode catalog is not requested until you enable **Show all providers**; turning the option off returns to the configured-provider list.
 - **Duplicate model selection is prevented.** The main implementer is auto-included in the council, and the picker disables models already chosen in another council slot.
 - **Effort controls are conditional.** The effort / thinking picker only appears when the selected model advertises variants, and the saved variant is stored per slot.
 - **Advanced is collapsed by default.** Open it to set the Manual QA, Git-hook, and folder-ignore defaults copied into future projects; saving Configuration does not update projects that are already attached.
@@ -199,7 +199,7 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | [Interview Coverage Passes](#interview-coverage-passes) | 2 | 1–10 | Coverage | ticket start lock |
 | [PRD Coverage Passes](#prd-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
 | [Beads Coverage Passes](#beads-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
-| [Manual QA](#manual-qa) | disabled | enabled / disabled | Advanced | ticket start lock |
+| [Manual QA](#manual-qa) | enabled | enabled / disabled | Advanced | ticket start lock |
 | [Git Hook Policy](#git-hook-policy) | Check | Observe / Check / Require / Run | Advanced | ticket start lock |
 | [LoopTroop Folder Ignore Policy](#looptroop-folder-ignore-policy) | This clone | Repository / This clone / Nowhere | Advanced | project attachment |
 | [Per-Iteration Timeout](#per-iteration-timeout) | 1200 s | 0–3600 s | Implementation & Workspace Setup | next coding/final-test attempt |
@@ -211,7 +211,7 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 
 ## Manual QA
 
-Manual QA is an optional human verification loop between final tests and integration. Its profile default is `manualQaEnabled: false`. Configuration and Project place it in their collapsed **Advanced** sections. Ticket controls expose it in Advanced and the Draft workspace until **Start**. All scopes offer only `Enabled / Disabled`; new project and ticket saves persist the selected boolean explicitly. Legacy unset values remain readable and display their resolved parent/default boolean until the user chooses an explicit value.
+Manual QA is an optional human verification loop between final tests and integration. Its profile default is `manualQaEnabled: true`. Configuration and Project place it in their collapsed **Advanced** sections. Ticket controls expose it in Advanced and the Draft workspace until **Start**. All scopes offer only `Enabled / Disabled`; new project and ticket saves persist the selected boolean explicitly. Legacy unset values remain readable and display their resolved parent/default boolean until the user chooses an explicit value.
 
 Hovering **Enabled** or **Disabled** explains the resulting workflow route, including whether LoopTroop creates a checklist and waits for user verification. The help button beside each Manual QA control explains that scope and opens this section in the locally served documentation started with the application.
 

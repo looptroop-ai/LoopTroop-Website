@@ -142,7 +142,7 @@ Example profile update payload:
   "mainImplementerVariant": "high",
   "councilMembers": "[\"openai/gpt-5.4\",\"anthropic/claude-sonnet-4\"]",
   "councilMemberVariants": "{\"openai/gpt-5.4\": \"high\"}",
-  "manualQaEnabled": false,
+  "manualQaEnabled": true,
   "gitHookPolicy": "validate_advisory",
   "ignoreMode": "local",
   "minCouncilQuorum": 2,
