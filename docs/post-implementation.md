@@ -181,7 +181,7 @@ If the audit excludes files, LoopTroop rewrites the local candidate commit from 
 - `candidate_file_audit`
 - `candidate_diff`
 
-If audit parsing fails, LoopTroop falls back to **including all changed files**. Malformed audit output cannot silently drop files from the PR.
+Formatting-only YAML mistakes in the structured `files` list can be repaired when the surrounding fields prove the intended mapping. The existing path and reason text is preserved, and the saved audit shows each repair under **Audit Warnings**; the phase log records the same notice. If validation still fails, LoopTroop falls back to **including all changed files**. Malformed audit output cannot silently drop files from the PR.
 
 ### 4.2 Drafting the PR body
 

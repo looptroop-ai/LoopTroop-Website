@@ -163,6 +163,8 @@ artifact:interview
 
 **Warning:** *Repaired YAML mapping keys missing a space after colon before parsing.* The processing notice identifies this as a formatting-only parser repair and shows that the original key and value text were preserved.
 
+The candidate-file audit in `CREATING_PULL_REQUEST` uses the same rule for its structured `files` list. Because `path` is the known primary field and `decision` and `reason` prove that each item is an object, an entry such as `- path:src/feature.ts` can be repaired safely. The path and reason text already emitted by the model are retained; they are never invented. The saved audit shows the repair under **Audit Warnings**, and the phase log records it as well. If the result still fails validation, the audit keeps every changed file instead of guessing which files to remove.
+
 #### 4. Inline keys repair
 
 **Trigger:** Multiple mapping keys appear on a single line, e.g. `batch_number: 4 progress: current: 4 total: 17`.
