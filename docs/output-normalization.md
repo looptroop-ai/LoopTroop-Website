@@ -146,9 +146,22 @@ questions:
 
 **Trigger:** A simple mapping key is emitted without the required space after the colon, e.g. `artifact:interview`, `skipped:false`, or `- id:Q01`. YAML can treat these as plain scalar strings instead of mapping entries.
 
-**Repair:** A single space is inserted after the colon for lines that already look like simple mapping entries. The repair is line-scoped, skips block scalar bodies, and avoids one-letter keys such as Windows drive paths.
+**Repair:** A single space is inserted after the colon for ordinary mapping lines. A dash-prefixed line is repaired only when its surrounding structure proves that it is a mapping item: it has an indented mapping child, or it uses the configured primary key for a known structured list. Standalone list values containing colons — such as `- style:main`, `- package:version`, URLs, and paths — are preserved exactly. Ambiguous values are left for normal validation and retry rather than being guessed into a different shape.
 
-**Warning:** *Repaired YAML mapping keys missing a space after colon before parsing.*
+**Example:**
+```yaml
+# Preserved as scalar text
+- style:main
+
+# Repaired because the child line proves this is a mapping item
+- id:Q01
+  title: Example item
+
+# Fixed
+artifact:interview
+```
+
+**Warning:** *Repaired YAML mapping keys missing a space after colon before parsing.* The processing notice identifies this as a formatting-only parser repair and shows that the original key and value text were preserved.
 
 #### 4. Inline keys repair
 
