@@ -93,6 +93,12 @@ Unlike high-speed coding tools that optimize for immediate chat responses, LoopT
 
 **Great Context Engineering = Zero AI Slop:** LoopTroop employs precise context curation at every stage, feeding the agent only the absolute **minimum** context it needs. See [Context Engineering](context-engineering.md) for details.
 
+## Project Status
+
+LoopTroop is early alpha software, but it is usable for real work. The full ticket lifecycle is implemented, but some bugs are still likely. The core primitives (planning, execution, retries) are functional.
+
+**Configured limitations:** LLM Councils support 2–10 distinct models, including the main implementer. Each project may have only one active ticket in the execution band at a time; additional tickets must wait until it finishes or is canceled.
+
 ## How It Works
 
 ```mermaid
