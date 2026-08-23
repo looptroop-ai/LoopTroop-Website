@@ -137,7 +137,7 @@ PRE_FLIGHT_CHECK → GENERATING_EXECUTION_SETUP_PLAN
 
 Only one real workflow ticket per project may occupy the execution band at a time. `isExecutionBandStatus()` validates membership and the project execution lock prevents concurrent execution tickets from creating Git conflicts in the same repository. Display-only mock/demo tickets are ignored by this lock because they never hydrate actors or run workflow work.
 
-The single-ticket lock is enforced by the **project execution lock** check during `PRE_FLIGHT_CHECK`: if another real ticket for the same project is already in the execution band, the incoming ticket blocks with a concurrency error.
+The single-ticket lock is enforced when a ticket tries to enter or re-enter execution: if another real ticket for the same project is already in the execution band, the incoming ticket remains at its current gate. The response identifies both ticket IDs, translates the blocking status into its user-facing workflow step, and tells the user to finish or cancel the running ticket before trying again.
 
 ### Key Observations
 
