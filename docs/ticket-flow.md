@@ -135,9 +135,9 @@ PRE_FLIGHT_CHECK → GENERATING_EXECUTION_SETUP_PLAN
   → CREATING_PULL_REQUEST → WAITING_PR_REVIEW → CLEANING_ENV
 ```
 
-Only one real workflow ticket per project may occupy the execution band at a time. `isExecutionBandStatus()` validates membership and the project execution lock prevents concurrent execution tickets from creating Git conflicts in the same repository. Display-only mock/demo tickets are ignored by this lock because they never hydrate actors or run workflow work.
+Only one real workflow ticket per project may occupy the execution band at a time. This is a configured limitation in LoopTroop alpha: **Each project may have only one active ticket in the execution band at a time.** `isExecutionBandStatus()` validates membership and the project execution lock prevents concurrent execution tickets from creating Git conflicts in the same repository. Display-only mock/demo tickets are ignored by this lock because they never hydrate actors or run workflow work.
 
-The single-ticket lock is enforced when a ticket tries to enter or re-enter execution: if another real ticket for the same project is already in the execution band, the incoming ticket remains at its current gate. The response identifies both ticket IDs, translates the blocking status into its user-facing workflow step, and tells the user to finish or cancel the running ticket before trying again.
+The single-ticket lock is enforced when a ticket tries to enter or re-enter execution: blueprint approval, execution-setup approval, retry, continue, and pre-flight checks all use the same guard. If another real ticket for the same project is already in the execution band, the incoming ticket remains at its current gate. The response identifies both ticket IDs, translates the blocking status into its user-facing workflow step, repeats the configured alpha limitation, and tells the user to finish or cancel the running ticket before trying again.
 
 ### Key Observations
 
