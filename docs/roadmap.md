@@ -14,16 +14,6 @@ search: false
 
 ## High Priority
 
-*   **Published Distribution Smoke Tests:** Extend the existing cross-platform packaging and release checks so every officially documented installation method is exercised against the actual assets and package feeds of a published stable release, not only locally built artifacts.
-    *   Start with the live primary channels on clean GitHub-hosted runners: the POSIX installer on macOS and Linux, the PowerShell installer on Windows, npm on all three operating systems, Homebrew on macOS and Linux, Scoop on Windows, and the standalone executable on each supported target.
-    *   Run the exact commands documented for users wherever practical, including the public installer URLs and package-manager repositories, and pass the published release version or tag through the test rather than reading the version from the checkout.
-    *   Verify that installation succeeds, `looptroop --version` exactly matches the published release, `looptroop doctor --json` is parseable and its required checks pass, and `looptroop start` responds through the health endpoint where the channel supports a running daemon.
-    *   Use mock or isolated dependencies where necessary so the smoke test measures LoopTroop installation and startup rather than provider credentials or an unrelated external service; always stop the daemon and remove the installation after the test.
-    *   Keep one independently named matrix leg per operating system, architecture, and installation channel with `fail-fast: false`, so a broken distribution channel is immediately identifiable without hiding failures in another channel.
-    *   Add bounded propagation handling for feeds that publish asynchronously, but treat an installation failure after the channel is available as a real failure rather than masking it with blind retries.
-    *   Add package-manager-specific legs for Chocolatey, WinGet, and the AUR as soon as each channel is publicly live; until then, keep their existing local package validation separate from public-install assertions.
-    *   Eventually cover every documented live method, including bun, pnpm, Yarn Classic, and both published container registries, while keeping the most common methods as the per-release smoke set.
-
 *   **Skip Reason Auditability:** Allow users to provide an optional reason any time they skip a step, prompt, question, or approval gate in the app. The reason is persisted in the relevant ticket artifact for auditability and later review.
     *   Add a skip-reason input surface on every user-facing skip action (e.g., skip interview question, skip phase review, skip approval, skip critique/research generation).
     *   The reason must be optional and not block the skip action when left blank; if blank, record `reason: null` explicitly.

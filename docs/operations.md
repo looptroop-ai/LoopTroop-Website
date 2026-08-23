@@ -241,6 +241,7 @@ The frontend dev server pre-optimizes its complete declared browser dependency s
 | Script | Purpose |
 | --- | --- |
 | `predev` | Automatic dev preflight hook that runs before `npm run dev`. Usually invoked through `npm run dev`, not by hand. |
+| `verify:published` | Install a **published** release from its real feed using the documented command, start it, check the health endpoint, and remove it again. Needs network access and a version that is actually published — `-- --channel npm --version X.Y.Z`, or `-- --plan --tier weekly` to list the legs without running any. Normally driven by the Published install smoke workflow rather than by hand. |
 | `deps:sync` | Preview direct dependency updates with npm peer resolution, apply compatible releases with `npm ci`, hold conflicts, then refresh the daily-maintenance stamp. |
 | `audit:remediate` | Preview the gated npm audit remediation in isolation, hold incompatible proposals, and apply accepted lockfiles with `npm ci`. |
 | `opencode:upgrade` | Run only the OpenCode CLI upgrade step, then refresh the daily-maintenance stamp. |

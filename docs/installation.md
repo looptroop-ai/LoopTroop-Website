@@ -56,6 +56,28 @@ every change. Each is waiting on somebody else:
 | **WinGet** | A pull request open at [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), reviewed by people at Microsoft. |
 | **AUR** | Registration reopening. New AUR accounts are closed following a security incident, so there is no account to publish from. |
 
+### Every other command here is tested against the real feed
+
+The channels above without a ⏳ are not only built and installed by CI from
+locally built files. Each one is also installed on a clean machine using the
+command printed here, started, checked on its health endpoint, and uninstalled
+again — **every week**, because a channel can break long after it was published
+without anybody changing anything.
+
+The most common of them — npm, both one-line installers, Homebrew and Scoop —
+additionally run immediately after every release.
+
+That covers the failures a build cannot see: a tap that never received its
+commit, a registry still serving the previous version, a redirect pointing
+somewhere that no longer exists.
+
+Two details worth stating rather than implying. The standalone executable is
+covered this way for Linux x64 and Windows x64; the macOS and Linux arm64
+executables are built and tested at build time, but not installed from the
+published release. And the container image is verified on both architectures at
+release time from the GitHub Container Registry, while the weekly run pulls the
+Docker Hub image.
+
 The commands are listed because they are what will work, unchanged, the day each
 clears. Until then every ✅ row is a real alternative on the same platform — Arch
 users can install with npm, and Windows users with Scoop.
@@ -313,6 +335,7 @@ looptroop stop
 | **npm** | `npm uninstall -g looptroop` |
 | **bun** | `bun remove -g looptroop` |
 | **pnpm** | `pnpm remove -g looptroop` |
+| **Yarn Classic** | `yarn global remove looptroop` |
 | **Homebrew** | `brew uninstall looptroop` |
 | **Scoop** | `scoop uninstall looptroop` |
 | ⏳ **Chocolatey** | `choco uninstall looptroop` |
