@@ -2127,7 +2127,7 @@ search: false
     *   Local remote-control server should use randomized port plus high-entropy access token in URL; QR pairing must embed the full signed URL.
     *   Add offline mobile action queue (max 50 actions), persisted locally, automatically flushed on reconnect with per-item retry status.
     *   Add deterministic connection lifecycle states: `connecting`, `authenticating`, `online`, `offline`, `reconnecting`.
-*   **Native installers:** Easy installers for Windows, macOS, and Linux, so it is easier for novices to just install the app instead of running commands to start it. A modern desktop app should be built, so users do not need to start the app with a command every time. The app should be able to auto-update easily.
+*   **Native installers:** Easy installers for Windows, macOS, and Linux, so it is easier for novices to just install the app instead of running commands to start it. A modern desktop app should be built, so users do not need to start the app with a command every time. The app should be able to auto-update easily. (native-desktop-installers-plan.md plan in tmp)
     *   **Safe auto-update contract:** check/download only when idle, verify installer checksum (SHA-256), and apply update on next launch with explicit states (`checking`, `downloading`, `verifying`, `ready_to_apply`, `failed`).
     *   **Local customization preservation:** before update, compute a manifest of LoopTroop-managed files; if user-modified files are detected, back them up to `.looptroop/local-patches/` and write `patch-manifest.json`.
     *   **Patch reapply flow:** after update, provide deterministic `reapply_patches` with preview diff and per-file approve/reject actions.
