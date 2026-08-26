@@ -110,6 +110,50 @@ export function classifyReleaseAsset(name) {
 /** Categories that represent somebody obtaining the application itself. */
 const DISTRIBUTION_CATEGORIES = new Set(['bundle', 'standalone', 'npm-tarball'])
 
+function validateRelease(release) {
+  if (
+    !release
+    || typeof release !== 'object'
+    || typeof release.draft !== 'boolean'
+    || typeof release.prerelease !== 'boolean'
+    || !Array.isArray(release.assets)
+  ) {
+    fail('GitHub returned an invalid release')
+  }
+}
+
+function processReleaseAsset(asset, counts, isNewestPublished, newestPublished) {
+  if (!asset || typeof asset !== 'object' || typeof asset.name !== 'string') {
+    fail('GitHub returned an invalid release asset')
+  }
+
+  const category = classifyReleaseAsset(asset.name)
+  if (!category) return
+
+  const downloads = requireSafeCount(asset.download_count, `Download count for ${asset.name}`)
+  if (isNewestPublished && DISTRIBUTION_CATEGORIES.has(category)) {
+    newestPublished.distribution += 1
+  }
+
+  switch (category) {
+    case 'bundle':
+      counts.bundle = addCounts(counts.bundle, downloads)
+      break
+    case 'standalone':
+      counts.standalone = addCounts(counts.standalone, downloads)
+      break
+    case 'npm-tarball':
+      counts.npmTarball = addCounts(counts.npmTarball, downloads)
+      break
+    case 'installer-posix':
+      counts.installerScripts.posix = addCounts(counts.installerScripts.posix, downloads)
+      break
+    case 'installer-powershell':
+      counts.installerScripts.powershell = addCounts(counts.installerScripts.powershell, downloads)
+      break
+  }
+}
+
 export function aggregateGithubReleaseDownloads(releases) {
   if (!Array.isArray(releases)) fail('GitHub releases must be an array')
 
@@ -130,37 +174,17 @@ export function aggregateGithubReleaseDownloads(releases) {
   let newestPublished = null
 
   for (const release of releases) {
-    if (
-      !release
-      || typeof release !== 'object'
-      || typeof release.draft !== 'boolean'
-      || typeof release.prerelease !== 'boolean'
-      || !Array.isArray(release.assets)
-    ) {
-      fail('GitHub returned an invalid release')
-    }
+    validateRelease(release)
     if (release.draft || release.prerelease) continue
-    newestPublished ??= { assets: release.assets.length, distribution: 0 }
+
+    let isNewestPublished = false
+    if (!newestPublished) {
+      newestPublished = { assets: release.assets.length, distribution: 0 }
+      isNewestPublished = true
+    }
 
     for (const asset of release.assets) {
-      if (!asset || typeof asset !== 'object' || typeof asset.name !== 'string') {
-        fail('GitHub returned an invalid release asset')
-      }
-
-      const category = classifyReleaseAsset(asset.name)
-      if (!category) continue
-      const downloads = requireSafeCount(asset.download_count, `Download count for ${asset.name}`)
-      if (newestPublished && DISTRIBUTION_CATEGORIES.has(category)) newestPublished.distribution += 1
-
-      if (category === 'bundle') counts.bundle = addCounts(counts.bundle, downloads)
-      if (category === 'standalone') counts.standalone = addCounts(counts.standalone, downloads)
-      if (category === 'npm-tarball') counts.npmTarball = addCounts(counts.npmTarball, downloads)
-      if (category === 'installer-posix') {
-        counts.installerScripts.posix = addCounts(counts.installerScripts.posix, downloads)
-      }
-      if (category === 'installer-powershell') {
-        counts.installerScripts.powershell = addCounts(counts.installerScripts.powershell, downloads)
-      }
+      processReleaseAsset(asset, counts, isNewestPublished, newestPublished)
     }
   }
 
