@@ -7,6 +7,7 @@ import {
   loadAndRenderProjectStats,
   loadProjectStats,
   normalizeProjectStats,
+  writeProjectStatsCache,
 } from '../public/project-stats.js'
 
 const stats = {
@@ -127,4 +128,50 @@ test('renders exact localized downloads and stars after a live response', async 
   assert.equal(targets.stars[0].textContent, formatProjectCount(119), 'the count carries no separator; it leads the button')
   assert.equal(targets.stars[0].hidden, false)
   assert.equal(formatProjectCount(123_456, 'en-US'), '123,456')
+})
+
+test('writes stats payload and timestamp to storage cache', () => {
+  const storage = createStorage()
+  const customNow = 1_234_567_890
+
+  writeProjectStatsCache(storage, stats, customNow)
+
+  assert.equal(
+    storage.getItem('looptroop.project-stats.v1'),
+    JSON.stringify({ stats, fetchedAt: customNow }),
+  )
+})
+
+test('defaults to current timestamp when now parameter is omitted', () => {
+  const storage = createStorage()
+  const before = Date.now()
+
+  writeProjectStatsCache(storage, stats)
+
+  const after = Date.now()
+  const cached = JSON.parse(storage.getItem('looptroop.project-stats.v1') ?? '{}')
+
+  assert.deepEqual(cached.stats, stats)
+  assert.ok(typeof cached.fetchedAt === 'number')
+  assert.ok(cached.fetchedAt >= before && cached.fetchedAt <= after)
+})
+
+test('handles missing storage or storage write errors gracefully', () => {
+  assert.doesNotThrow(() => {
+    writeProjectStatsCache(null, stats)
+  })
+
+  assert.doesNotThrow(() => {
+    writeProjectStatsCache(undefined, stats)
+  })
+
+  const failingStorage = {
+    setItem() {
+      throw new Error('QuotaExceededError: Storage limit reached')
+    },
+  }
+
+  assert.doesNotThrow(() => {
+    writeProjectStatsCache(failingStorage, stats)
+  })
 })
