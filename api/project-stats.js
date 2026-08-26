@@ -52,8 +52,11 @@ export function requireSafeCount(value, label) {
   return value
 }
 
-export function addCounts(...values) {
-  const total = values.reduce((sum, value) => sum + requireSafeCount(value, 'Download count'), 0)
+export function addCounts() {
+  let total = 0
+  for (let i = 0; i < arguments.length; i++) {
+    total += requireSafeCount(arguments[i], 'Download count')
+  }
   return requireSafeCount(total, 'Download count total')
 }
 
