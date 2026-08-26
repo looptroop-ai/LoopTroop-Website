@@ -95,6 +95,22 @@ test('follows GitHub release pagination until a short page', async () => {
   assert.match(urls[1], /per_page=100&page=2$/)
 })
 
+test('throws when GitHub release pagination exceeds the safety limit', async () => {
+  const fullPage = Array.from({ length: GITHUB_PAGE_SIZE }, () => release([]))
+  let callCount = 0
+  await assert.rejects(
+    fetchGithubReleaseDownloads(async () => {
+      callCount += 1
+      return jsonResponse(fullPage)
+    }),
+    {
+      name: 'Error',
+      message: 'GitHub release pagination exceeded the safety limit',
+    },
+  )
+  assert.equal(callCount, 100)
+})
+
 test('builds non-overlapping npm windows of at most 365 inclusive days', () => {
   assert.deepEqual(
     buildNpmDownloadWindows('2024-01-01T19:00:00.000Z', new Date('2026-01-01T07:00:00.000Z')),
