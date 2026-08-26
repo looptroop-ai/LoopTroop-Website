@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   CACHE_TTL_MS,
   STALE_CACHE_TTL_MS,
+  fetchProjectStats,
   formatProjectCount,
   loadAndRenderProjectStats,
   loadProjectStats,
@@ -104,6 +105,74 @@ test('does not render an expired or malformed cache as zero', async () => {
 
   assert.equal(expired, null)
   assert.equal(malformed, null)
+})
+
+test('fetches project statistics successfully with correct URL and options', async () => {
+  let requestedUrl = null
+  let requestedOptions = null
+
+  const mockFetch = async (url, options) => {
+    requestedUrl = url
+    requestedOptions = options
+    return {
+      ok: true,
+      status: 200,
+      json: async () => stats,
+    }
+  }
+
+  const result = await fetchProjectStats(mockFetch)
+  assert.equal(requestedUrl, '/api/project-stats')
+  assert.deepEqual(requestedOptions, {
+    credentials: 'omit',
+    headers: { Accept: 'application/json' },
+  })
+  assert.deepEqual(result, stats)
+})
+
+test('throws error when fetch request fails with non-OK HTTP status', async () => {
+  const mockFetch = async () => ({
+    ok: false,
+    status: 500,
+  })
+
+  await assert.rejects(
+    fetchProjectStats(mockFetch),
+    {
+      name: 'Error',
+      message: 'Project statistics request failed with 500',
+    },
+  )
+})
+
+test('throws error when project statistics response has invalid shape', async () => {
+  const mockFetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ schemaVersion: 1 }),
+  })
+
+  await assert.rejects(
+    fetchProjectStats(mockFetch),
+    {
+      name: 'Error',
+      message: 'Project statistics response had an invalid shape',
+    },
+  )
+})
+
+test('propagates network errors from fetch implementation', async () => {
+  const mockFetch = async () => {
+    throw new Error('Network failure')
+  }
+
+  await assert.rejects(
+    fetchProjectStats(mockFetch),
+    {
+      name: 'Error',
+      message: 'Network failure',
+    },
+  )
 })
 
 test('renders exact localized downloads and stars after a live response', async () => {
