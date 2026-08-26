@@ -8,6 +8,19 @@ function isCount(value) {
   return Number.isSafeInteger(value) && value >= 0
 }
 
+function isValidTimestamp(updatedAt) {
+  return typeof updatedAt === 'string' && updatedAt !== '' && Number.isFinite(Date.parse(updatedAt))
+}
+
+function hasConsistentTotals(downloads, github, scripts) {
+  const expectedTotal = downloads.npmRegistry
+    + downloads.dockerHub
+    + github.bundle
+    + github.standalone
+    + github.npmTarball
+  return downloads.total === expectedTotal && scripts.total === scripts.posix + scripts.powershell
+}
+
 /**
  * Treat the server payload as untrusted input. In particular, never turn a
  * missing source into zero: that would make an upstream outage look like a
@@ -16,8 +29,7 @@ function isCount(value) {
 export function normalizeProjectStats(value) {
   if (!value || typeof value !== 'object' || value.schemaVersion !== 2) return null
 
-  const updatedAt = typeof value.updatedAt === 'string' ? value.updatedAt : ''
-  if (!updatedAt || !Number.isFinite(Date.parse(updatedAt))) return null
+  if (!isValidTimestamp(value.updatedAt)) return null
 
   const stars = value.repository?.stars
   const downloads = value.downloads
@@ -37,17 +49,11 @@ export function normalizeProjectStats(value) {
   ]
   if (!counts.every(isCount)) return null
 
-  const expectedTotal = downloads.npmRegistry
-    + downloads.dockerHub
-    + github.bundle
-    + github.standalone
-    + github.npmTarball
-  if (downloads.total !== expectedTotal) return null
-  if (scripts.total !== scripts.posix + scripts.powershell) return null
+  if (!hasConsistentTotals(downloads, github, scripts)) return null
 
   return {
     schemaVersion: 2,
-    updatedAt: new Date(updatedAt).toISOString(),
+    updatedAt: new Date(value.updatedAt).toISOString(),
     repository: { stars },
     downloads: {
       total: downloads.total,
