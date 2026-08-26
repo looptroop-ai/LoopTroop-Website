@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vitepress'
 
@@ -109,9 +109,13 @@ export default defineConfig({
   lastUpdated: true,
   transformPageData(pageData) {
     try {
-      const commitHash = execSync(
-        `git log -1 --pretty="%H" -- "docs/${pageData.relativePath}"`
-      ).toString().trim()
+      const commitHash = execFileSync('git', [
+        'log',
+        '-1',
+        '--pretty=%H',
+        '--',
+        `docs/${pageData.relativePath}`,
+      ], { encoding: 'utf-8' }).trim()
       if (commitHash) {
         pageData.frontmatter.lastUpdatedCommitHash = commitHash
         const relativeFilePath = `docs/${pageData.relativePath}`
