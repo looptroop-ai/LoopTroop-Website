@@ -7,6 +7,7 @@ import {
   loadAndRenderProjectStats,
   loadProjectStats,
   normalizeProjectStats,
+  writeProjectStatsCache,
 } from '../public/project-stats.js'
 
 const stats = {
@@ -127,4 +128,27 @@ test('renders exact localized downloads and stars after a live response', async 
   assert.equal(targets.stars[0].textContent, formatProjectCount(119), 'the count carries no separator; it leads the button')
   assert.equal(targets.stars[0].hidden, false)
   assert.equal(formatProjectCount(123_456, 'en-US'), '123,456')
+})
+
+test('writeProjectStatsCache suppresses storage write errors without throwing', async () => {
+  const throwingStorage = {
+    setItem() {
+      throw new Error('QuotaExceededError: Storage unavailable')
+    },
+  }
+
+  assert.doesNotThrow(() => {
+    writeProjectStatsCache(throwingStorage, stats, 1_000)
+  })
+
+  assert.doesNotThrow(() => {
+    writeProjectStatsCache(null, stats, 1_000)
+  })
+
+  const result = await loadProjectStats({
+    now: 1_000,
+    storage: throwingStorage,
+    fetchImpl: async () => ({ ok: true, json: async () => stats }),
+  })
+  assert.deepEqual(result, { stats, stale: false })
 })
