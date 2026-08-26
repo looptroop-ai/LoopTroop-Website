@@ -24,11 +24,11 @@ const mediaDest = path.join(siteDir, 'media')
 await mkdir(mediaDest, { recursive: true })
 const mediaSrc = path.join(root, 'docs', 'media')
 const mediaFiles = await readdir(mediaSrc)
-for (const file of mediaFiles) {
-  if (file.endsWith('.webp') || file.endsWith('.gif')) {
-    await copyFile(path.join(mediaSrc, file), path.join(mediaDest, file))
-  }
-}
+await Promise.all(
+  mediaFiles
+    .filter((file) => file.endsWith('.webp') || file.endsWith('.gif'))
+    .map((file) => copyFile(path.join(mediaSrc, file), path.join(mediaDest, file)))
+)
 
 console.log('Copying documentation site...')
 await cp(docsDistDir, path.join(siteDir, 'docs'), { recursive: true })
