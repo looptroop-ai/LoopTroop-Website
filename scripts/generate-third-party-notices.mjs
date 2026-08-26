@@ -13,6 +13,7 @@ import { join } from 'node:path'
 
 const OUTPUT_PATH = 'THIRD-PARTY-NOTICES.md'
 const LICENSE_FILENAMES = /^(LICENSE|LICENCE|COPYING|NOTICE)(\.(md|txt))?$/i
+const PIPE_REGEX = /\|/g
 
 // khroma@2.1.0 omits the package.json licence field but ships the complete MIT
 // licence in its npm tarball. Keep this exact-version exception narrow so a
@@ -195,7 +196,7 @@ function render(packages, fonts) {
   lines.push('| --- | --- | --- | --- |')
 
   for (const entry of packages) {
-    const copyright = entry.copyright ? entry.copyright.replace(/\|/g, '\\|') : '—'
+    const copyright = entry.copyright ? entry.copyright.replace(PIPE_REGEX, '\\|') : '—'
     lines.push(`| \`${entry.name}\` | ${entry.version} | ${entry.license} | ${copyright} |`)
   }
 
