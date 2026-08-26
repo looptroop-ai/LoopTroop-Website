@@ -17,7 +17,7 @@ const requiredFiles = [
   'site/docs/cli.html',
 ]
 
-for (const file of requiredFiles) await access(file)
+await Promise.all(requiredFiles.map((file) => access(file)))
 
 /**
  * The regression that made a whole phase of work necessary.
