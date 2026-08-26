@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   CACHE_TTL_MS,
+  fetchLatestReleaseVersion,
   loadReleaseVersion,
   normalizeReleaseTag,
   readReleaseCache,
@@ -91,4 +92,59 @@ test('leaves the version hidden when no valid source is available', async () => 
 
   assert.equal(version, null)
   assert.equal(documentRef.elements[0].hidden, true)
+})
+
+test('fetchLatestReleaseVersion fetches and normalizes latest release version', async () => {
+  let capturedUrl
+  let capturedOptions
+  const mockFetch = async (url, options) => {
+    capturedUrl = url
+    capturedOptions = options
+    return {
+      ok: true,
+      json: async () => ({ tag_name: 'v1.2.3' }),
+    }
+  }
+
+  const version = await fetchLatestReleaseVersion(mockFetch)
+  assert.equal(version, '1.2.3')
+  assert.equal(capturedUrl, 'https://api.github.com/repos/looptroop-ai/LoopTroop/releases/latest')
+  assert.deepEqual(capturedOptions, {
+    credentials: 'omit',
+    headers: { Accept: 'application/vnd.github+json' },
+  })
+})
+
+test('fetchLatestReleaseVersion throws an error when HTTP response is not ok', async () => {
+  const mockFetch = async () => ({
+    ok: false,
+    status: 404,
+  })
+
+  await assert.rejects(
+    fetchLatestReleaseVersion(mockFetch),
+    { message: 'GitHub release request failed with 404' }
+  )
+})
+
+test('fetchLatestReleaseVersion throws an error when release tag is invalid or missing', async () => {
+  const mockFetchInvalid = async () => ({
+    ok: true,
+    json: async () => ({ tag_name: 'not-a-valid-tag' }),
+  })
+
+  await assert.rejects(
+    fetchLatestReleaseVersion(mockFetchInvalid),
+    { message: 'GitHub returned an invalid release tag' }
+  )
+
+  const mockFetchMissing = async () => ({
+    ok: true,
+    json: async () => ({}),
+  })
+
+  await assert.rejects(
+    fetchLatestReleaseVersion(mockFetchMissing),
+    { message: 'GitHub returned an invalid release tag' }
+  )
 })
