@@ -5,6 +5,7 @@ import {
   loadReleaseVersion,
   normalizeReleaseTag,
   readReleaseCache,
+  writeReleaseCache,
 } from '../public/release-version.js'
 
 function createStorage(initial = {}) {
@@ -91,4 +92,30 @@ test('leaves the version hidden when no valid source is available', async () => 
 
   assert.equal(version, null)
   assert.equal(documentRef.elements[0].hidden, true)
+})
+
+test('writes release cache payload correctly', () => {
+  const storage = createStorage()
+  const now = 5_000
+  writeReleaseCache(storage, '1.2.3', now)
+  assert.equal(
+    storage.getItem('looptroop.latest-release'),
+    JSON.stringify({ version: '1.2.3', fetchedAt: now })
+  )
+})
+
+test('handles missing storage or storage errors during cache write gracefully', () => {
+  assert.doesNotThrow(() => {
+    writeReleaseCache(null, '1.2.3')
+  })
+
+  const failingStorage = {
+    setItem: () => {
+      throw new Error('QuotaExceededError or Privacy mode restriction')
+    },
+  }
+
+  assert.doesNotThrow(() => {
+    writeReleaseCache(failingStorage, '1.2.3')
+  })
 })
