@@ -101,9 +101,17 @@ export function createRedisClient({ url, token, fetchImpl = globalThis.fetch } =
 }
 
 export function createRedisClientFromEnv(env = process.env, fetchImpl = globalThis.fetch) {
+  // The current Upstash Marketplace integration on Vercel provisions the
+  // KV_REST_API_* names. Direct Upstash connections use the UPSTASH_* names.
+  // Keep both pairs supported, but never mix a URL from one pair with a token
+  // from the other.
+  const credentials = [
+    [env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN],
+    [env.KV_REST_API_URL, env.KV_REST_API_TOKEN],
+  ].find(([url, token]) => url && token)
   return createRedisClient({
-    url: env.UPSTASH_REDIS_REST_URL,
-    token: env.UPSTASH_REDIS_REST_TOKEN,
+    url: credentials?.[0],
+    token: credentials?.[1],
     fetchImpl,
   })
 }

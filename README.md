@@ -34,11 +34,13 @@ starts with the first successful snapshot. It does not estimate
 earlier activity or combine an npm backfill with newer data from the other
 sources.
 
-The production Vercel project needs an Upstash Redis integration and these
-environment variables:
+The production Vercel project needs an Upstash Redis integration. The current
+Vercel Marketplace integration supplies `KV_REST_API_URL` and
+`KV_REST_API_TOKEN`, which the history functions accept. A database connected
+directly through Upstash can instead use `UPSTASH_REDIS_REST_URL` and
+`UPSTASH_REDIS_REST_TOKEN`. Use the standard token, not the read-only token,
+because the hourly collector writes snapshots.
 
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`, supplied by the
-  integration, give server-side functions access to the history store.
 - `CRON_SECRET` protects the scheduled collector. Add the same value to the
   Vercel production environment and the website repository's GitHub Actions
   secrets.

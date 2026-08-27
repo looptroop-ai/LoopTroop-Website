@@ -6,6 +6,7 @@ import {
   aggregateHistory,
   buildHistoryResponse,
   flattenProjectStats,
+  createRedisClientFromEnv,
   resolveHistoryQuery,
   storeProjectStatsSnapshot,
 } from '../api/_project-stats-history.js'
@@ -78,6 +79,34 @@ test('flattens every stable source while declaring installer fetches outside the
     HISTORY_SOURCES.filter(({ includedInTotal }) => !includedInTotal).map(({ key }) => key),
     ['installerPosix', 'installerPowershell'],
   )
+})
+
+test('accepts the current Vercel Upstash KV environment names without mixing credential pairs', async () => {
+  const requests = []
+  const fetchImpl = async (url, options) => {
+    requests.push({ url, options })
+    return { ok: true, async json() { return { result: 'PONG' } } }
+  }
+
+  const redis = createRedisClientFromEnv({
+    KV_REST_API_URL: 'https://kv.example',
+    KV_REST_API_TOKEN: 'kv-token',
+  }, fetchImpl)
+  await redis.command(['PING'])
+
+  assert.equal(requests[0].url, 'https://kv.example')
+  assert.equal(requests[0].options.headers.Authorization, 'Bearer kv-token')
+
+  const preferred = createRedisClientFromEnv({
+    UPSTASH_REDIS_REST_URL: 'https://upstash.example',
+    UPSTASH_REDIS_REST_TOKEN: 'upstash-token',
+    KV_REST_API_URL: 'https://kv.example',
+    KV_REST_API_TOKEN: 'kv-token',
+  }, fetchImpl)
+  await preferred.command(['PING'])
+
+  assert.equal(requests[1].url, 'https://upstash.example')
+  assert.equal(requests[1].options.headers.Authorization, 'Bearer upstash-token')
 })
 
 test('validates ranges and buckets and refuses responses over 400 points', () => {
