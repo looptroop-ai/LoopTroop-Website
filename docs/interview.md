@@ -121,7 +121,7 @@ Every skip takes an optional reason. Nothing is blocked for lack of one and no s
 A reason is stored in two places, deliberately:
 
 - **On the answer**, as `answer.skip_reason` in `interview.yaml`. This is the current state, and it is what the interface reads back.
-- **In an append-only receipt**, recording who skipped the question, when, from which surface, and what the reason said at that moment. Editing a reason at the approval screen adds a new receipt; it does not rewrite the earlier one.
+- **In an append-only receipt**, recording who skipped the question, when, from which surface, and what the reason said at that moment. Editing a reason at the approval screen adds a new receipt; it does not rewrite the earlier one. Answering a question you had skipped adds a receipt too, so the trail stops reporting a decision you reversed.
 
 Reasons are read by exactly one prompt. PROM10a, which fills skipped answers during PRD drafting, receives them as a separate read-only section of its prompt — not as part of the interview artifact it is asked to reproduce, so it has no field to write one back into. They are stripped from the interview everywhere else, so PRD drafting, PRD voting, interview coverage and every downstream prompt see the interview without them. Where a prompt reads a reason it is shortened to 500 characters, because forty skipped questions at the full storage limit is a great deal of prompt spent on notes.
 
