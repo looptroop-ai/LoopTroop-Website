@@ -29,8 +29,8 @@ The marketing page reads the latest stable LoopTroop version from the public Git
 
 ### Historical download data
 
-The download-history chart stores one snapshot at five minutes past every UTC
-hour. History starts with the first successful snapshot. It does not estimate
+The download-history collector requests one snapshot each UTC hour. History
+starts with the first successful snapshot. It does not estimate
 earlier activity or combine an npm backfill with newer data from the other
 sources.
 
@@ -39,8 +39,15 @@ environment variables:
 
 - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`, supplied by the
   integration, give server-side functions access to the history store.
-- `CRON_SECRET` protects the scheduled collector. Vercel sends it as a bearer
-  token when it requests `/api/cron/project-stats`.
+- `CRON_SECRET` protects the scheduled collector. Add the same value to the
+  Vercel production environment and the website repository's GitHub Actions
+  secrets.
+
+The `Collect project statistics` GitHub Actions workflow requests
+`/api/cron/project-stats` at five minutes past every UTC hour. It can also be
+started manually to record the first snapshot after the integration and secrets
+are ready. GitHub may start a scheduled workflow later when Actions is busy;
+the collector still stores at most one snapshot in each UTC hour.
 
 `GET /api/project-stats-history` reads the stored history. Its `range` parameter
 accepts `24h`, `7d`, `30d`, `1y` or `all`; `bucket` accepts `hour`, `day`,

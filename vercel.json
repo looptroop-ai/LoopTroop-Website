@@ -15,12 +15,6 @@
       "maxDuration": 20
     }
   },
-  "crons": [
-    {
-      "path": "/api/cron/project-stats",
-      "schedule": "5 * * * *"
-    }
-  ],
   "cleanUrls": true,
   "redirects": [
     {

@@ -1,0 +1,33 @@
+name: Collect project statistics
+
+on:
+  schedule:
+    - cron: '5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collect-project-statistics
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Store hourly snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      COLLECTOR_URL: https://www.looptroop.ovh/api/cron/project-stats
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Request snapshot
+        shell: bash
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo 'CRON_SECRET is not configured for this repository.' >&2
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "$COLLECTOR_URL"
