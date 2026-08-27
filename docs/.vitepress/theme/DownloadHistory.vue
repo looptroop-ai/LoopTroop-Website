@@ -386,17 +386,23 @@ onBeforeUnmount(() => {
 }
 
 .download-history__sources {
-  margin: 1rem 0 0;
-  padding: 0.8rem;
+  margin: 0.75rem 0 0;
+  padding: 0.35rem 0.6rem;
   border: 1px solid var(--vp-c-divider);
-  border-radius: 10px;
+  border-radius: 8px;
+}
+
+.download-history__sources[open] {
+  padding-bottom: 0.65rem;
 }
 
 .download-history__sources summary {
+  margin: 0;
   cursor: pointer;
   color: var(--vp-c-text-2);
   font-size: 0.84rem;
   font-weight: 650;
+  line-height: 1.3rem;
 }
 
 .download-history__source-count {
@@ -409,7 +415,7 @@ onBeforeUnmount(() => {
 .download-history__source-controls {
   display: flex;
   justify-content: flex-end;
-  margin: 0.75rem 0 0.35rem;
+  margin: 0.5rem 0 0.35rem;
 }
 
 .download-history__source-controls button {

@@ -35,6 +35,8 @@ test('collapses source filters by default', () => {
   assert.match(source, /<details v-if="history" class="download-history__sources">/)
   assert.match(source, /<summary>/)
   assert.doesNotMatch(source, /<details[^>]+download-history__sources[^>]+open/)
+  assert.match(source, /\.download-history__sources \{[^}]*padding: 0\.35rem 0\.6rem;/s)
+  assert.match(source, /\.download-history__sources summary \{[^}]*margin: 0;/s)
 })
 
 test('has independent loading, empty, stale, partial, and error messages', () => {
