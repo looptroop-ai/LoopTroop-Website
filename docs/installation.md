@@ -576,3 +576,10 @@ For non-mutating startup, forced maintenance, and manual maintenance commands, s
 
 ```project-stats
 ```
+
+### Download history
+
+See how distribution activity changed over time. Times and bucket boundaries use UTC.
+
+```download-history
+```

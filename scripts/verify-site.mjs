@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises'
 const requiredFiles = [
   'site/index.html',
   'site/project-stats.js',
+  'site/project-stats-history.js',
   'site/release-version.js',
   'site/robots.txt',
   'site/sitemap.xml',
@@ -82,6 +83,12 @@ if (!installationHtml.includes('id="download-statistics"')) {
 }
 if (!installationHtml.includes('project-stats')) {
   throw new Error('Installation output is missing the project-statistics component.')
+}
+if (!installationHtml.includes('id="download-history"')) {
+  throw new Error('Installation output is missing the download-history subsection.')
+}
+if (!installationHtml.includes('download-history__controls')) {
+  throw new Error('Installation output is missing the interactive download-history component.')
 }
 
 const sitemap = await readFile('site/sitemap.xml', 'utf8')

@@ -7,8 +7,20 @@
   "functions": {
     "api/project-stats.js": {
       "maxDuration": 20
+    },
+    "api/project-stats-history.js": {
+      "maxDuration": 20
+    },
+    "api/cron/project-stats.js": {
+      "maxDuration": 20
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/project-stats",
+      "schedule": "5 * * * *"
+    }
+  ],
   "cleanUrls": true,
   "redirects": [
     {

@@ -1,64 +1,62 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { register } from 'node:module'
+import { registerHooks } from 'node:module'
 
-const loaderCode = `
-export async function resolve(specifier, context, nextResolve) {
-  if (specifier === 'vue' || specifier === 'vitepress') {
-    return {
-      shortCircuit: true,
-      url: 'mock:' + specifier
-    };
-  }
-  return nextResolve(specifier, context);
-}
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === 'vue' || specifier === 'vitepress') {
+      return {
+        shortCircuit: true,
+        url: 'mock:' + specifier,
+      }
+    }
+    return nextResolve(specifier, context)
+  },
 
-export async function load(url, context, nextLoad) {
-  if (url === 'mock:vue') {
-    return {
-      format: 'module',
-      shortCircuit: true,
-      source: \`
-        export function nextTick(fn) {
-          if (globalThis.__nextTickOverride) {
-            return globalThis.__nextTickOverride(fn);
+  load(url, context, nextLoad) {
+    if (url === 'mock:vue') {
+      return {
+        format: 'module',
+        shortCircuit: true,
+        source: `
+          export function nextTick(fn) {
+            if (globalThis.__nextTickOverride) {
+              return globalThis.__nextTickOverride(fn);
+            }
+            return Promise.resolve().then(fn);
           }
-          return Promise.resolve().then(fn);
-        }
-        export function onMounted(fn) {
-          globalThis.__onMountedHooks?.push(fn);
-        }
-        export function onUnmounted(fn) {
-          globalThis.__onUnmountedHooks?.push(fn);
-        }
-        export function watch(source, fn) {
-          globalThis.__watchHooks?.push({ source, fn });
-        }
-      \`
-    };
-  }
-  if (url === 'mock:vitepress') {
-    return {
-      format: 'module',
-      shortCircuit: true,
-      source: \`
-        export function getScrollOffset() {
-          return globalThis.__getScrollOffset ? globalThis.__getScrollOffset() : 0;
-        }
-        export function onContentUpdated(fn) {
-          globalThis.__onContentUpdatedHooks?.push(fn);
-        }
-        export function useData() {
-          return globalThis.__useData ? globalThis.__useData() : { hash: { value: '' } };
-        }
-      \`
-    };
-  }
-  return nextLoad(url, context);
-}
-`
-
-register('data:text/javascript,' + encodeURIComponent(loaderCode))
+          export function onMounted(fn) {
+            globalThis.__onMountedHooks?.push(fn);
+          }
+          export function onUnmounted(fn) {
+            globalThis.__onUnmountedHooks?.push(fn);
+          }
+          export function watch(source, fn) {
+            globalThis.__watchHooks?.push({ source, fn });
+          }
+        `,
+      }
+    }
+    if (url === 'mock:vitepress') {
+      return {
+        format: 'module',
+        shortCircuit: true,
+        source: `
+          export function getScrollOffset() {
+            return globalThis.__getScrollOffset ? globalThis.__getScrollOffset() : 0;
+          }
+          export function onContentUpdated(fn) {
+            globalThis.__onContentUpdatedHooks?.push(fn);
+          }
+          export function useData() {
+            return globalThis.__useData ? globalThis.__useData() : { hash: { value: '' } };
+          }
+        `,
+      }
+    }
+    return nextLoad(url, context)
+  },
+})
 
 const { useStableHashScroll } = await import('../docs/.vitepress/theme/hashScroll.ts')
 

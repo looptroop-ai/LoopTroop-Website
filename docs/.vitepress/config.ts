@@ -146,6 +146,10 @@ export default defineConfig({
           return '<ProjectStats />'
         }
 
+        if (token.info.trim() === 'download-history') {
+          return '<DownloadHistory />'
+        }
+
         if (defaultFence) {
           return defaultFence(tokens, idx, options, env, self)
         }
