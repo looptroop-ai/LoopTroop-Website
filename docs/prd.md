@@ -49,13 +49,23 @@ The Full Answers artifact keeps the approved interview structure intact, includi
 
 The model may change only the answer blocks for skipped questions. When it fills one in, LoopTroop marks it with `answered_by: ai_skip`, flips `answer.skipped` to `false`, and stores the inferred answer in the same artifact shape as a real answer. For choice questions, the model must reuse existing option IDs and may add concise free text only when the selected option needs nuance. If supplied context cannot confirm a needed technical fact, it may inspect the smallest relevant repository area read-only; it does not use repository contents to overwrite approved user answers or infer stakeholder decisions.
 
+### Skip reasons
+
+Where the user left a reason for skipping a question, the model filling that answer gets to read it.
+
+The reason arrives as a separate read-only section of the prompt, listing the question ID and the note. It is deliberately not part of the interview artifact the model is asked to reproduce: the artifact schema has no `skip_reason` field in the output format, so there is nothing for the model to echo back and nothing to overwrite if it tries. Reasons are stripped from the interview artifact for every other prompt, including PRD drafting, PRD voting and PRD coverage, and they never appear in a Full Answers artifact.
+
+Each reason is shortened to 500 characters where the prompt reads it. A ticket can carry forty skipped questions and a reason can be twenty thousand characters, which would otherwise be a great deal of prompt spent on notes.
+
+A skipped question with no reason simply does not appear in that section, which is not itself a signal about the answer.
+
 If no skipped answers exist, LoopTroop can synthesize the Full Answers artifact without making another model call.
 
 ### Why Full Answers Are Per-Model
 
 Each council member creates its own Full Answers artifact on purpose.
 
-Skipped questions are unresolved requirements. Different models may infer different but still reasonable completions from the same ticket, repo, and approved interview. LoopTroop wants those assumptions to stay attached to the PRD draft they produced, so voting chooses both:
+Skipped questions are unresolved requirements. Different models may infer different but still reasonable completions from the same ticket, repo, approved interview, and skip reasons. LoopTroop wants those assumptions to stay attached to the PRD draft they produced, so voting chooses both:
 
 1. the PRD structure and content
 2. the assumption set behind that PRD
@@ -160,7 +170,9 @@ At `WAITING_PRD_APPROVAL`, the user can:
 - switch to raw YAML for direct editing
 - inspect the winning model's read-only Full Answers artifact
 - review any unresolved coverage warnings from a capped coverage loop
-- click `Fix gaps with AI` when unresolved warnings remain, or explicitly approve with gaps
+- click `Fix gaps with AI` when unresolved warnings remain, or explicitly approve with gaps and optionally record why
+
+Approving with gaps takes an optional reason. It is stored on the approval receipt as a `gap_acknowledgement` block and in the ticket's skip trail, and it is the only record of why those gaps were accepted. The reason is about the gaps in front of you at that moment; it is not carried over from a previous coverage run.
 
 ### Saving Before Approval
 

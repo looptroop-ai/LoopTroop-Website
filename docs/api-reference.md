@@ -458,7 +458,7 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 | `POST` | `/api/tickets/:id/edit-execution-setup-plan` | After UI confirmation, rewind a blocked workspace runtime setup to setup-plan approval |
 | `POST` | `/api/tickets/:id/coverage/fix-gaps` | Run one approval-screen extra fix for unresolved PRD or beads coverage gaps |
 | `POST` | `/api/tickets/:id/merge` | Merge delivered PR |
-| `POST` | `/api/tickets/:id/close-unmerged` | Close without merge |
+| `POST` | `/api/tickets/:id/close-unmerged` | Close without merge — accepts an optional `{ "reason": "..." }` body, stored as `closeReason` on the `merge_report` artifact. Unknown fields return `400`, so a retry note cannot be sent here by mistake |
 | `POST` | `/api/tickets/:id/verify` | Alias for the merge handler — both routes call the same handler |
 | `POST` | `/api/tickets/:id/retry` | Retry a blocked ticket or failed phase; an optional `{ "note": "..." }` body adds CODING bead guidance or sends one direct message to a preserved execution setup session |
 | `POST` | `/api/tickets/:id/continue` | Continue a blocked ticket only when eligible OpenCode/provider diagnostics, including `HTTP 402 Payment Required`, have a matching active preserved OpenCode session |
@@ -468,9 +468,12 @@ All approval routes, including the generic `/approve` route, require the hash of
 
 ```json
 {
-  "expectedContentSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  "expectedContentSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "gapAcknowledgementReason": "The remaining gap is tracked in a follow-up ticket."
 }
 ```
+
+`gapAcknowledgementReason` is optional and is offered by the interface only when coverage left unresolved gaps. When present it is recorded as a `gap_acknowledgement` block on the `approval_receipt` artifact and in the ticket's skip trail.
 
 Malformed or missing hashes return `400`. If the current server artifact no longer matches the expected hash, the route returns `409` and leaves the workflow paused:
 
@@ -528,7 +531,8 @@ The cancel endpoint accepts an optional JSON request body to trigger cleanup or 
 {
   "deleteContent": false,
   "deleteLog": false,
-  "deleteTicket": false
+  "deleteTicket": false,
+  "reason": "Requirements changed before implementation started."
 }
 ```
 
@@ -537,6 +541,9 @@ The cancel endpoint accepts an optional JSON request body to trigger cleanup or 
 | `deleteContent` | `boolean` | `false` | Permanently removes all AI-generated artifacts (interview Q&A, PRD drafts, beads plan) from the database and deletes the isolated git worktree and its branch |
 | `deleteLog` | `boolean` | `false` | Permanently removes the execution log files (`.ticket/runtime/execution-log.jsonl`, `.ticket/runtime/execution-log.debug.jsonl`, and `.ticket/runtime/execution-log.ai.jsonl`) for this ticket. This is only effective when the worktree still exists; if `deleteContent` is also `true` the worktree removal already covers the logs |
 | `deleteTicket` | `boolean` | `false` | Permanently deletes the ticket record from the database and removes all related files (equivalent to the DELETE ticket action once canceled) |
+| `reason` | `string` | — | Optional. Why the ticket was cancelled, up to 20,000 characters. Stored on the ticket's own `cancel_reason` column, so it survives `deleteContent`. Nothing survives `deleteTicket` |
+
+The body is validated strictly. A malformed or oversized field returns `400` and the ticket is left running. It previously fell back to defaults and cancelled anyway, which silently dropped the rejected field while still performing the destructive part of the request.
 
 ### Interview And Planning Editing
 
@@ -552,7 +559,7 @@ The cancel endpoint accepts an optional JSON request body to trigger cleanup or 
 
 Interview responses include `contentSha256` for the reviewed raw interview bytes. PRD file responses from `/api/files/:ticketId/prd` include `contentSha256` for the returned file content.
 
-`POST /api/tickets/:id/skip` accepts the same body shape as `answer-batch`, so the client can persist already entered answers before skipping the remaining questions.
+`POST /api/tickets/:id/skip` accepts the same fields as `answer-batch` plus `bulkSkipReason`, so the client can persist already entered answers before skipping the remaining questions. Both routes are strict and validate the same things, but they are separate schemas: sharing one is how a field added for a single route gets silently ignored on the other.
 
 Interview and PRD approval edits are planning-only. After approval, saving an interview edit is allowed while the ticket is still before `PRE_FLIGHT_CHECK`; if PRD or beads planning already exists, LoopTroop archives the current approved interview version and downstream PRD/beads phase attempts, cancels active downstream sessions as intentional cancellation, clears stale downstream artifacts and approval UI state, writes a `user_edit_receipt:interview` artifact, saves and approves the edited interview as the new active version, and starts `DRAFTING_PRD`. Saving a PRD edit follows the same contract for the current approved PRD version and downstream beads attempts, writes `user_edit_receipt:prd`, then starts `DRAFTING_BEADS`.
 
@@ -567,9 +574,14 @@ Current batch-answer payload:
   },
   "selectedOptions": {
     "q-auth-2": ["option-password", "option-sso"]
+  },
+  "skipReasons": {
+    "q-auth-3": "Already answered in the ticket description."
   }
 }
 ```
+
+`skipReasons` is keyed by question ID and is optional. Each entry must belong to a question the submission will actually skip; a reason attached to a question the user answered returns `400` naming the offending IDs, because it would otherwise record an explanation for a decision nobody made. `POST /api/tickets/:id/skip` additionally accepts `bulkSkipReason`, a single reason applied only to questions that action skipped and left unexplained. It never overwrites a per-question reason and never reaches an answer submitted in an earlier batch.
 
 Possible `answer-batch` response shapes:
 
@@ -792,6 +804,7 @@ The outer `answers` array must stay in the same order as the returned `questions
 | `GET` | `/api/tickets/:id/logs` | Read a projected log page; defaults to the newest 20 rows and accepts an older-page cursor |
 | `GET` | `/api/tickets/:id/logs/export` | Export the complete matching log history as plain text for Copy all |
 | `GET` | `/api/tickets/:id/ai-details` | Aggregate completed AI-turn cost, tokens, and timing for a phase attempt or the ticket lifecycle |
+| `GET` | `/api/tickets/:id/skips` | Every skip recorded for the ticket, with counts |
 
 `GET /api/tickets/:id/artifacts` accepts optional `phase` and `phaseAttempt` query filters. When `phaseAttempt` is omitted, the backend resolves the current active attempt for that phase; supplying `phaseAttempt=1` is how clients intentionally read archived planning generations after an edit/retry/regenerate flow.
 
@@ -800,6 +813,37 @@ The manifest route accepts the same filters and returns `{ "artifacts": [...] }`
 The projected log route accepts `scope=phase|lifecycle`, `view=overview|system|command|ai|error|debug`, optional `phase`, `phaseAttempt`, and `modelId`, `limit=1..500`, and an opaque `before` cursor. When `limit` is omitted, it defaults to 20 so ticket and status views can paint the latest activity quickly; the frontend then requests older cursor pages in batches of up to 250 as the user scrolls upward. Overview excludes command-classified rows before applying the page limit because commands have their own view and are not rendered in ALL. The newest-page response returns chronological `entries`, `olderCursor`, `hasOlder`, cursor-independent `totalEntries`, and `totalTextLines` for the complete matching filter; older cursor pages omit the unchanged totals to avoid repeating the aggregate work. Empty content contributes zero text lines; non-empty content contributes one plus its newline count. These totals are aggregated in SQLite and do not load historical entry bodies into the application or browser. The AI channel includes model-scoped error rows so provider recovery information is also visible beside that model; the same durable event remains available from the ERROR view. Projection catch-up reads unindexed JSONL suffixes cooperatively and deduplicates concurrent catch-up requests; it does not change the live SSE or durable log-writing paths.
 
 `GET /api/tickets/:id/ai-details` accepts `scope=phase|lifecycle` and an optional `modelId`. Phase scope requires `phase`; `phaseAttempt` selects an archived attempt or defaults to the active attempt using the same resolver as phase logs. Lifecycle scope ignores phase boundaries. The response contains completed turn/session counts, nullable cost and token aggregates, nullable total/average/longest duration, per-metric reporting coverage, and `updatedAt`. A nullable aggregate means OpenCode did not report that metric; it is not equivalent to zero.
+
+`GET /api/tickets/:id/skips` returns the append-only skip trail for a ticket, oldest first, with optional `phase` and comma-separated `surfaces` filters. An unknown surface returns `400`. It is deliberately not filtered by phase attempt: the artifact routes hide archived attempts, which is right for what a phase is working from and wrong for an audit trail, because a receipt from a retried attempt is still a decision somebody made. Each event carries its receipt and action IDs, surface, item, phase and attempt, timestamp, reason, and whether a later action on the same item superseded it. `counts` reports actions and items separately, so a forty-question Skip All is one action and forty items rather than forty-one skips.
+
+```json
+{
+  "ticketId": "1:LOOP-42",
+  "events": [
+    {
+      "receiptId": "skip-4f2a91c0d3b57e68",
+      "actionId": "interview_all-9c1d0f2b7a4e6851",
+      "parentActionId": null,
+      "surface": "interview_all",
+      "itemId": "Q07",
+      "itemType": "interview_question",
+      "isActionSummary": false,
+      "phase": "WAITING_INTERVIEW_ANSWERS",
+      "phaseAttempt": 1,
+      "skippedAt": "2026-08-27T10:14:02.113Z",
+      "reason": "Already answered in the ticket description.",
+      "supersedes": null,
+      "superseded": false
+    }
+  ],
+  "counts": {
+    "actions": 1,
+    "items": 2,
+    "itemsWithReason": 1,
+    "itemsWithoutReason": 1
+  }
+}
+```
 
 ```json
 {

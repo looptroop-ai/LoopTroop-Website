@@ -80,7 +80,7 @@ During answering, LoopTroop persists:
 - the current batch
 - the full question list
 - recorded answers
-- skip state
+- skip state and the reason given for each skip
 - follow-up rounds
 - batch history
 - completion timestamps
@@ -100,6 +100,7 @@ While a batch is open:
 - already answered or skipped questions remain visible in grouped history
 - previously recorded answers can still be edited while the ticket is in `WAITING_INTERVIEW_ANSWERS`
 - skipped questions can be unskipped and answered later
+- a skipped question takes an optional reason, saved with the rest of the draft; undoing the skip discards it, because it no longer explains anything
 
 After submit, LoopTroop persists the batch into the session snapshot, updates the canonical interview state, and either prepares the next batch or advances to coverage.
 
@@ -107,11 +108,24 @@ When a user mentions an existing component, behavior, path, command, limitation,
 
 The progress counter is an estimate, not a hard promise. The current batch number is real, but the total can change because later questions may become unnecessary, be merged, be lightly split, or be replaced by targeted follow-ups.
 
-## 6. Skips, Final Free-Form, And Coverage
+## 6. Skips, Skip Reasons, Final Free-Form, And Coverage
 
 Skipping is explicit and durable. A skipped question is not silently deleted and is not treated as answered.
 
-In the final interview artifact, skipped answers remain present with `answer.skipped: true`. Later, during PRD drafting, each council model may fill those skipped answers in its own Full Answers artifact. Those AI-filled answers are marked with `answered_by: ai_skip`, so they remain distinguishable from user-provided answers.
+In the final interview artifact, skipped answers remain present with `answer.skipped: true` and `answered_by: user_skip`. Later, during PRD drafting, each council model may fill those skipped answers in its own Full Answers artifact. Those AI-filled answers are marked with `answered_by: ai_skip`, so they remain distinguishable both from user-provided answers and from the skips they replaced.
+
+### Skip reasons
+
+Every skip takes an optional reason. Nothing is blocked for lack of one and no screen asks twice, but a reason changes what the model filling that answer has to work with.
+
+A reason is stored in two places, deliberately:
+
+- **On the answer**, as `answer.skip_reason` in `interview.yaml`. This is the current state, and it is what the interface reads back.
+- **In an append-only receipt**, recording who skipped the question, when, from which surface, and what the reason said at that moment. Editing a reason at the approval screen adds a new receipt; it does not rewrite the earlier one.
+
+Reasons are read by exactly one prompt. PROM10a, which fills skipped answers during PRD drafting, receives them as a separate read-only section of its prompt — not as part of the interview artifact it is asked to reproduce, so it has no field to write one back into. They are stripped from the interview everywhere else, so PRD drafting, PRD voting, interview coverage and every downstream prompt see the interview without them. Where a prompt reads a reason it is shortened to 500 characters, because forty skipped questions at the full storage limit is a great deal of prompt spent on notes.
+
+The full trail for a ticket is visible in the Full Log under **Skips**.
 
 Once the compiled interview has been answered, skipped, or made redundant, LoopTroop asks one final free-form question for anything else the user wants captured before specs drafting.
 
@@ -134,10 +148,11 @@ If the follow-up budget is exhausted, the interview still moves to approval, but
 
 If the user chooses **skip all**, LoopTroop:
 
-1. preserves anything already answered
+1. preserves anything already answered, including choice questions answered by selecting an option
 2. marks every remaining unanswered question as skipped (which are answered by AI models at the beginning of the PRD phase)
-3. advances directly to interview approval
-4. writes a **synthetic clean coverage record** for audit continuity
+3. applies the single optional reason given for the action to every question it skipped that has no reason of its own, never overwriting one the user typed against a specific question and never reaching an earlier batch
+4. advances directly to interview approval
+5. writes a **synthetic clean coverage record** for audit continuity
 
 That is intentionally different from real coverage. It is an explicit user bypass.
 
@@ -162,8 +177,11 @@ Each question answer stores:
 - `skipped`
 - `selected_option_ids`
 - `free_text`
-- `answered_by` (`user` or `ai_skip`)
+- `answered_by` (`user`, `user_skip`, or `ai_skip`)
 - `answered_at`
+- `skip_reason`, present only when a person skipped the question and explained why
+
+`user_skip` and `ai_skip` are deliberately different values. A person choosing to skip a question and a model filling that skip in are not the same event, and a skip reason only ever belongs to the first.
 
 In practice, this gives LoopTroop two complementary records:
 
@@ -195,7 +213,7 @@ Once approved, the interview becomes the authoritative planning artifact for the
 
 The PRD phase uses it to:
 
-- generate per-model Full Answers artifacts
+- generate per-model Full Answers artifacts, using any skip reasons the user left
 - distinguish real user answers from AI-filled skipped answers
 - draft competing PRDs
 - verify PRD coverage against the approved interview baseline

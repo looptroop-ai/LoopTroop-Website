@@ -109,7 +109,7 @@ The interview phase generates questions whose job is to remove meaningful ambigu
 
 You answer in the GUI, and only an approved interview proceeds to PRD generation. This is where the system buys down the risk of building the wrong thing.
 
-**Read more:** [Interview](interview.md), especially [How Questions Are Designed](interview.md#_3-how-questions-are-designed) and [Skips, Final Free-Form, And Coverage](interview.md#_6-skips-final-free-form-and-coverage).
+**Read more:** [Interview](interview.md), especially [How Questions Are Designed](interview.md#_3-how-questions-are-designed) and [Skips, Skip Reasons, Final Free-Form, And Coverage](interview.md#_6-skips-skip-reasons-final-free-form-and-coverage).
 
 ## 8. PRD As Source Of Truth
 

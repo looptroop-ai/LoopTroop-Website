@@ -113,7 +113,7 @@ Outcomes are:
 
 - `passed`: no failures and no required waivers; continue to integration.
 - `waived_through`: required items were explicitly waived; continue to integration.
-- `skipped`: archive all entered data and the optional reason as read-only, create no drafted work despite incomplete results, continue to integration.
+- `skipped`: archive all entered data and the optional round reason as read-only, create no drafted work despite incomplete results, continue to integration. The reason is stored as `skipReason` on the round summary and is readable through the ticket-wide skip trail; a waived item keeps its own separate waiver reason.
 - `created_fixes`: create the validated grouped/individual normal `qa-fix` beads plus configured Improvement tickets, archive the round attempts, and return to Coding.
 
 The new round index records whether each version has an artifact, its outcome/status and completion time, and its matching phase attempt. A reservation-only active version never displaces the newest available checklist in historical review. Existing testing tickets and Manual QA artifacts are not migrated or repaired.
@@ -230,7 +230,7 @@ If the user chooses merge, LoopTroop marks the PR ready when needed, merges it o
 
 ### 5.2 Finish-without-merge path
 
-If the user chooses the non-merge finish path (`close_unmerged` in the workflow actions), LoopTroop records `disposition: closed_unmerged` in `merge_report` and proceeds to cleanup **without** modifying the remote PR or the remote ticket branch.
+If the user chooses the non-merge finish path (`close_unmerged` in the workflow actions), LoopTroop asks for confirmation first and takes an optional reason for stopping here. It records `disposition: closed_unmerged` in `merge_report`, along with that reason as `closeReason`, and proceeds to cleanup **without** modifying the remote PR or the remote ticket branch. Nothing later in the ticket asks why the branch stopped, so that field is the only record.
 
 > [!IMPORTANT]
 > The current implementation does **not** auto-close or delete the PR on the `close_unmerged` path. It finishes the ticket locally while leaving the draft PR and branch untouched for later manual handling.
@@ -290,7 +290,8 @@ Cleanup writes a `cleanup_report` with `status: clean` or `status: warning`. A w
 | `candidate_file_audit` | `CREATING_PULL_REQUEST` | Include/exclude/review decisions for the final diff before push |
 | `candidate_diff` | `CREATING_PULL_REQUEST` | Net diff for the final candidate after any audit rewrite |
 | `pull_request_report` | `CREATING_PULL_REQUEST` | Stored PR metadata and generated title/body |
-| `merge_report` | `WAITING_PR_REVIEW` | Completion outcome for merged vs finished-without-merge |
+| `merge_report` | `WAITING_PR_REVIEW` | Completion outcome for merged vs finished-without-merge, including `closeReason` when the user finished without merging |
+| `skip_receipt:<surface>` | any phase with a skip | Append-only record of one user action that skipped something: surface, item, phase and attempt, timestamp, and the reason as it read at that moment |
 | `cleanup_report` | `CLEANING_ENV` | Removed/preserved runtime resources plus warning state |
 
 ---

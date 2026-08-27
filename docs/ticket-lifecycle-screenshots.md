@@ -21,7 +21,7 @@ Each section shows the status as it appears in the app, its available actions, a
 | **Interview** | [Council Drafting Questions](#council-drafting-questions) | Monitor parallel council question drafting |
 | **Interview** | [Voting on Questions](#voting-on-questions) | View anonymized questionnaire scores and voting breakdown |
 | **Interview** | [Refining Interview](#refining-interview) | Watch the selected draft become the interactive interview |
-| **Interview** | [Interviewing](#interviewing) | Answer questions in adaptive batches, skip items, or skip all remaining questions |
+| **Interview** | [Interviewing](#interviewing) | Answer questions in adaptive batches, skip items with an optional reason, or skip all remaining questions |
 | **Interview** | [Coverage Check (Interview)](#coverage-check-interview) | Monitor the coverage audit and follow-up questions |
 | **Interview** | [Approving Interview](#approving-interview) | Review the interview, edit answers or YAML, approve, or cancel |
 | **Specs (PRD)** | [Council Drafting Specs](#council-drafting-specs) | Monitor Full Answers generation and parallel PRD drafting |
@@ -219,13 +219,13 @@ Each section shows the status as it appears in the app, its available actions, a
 
 **What you can do:**
 - Type responses to free-text questions, select options for choice-based questions, or edit earlier answers.
-- Skip individual questions or restore a previously skipped question.
+- Skip individual questions or restore a previously skipped question. A skipped question takes an optional reason, which the model that later fills the answer in gets to read. Restoring the question discards the reason.
 - Click **Submit** to process the current batch and receive the next questions or advance to coverage.
-- Click **Skip All** to mark all remaining questions as skipped and move directly to Approving Interview. The PRD phase later fills skipped questions with AI-generated answers.
+- Click **Skip All** to mark all remaining questions as skipped and move directly to Approving Interview, with one optional reason for the whole action that applies only to questions you have not already explained. The PRD phase later fills skipped questions with AI-generated answers.
 
 ---
 
-### Coverage Check (Interview) [?](interview.md#6-skips-final-free-form-and-coverage "Open full documentation")
+### Coverage Check (Interview) [?](interview.md#6-skips-skip-reasons-final-free-form-and-coverage "Open full documentation")
 
 ::: details Screenshot
 ![Coverage Check (Interview)](media/ticket-lifecycle/09-verifying-interview-coverage.png)
@@ -246,7 +246,7 @@ Each section shows the status as it appears in the app, its available actions, a
 :::
 
 **What you can do:**
-- Review questions, answers, and skipped items in the structured view or raw YAML editor.
+- Review questions, answers, skipped items, and the reasons given for skipping them in the structured view or raw YAML editor. Marking an answer skipped here also takes a reason; answering the question clears it.
 - Edit answers with draft autosave. The same protection is available on editable approval screens.
 - Click **Save** to update the authoritative interview artifact, then **Approve** to start Council Drafting Specs.
 - Before Checking Readiness begins, you can return to Approving Interview or Approving Specs and edit the artifact. Saving an edit restarts downstream planning.
@@ -580,7 +580,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
   - **Fail:** The item does not meet its acceptance criteria. A note is required. LoopTroop can create a QA bead for each failed item or combine failures into one QA bead, then return the ticket to Implementing.
   - **Improvement:** LoopTroop creates a separate Backlog ticket from the item result.
 - Attach links or upload files as evidence for each item
-- Click **Skip Manual QA...** to archive entered data read-only without creating fix work or child tickets
+- Click **Skip Manual QA...** to archive entered data read-only without creating fix work or child tickets, with an optional reason for the round
 
 ---
 
@@ -614,7 +614,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 - Inspect Net Diff, By Bead, or By File diff views in the local workspace
 - Review candidate file audit, final test summary, and integration report
 - Click **Merge PR & Finish** to mark PR ready, merge on GitHub, verify remote base branch, and advance to cleanup
-- Click **Finish Without Merge** to leave PR open/unmerged and advance directly to cleanup
+- Click **Finish Without Merge** to leave the PR open and unmerged and advance directly to cleanup. It asks for confirmation and takes an optional reason, which is stored on the merge report and is the only record of why the branch stopped
 
 ---
 

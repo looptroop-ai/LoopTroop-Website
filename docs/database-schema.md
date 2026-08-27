@@ -148,6 +148,7 @@ Important columns:
 - persisted machine state: `xstate_snapshot`
 - execution progress: `branch_name`, `current_bead`, `total_beads`, `percent_complete`
 - failure surface: `error_message`
+- cancellation: `cancel_reason`
 - Manual QA and reconciliation: nullable Draft-only `manual_qa_override`, frozen `locked_manual_qa_enabled`, frozen `locked_manual_qa_source`, and monotonic `workflow_revision`
 - Git-hook behavior: frozen `locked_git_hook_policy` and `locked_git_hook_policy_source`; fresh schemas have no ticket-level Git-hook override
 - frozen-on-start settings: `locked_main_implementer`, `locked_main_implementer_variant`, `locked_council_members`, `locked_council_member_variants`, `locked_interview_questions`, `locked_coverage_follow_up_budget_percent`, `locked_max_coverage_passes`, `locked_max_prd_coverage_passes`, `locked_max_beads_coverage_passes`, `locked_structured_retry_count`
@@ -160,6 +161,7 @@ Operational notes:
 - locked configuration columns freeze the profile/project settings that were in force when the ticket started
 - `manual_qa_override` uses SQL `NULL` for Inherit and booleans for Enabled/Disabled; resolution order is ticket → project → profile, and missing locked values on older started tickets mean disabled
 - Start snapshots the project's `git_hook_policy` and its project source for execution-setup planning. Older databases may retain an obsolete ticket `git_hook_policy` column and data, but current create/update/read resolution ignores it; no compatibility migration is required.
+- `cancel_reason` holds why the operator cancelled, and is a ticket column rather than a phase artifact on purpose: cancelling with **Delete AI-generated artifacts** removes every `phase_artifacts` row for the ticket, so a receipt would be erased by the same action that wrote it. Cancelling with **Delete the ticket completely** leaves nothing, including this.
 - `workflow_revision` increases on status transitions and lets polling/SSE consumers reject stale state even when the workflow moves backward from Manual QA to Coding
 - `branch_name = '__looptroop_display_only_mock__'` is reserved for board-only mock/demo tickets; these rows are returned for display, projected through the API with `isDisplayOnlyMock: true`, excluded from startup hydration and runnable workflow actions, and expose only Cancel while non-terminal
 - runtime details shown in the UI are enriched from **both** this row and ticket-owned files under `.ticket/**`
@@ -184,6 +186,7 @@ Operational notes:
 - `phase_attempt` versions artifacts across retries, regenerations, and post-approval restarts for tracked phases
 - the database does **not** have a `file_path` column; API artifact payloads may expose `filePath`, but DB-backed artifacts currently return `null`
 - this table stores more than just final docs: examples include `interview`, `prd`, `beads`, `execution_setup_plan`, coverage artifacts, `approval_snapshot:*`, `ui_state:error_attention`, `cleanup_report`, `merge_report`, `final_test_report`, and `pull_request_report`
+- `skip_receipt:<surface>` rows are the append-only record of every user action that skipped something. The surface is part of the artifact type: `interview_question`, `interview_all`, `interview_approval_mark_skipped`, `approval_with_gaps`, `close_unmerged`, and `cancel_ticket`. Each row carries a schema version, an idempotent `action_id`, the item, the phase and attempt, the ticket status before the action, the timestamp, and the reason as it read at that moment. A bulk action writes one summary row plus one row per item, all in a single transaction, which is what makes a forty-question Skip All count as one action rather than forty-one skips. Manual QA is not in that list: it already wrote its own skip and waiver records, and the shared read API adapts those rather than adding a duplicate.
 - Manual QA keeps compact append-only checklist, coverage, results, draft snapshot, and summary artifacts here; live editing exists only as `ui_state:manual_qa_draft:vN` with a server-owned compare-and-set revision
 - council companion artifacts may embed draft/vote metadata and attempt diagnostics in `content`; malformed model text is intentionally kept out of structured fields
 

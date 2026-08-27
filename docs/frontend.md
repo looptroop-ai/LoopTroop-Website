@@ -98,7 +98,7 @@ That split matters because the workspace is designed for both live work and hist
 | --- | --- |
 | `DraftView` | Ticket editing and start controls |
 | `CouncilView` | Multi-model draft and vote phases with artifacts |
-| `InterviewQAView` | Interactive interview batches, visible autosave state and last-save time, draft persistence, and skip flow |
+| `InterviewQAView` | Interactive interview batches, visible autosave state and last-save time, draft persistence, and the skip flow with optional per-question and bulk reasons |
 | `ApprovalView` | Review and edit interview, PRD, beads, and execution setup artifacts with visible draft-autosave feedback; PRD approval also exposes the winning model's Full Answers as compact read-only context |
 | `CodingView` | Active bead execution, bead list, logs, diffs, verification actions |
 | `ManualQAView` | Live verification draft, evidence, submission/drift recovery, and read-only round history after the generated checklist is handed off |
@@ -152,7 +152,7 @@ Draft conflicts stop submit/skip until the user explicitly reloads the server's 
 
 The view distinguishes autosaving, QA-bead generation, submission, child creation/resume, workspace-drift decisions, and skip states. The collapsed selected-version log records validation, the required repository tool activity, candidate persistence, every created ticket/bead and its settings, completion, and errors. There is one primary **Submit** action and no manual Save button. Beside the required-check count, the UI explains that drafts save automatically and shows a relative “Last saved” value; hovering reveals the exact local date and time. Live drafts save only to `manual_qa_draft:vN` after the standard five-second debounce, use server compare-and-set revisions/action IDs, and flush with keepalive on `pagehide`/`beforeunload`. A `409` conflict returns the latest server draft for reconciliation.
 
-The **Skip Manual QA…** action opens a concise warning that no QA fix bead or Improvement ticket will be created. Confirming it bypasses normal result, observation, and merge-group completeness checks, but preserves every entered result, note, merge-group selection, Improvement draft, and evidence reference in the archived round. That snapshot becomes read-only and cannot be edited later. The version selector likewise keeps earlier submitted rounds read-only after a failure returns the live ticket to Coding or after delivery continues.
+The **Skip Manual QA…** action opens a concise warning that no QA fix bead or Improvement ticket will be created, with an optional reason for the round. Confirming it bypasses normal result, observation, and merge-group completeness checks, but preserves every entered result, note, merge-group selection, Improvement draft, and evidence reference in the archived round. That snapshot becomes read-only and cannot be edited later. The version selector likewise keeps earlier submitted rounds read-only after a failure returns the live ticket to Coding or after delivery continues.
 
 The timeline is visit-aware rather than solely status-index based. Ticket payloads combine `visitedStatuses` with monotonic `workflowRevision`; SSE and polling prefer the higher revision, so a valid reverse transition from Manual QA to Coding cannot leave a newer-indexed stale screen mounted. Manual QA also participates in needs-input attention, context trees, status summaries, artifact viewers, cancellation/retry surfaces, progress labels, and completed-ticket review.
 
@@ -207,7 +207,7 @@ Current `connectionState` values are:
 It does more than submit answers:
 
 - stores draft answers per interview batch
-- tracks skipped questions
+- tracks skipped questions and the reason given for each
 - tracks selected options
 - restores drafts from persisted UI state
 - auto-saves drafts with debounce through ticket UI-state artifacts and only marks a draft saved after the write succeeds
@@ -224,7 +224,9 @@ That makes `InterviewQAView` resilient across reloads, view changes, and follow-
 `InterviewQAView` pairs `useBatchSubmit()` with concrete editor/history surfaces rather than a separate "flow controls" layer:
 
 - `QuestionList` renders answered and skipped history groups, plus in-place edits for previous answers
-- `AnswerEditor` renders the active batch, choice inputs, AI commentary, per-question skip actions, a skip-all confirmation path, and batch progress badges
+- `AnswerEditor` renders the active batch, choice inputs, AI commentary, per-question skip actions with an optional reason box, a skip-all confirmation path carrying one optional reason for the action, and batch progress badges
+- `SkipReasonField` is the single reason box used by every surface that can skip something, so the length cap and behaviour are the same in the interview, the approval screens, Manual QA, the cancel dialog, and the finish-without-merge dialog
+- `SkipSummary` renders the **Skips** panel in the Full Log: one line per skip with its surface, item, and reason, eight lines at a time with the rest scrolling, and a header counting actions and items separately
 - a bottom `CollapsiblePhaseLogSection` keeps the live phase log available while the user answers questions
 
 The current batch can come from the persisted interview session snapshot or the latest SSE-driven batch. History groups are derived from the normalized question source (`compiled`, `prompt_follow_up`, `coverage_follow_up`, `final_free_form`) and rendered with user-facing labels such as `PROM4 Follow-ups` and `Coverage Follow-ups`.

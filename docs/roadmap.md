@@ -27,19 +27,20 @@ search: false
     *   Rejecting a question — by the user or by the timer — takes an **optional reason**, persisted the same way every other skip is, under the Skip Reason Auditability contract. Record the request id, session, phase attempt and every unanswered question the rejection covered, since one rejection resolves a whole request rather than a single question.
     *   Attribute an expired question to a `timeout` actor rather than to the user. Auto-rejecting silently under a user's name records a decision they never made, and produces exactly the untraceable failure the reason is there to prevent. Record the configured window and the elapsed time alongside it.
     *   The reason stays on the LoopTroop side. OpenCode's reject call carries only a request id, so there is no channel to tell the model why it was refused.
-*   **Skip Reason Auditability:** Allow users to provide an optional reason any time they skip a step, prompt, question, or approval gate in the app. The reason is persisted in the relevant ticket artifact for auditability and later review.
-    *   Add a skip-reason input surface on every user-facing skip action (e.g., skip interview question, skip phase review, skip approval, skip critique/research generation).
-    *   The reason must be optional and not block the skip action when left blank; if blank, record `reason: null` explicitly.
-    *   Persist the reason in the corresponding artifact (e.g., `interview.yaml`, `critique.yaml`, `research/repository-brief.yaml`, `planning-context.yaml`, phase review receipts) alongside `skipped_at`, `skipped_by`, and the skipped item identifier.
-    *   Include skipped item metadata: item id/type, phase/status where skipped, original prompt text or reference, and user-provided reason.
-    *   Make skip reasons visible in the ticket UI and export views so users and auditors can review why items were bypassed.
-    *   Ensure skip reasons are treated as user-generated planning context, not as agent instructions, and do not alter model behavior beyond being available for downstream human review.
-    *   Add a `doctor` check that flags skips without reasons when the project policy requires reasons, and report aggregate skip statistics per ticket.
+*   **Skip Reason Auditability — shipped.** Every user action that skips something takes an optional reason. The reason lives on the artifact the surface owns as current state, and in an append-only receipt as history.
+    *   **Surfaces covered:** skipping one interview question, skipping all remaining questions, marking an answer skipped at interview approval, approving a PRD or bead plan with known coverage gaps, skipping a Manual QA round, waiving a single Manual QA check, finishing a ticket without merging, and cancelling a ticket. The named examples from the original entry that have no UI to attach a reason to — phase review, critique generation, research generation — were dropped rather than stubbed: `critique.yaml`, `research/repository-brief.yaml` and `planning-context.yaml` belong to roadmap items that have not shipped, and those items own the question of what a skip means for them.
+    *   The reason is always optional and never blocks the action. Blank and whitespace-only reasons are stored as `null`, never as `""`.
+    *   **Where it is persisted:** `answer.skip_reason` in `interview.yaml`, `skipReason` on the Manual QA round summary, the per-item waiver reason on that same summary, `closeReason` on `merge_report`, `gap_acknowledgement` on `approval_receipt`, and the ticket's own `cancel_reason` column. Cancel uses a column rather than a phase artifact because deleting a cancelled ticket's artifacts removes every phase artifact it has, which would erase the reason with the same action that wrote it.
+    *   Each receipt records the item id and type, the surface, the phase and attempt, the ticket status before the action, the timestamp, and the reason as it read at that moment. It deliberately does **not** copy the item's prompt text: that duplicates the artifact and goes stale the moment a question is edited at approval, so the id is stored and the prompt resolved at render time.
+    *   Visible in the ticket UI beside each skipped item, and ticket-wide through the **Skips** panel in the Full Log, which spans every phase and every retried attempt. The plain-text log export carries a short summary and the receipt id rather than the full reason, since a 20,000-character multiline note would break that format and the export is deleted along with the logs anyway.
+    *   **Amended from the original entry:** skip reasons *do* alter model behaviour, deliberately. PROM10a invents answers for skipped interview questions and previously did so blind; it now reads the reasons through a fenced read-only section of its prompt, truncated to 500 characters. That section is not part of the artifact it reproduces, so it has no field to write a reason back into, and reasons are stripped from the interview artifact for every other prompt. The original wording — available for downstream human review only — described a weaker contract than the one that shipped.
+    *   **Deferred:** an optional project policy that requires reasons, and any aggregate reporting built on it. Both are only meaningful once somebody wants to enforce reasons, and nothing today does. A `doctor` check was considered and dropped: `doctor` reports on installation and environment health, and a ticket's skip hygiene is neither.
+    *   **Note for Context Slimming:** `answer.skip_reason` must be classified before any strip pass runs over the interview artifact, or that pass will remove the field this work adds.
 *   **Context Slimming Pipeline (per-phase input/output field audit + deterministic strip-and-store contract):** For every workflow phase, manually audit which fields the AI model outputs and which fields downstream phases actually consume, then strip unused fields from the canonical context so future model calls receive slimmer input while stripped data is preserved for UI display and forensic audit.
     *   Audit each phase input and output, status by status, starting with the first (`DRAFT`) and proceeding sequentially through the full lifecycle.
     *   The AI model must continue to output all fields it currently outputs; no model-side changes are required.
     *   After the model returns output, the app applies a deterministic strip pass that removes fields not consumed by any downstream phase, UI surface, or audit/log contract.
-    *   Stripped data must be persisted to a companion artifact (`.looptroop/tickets/<ticket-id>/context/stripped-<phase>-<attempt>.json`) so it remains available for UI rendering, diagnostics, and forensic replay.
+    *   Stripped data must be persisted to a companion artifact (`.looptroop/worktrees/<ticket-id>/.ticket/context/stripped-<phase>-<attempt>.json`) so it remains available for UI rendering, diagnostics, and forensic replay.
     *   The canonical context artifact passed to subsequent phases contains only the slimmed payload; the stripped companion is loaded only when the UI or an audit tool requests it.
     *   Manually classify every output field per phase into one of four ownership classes:
         *   `required_downstream`: consumed by at least one subsequent phase, UI surface, or log contract — kept in canonical context.
@@ -51,7 +52,7 @@ search: false
     *   The `app_derived` classification must be conservative: only classify a field as `app_derived` when the app can produce the value with zero ambiguity (no creative/AI judgment required). If a field's value depends on interpretation, summarization, or subjective judgment, it remains in `required_downstream` or `required_display_only` even if the app could produce an approximation.
     *   When an `app_derived` field is removed from the AI output schema, update the prompt to instruct the model that the field is no longer needed — this reduces both output tokens and prompt complexity, since the model no longer needs to be told what format to produce for that field.
     *   Track estimated token savings from `app_derived` removal separately in strip receipts (`app_derived_tokens_saved_estimate`) alongside the existing `tokens_saved_estimate` so the impact of app-side derivation vs. pure stripping is measurable in isolation.
-    *   Persist the field-classification manifest at `.looptroop/tickets/<ticket-id>/context/field-manifest-<phase>.yaml` with per-field entries: `field_path`, `class`, `consumed_by[]`, `first_audit_at`, `last_verified_at`.
+    *   Persist the field-classification manifest at `.looptroop/worktrees/<ticket-id>/.ticket/context/field-manifest-<phase>.yaml` with per-field entries: `field_path`, `class`, `consumed_by[]`, `first_audit_at`, `last_verified_at`.
     *   For every retry path (structured retry, coverage-retry loop, context-wipe retry, model-fallback retry), also audit which additional fields the retry adds to the context and classify them the same way; persist retry-specific entries in the field manifest with `retry_kind` and `retry_added_fields[]`.
     *   If a retry variant introduces new fields not present in the base phase output, the strip pass must handle those fields independently and not carry them forward unless a downstream phase explicitly consumes them.
     *   Context pack assembly (`buildMinimalContext`) must consume only the slimmed canonical artifacts; stripped companions are never injected into model prompts.
@@ -63,7 +64,7 @@ search: false
     *   Audit order (status by status, starting with first): `DRAFT` → `SCANNING_RELEVANT_FILES` → `COUNCIL_DELIBERATING` → `COUNCIL_VOTING_INTERVIEW` → `COMPILING_INTERVIEW` → `WAITING_INTERVIEW_ANSWERS` → `VERIFYING_INTERVIEW_COVERAGE` → `WAITING_INTERVIEW_APPROVAL` → `DRAFTING_PRD` → `COUNCIL_VOTING_PRD` → `REFINING_PRD` → `VERIFYING_PRD_COVERAGE` → `WAITING_PRD_APPROVAL` → `DRAFTING_BEADS` → `COUNCIL_VOTING_BEADS` → `REFINING_BEADS` → `VERIFYING_BEADS_COVERAGE` → `EXPANDING_BEADS` → `WAITING_BEADS_APPROVAL` → `PRE_FLIGHT_CHECK` → `GENERATING_EXECUTION_SETUP_PLAN` → `WAITING_EXECUTION_SETUP_APPROVAL` → `PREPARING_EXECUTION_ENV` → `CODING` → `RUNNING_FINAL_TEST` → `INTEGRATING_CHANGES` → `CREATING_PULL_REQUEST` → `WAITING_PR_REVIEW` → `CLEANING_ENV` → `COMPLETED`.
     *   For each status, document: input fields consumed, output fields produced, output fields actually used downstream, and fields added by any retry path.
 *   **Adversarial Critique Pre-Pass:** After relevant-file scanning and any enabled research briefs, optionally run a bounded ticket-level critique before Interview begins.
-    *   Persist `.looptroop/tickets/<ticket-id>/critique.yaml` with verdict, major risks, counterproposals, interview follow-ups, and stop conditions.
+    *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/critique.yaml` with verdict, major risks, counterproposals, interview follow-ups, and stop conditions.
     *   Treat the critique as read-only planning context, not a council vote or automatic cancel path.
     *   Default OFF unless enabled by `phase_flags.critique.enabled`; lock mode at `START`.
     *   Require each major risk to cite a ticket assumption, repository/research evidence, or missing constraint.
@@ -71,7 +72,7 @@ search: false
     *   Keep council-side `adversarial_critique` as artifact-level critique during Interview/Proposal/Options/Design/Beads.
     *   Editing an approved critique invalidates Interview + Proposal + Options Synthesis + Design + Beads.
 *   **Repository Research Brief:** After relevant-file scanning, optionally generate a compact read-only brief of repository facts before critique/interview planning.
-    *   Persist `.looptroop/tickets/<ticket-id>/research/repository-brief.yaml` with summary, invariants, relevant paths, reuse candidates, and unknowns.
+    *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/research/repository-brief.yaml` with summary, invariants, relevant paths, reuse candidates, and unknowns.
     *   Briefs must cite concrete files/artifacts and avoid selecting the solution.
     *   Default `auto` for scoped/full planning profiles and OFF for minimal profile.
     *   Use scan output, repo-discovery/codebase-map artifacts, and planning context when available; preserve provenance back to source artifacts.
@@ -83,8 +84,8 @@ search: false
     * It reconciles the original ticket-based relevant-file scan with the approved interview answers, skipped-question metadata, current repository state, repo map/index entries, and direct code search results.
     * Replace downstream `relevant_files` context with a new canonical `planning_context` artifact for all future phases.
     * Keep the original relevant-files output only as the initial seed / debug artifact; future phases should consume `planning_context`, not `relevant_files`.
-    * Output `.looptroop/tickets/<ticket-id>/context/planning-context.yaml`.
-    * Also output `.looptroop/tickets/<ticket-id>/context/planning-context-refresh-receipt.json` with input hashes, refresh result, warnings, and reason codes.
+    * Output `.looptroop/worktrees/<ticket-id>/.ticket/context/planning-context.yaml`.
+    * Also output `.looptroop/worktrees/<ticket-id>/.ticket/context/planning-context-refresh-receipt.json` with input hashes, refresh result, warnings, and reason codes.
     * `planning-context.yaml` must include:
       * selected files with priority, role, reason, and evidence references;
       * newly added files discovered from interview answers or code search;
@@ -109,7 +110,7 @@ search: false
 *   **Extra safety:** Secrets and sensitive data should not be added to any file in the `.looptroop` folder.
 *   **Knowledge Harvest Pipeline (Documentation + Agents memory):** [I1](https://github.com/mj-meyer/choo-choo-ralph/blob/main/docs/workflow.md#step-5-harvest-learnings)
     *   After each ticket reaches `COMPLETED`, run a deterministic harvest pass that scans bead notes, execution logs, and commit receipts for structured `LEARNING` and `GAP` entries.
-    *   Generate `.looptroop/tickets/<ticket-id>/harvest-plan.md` containing proposed docs updates, proposed `agents.md` updates, and proposed follow-up beads for unresolved gaps.
+    *   Generate `.looptroop/worktrees/<ticket-id>/.ticket/harvest-plan.md` containing proposed docs updates, proposed `agents.md` updates, and proposed follow-up beads for unresolved gaps.
     *   **Agents.md (structured memory contract):** [I1](https://github.com/snarktank/ralph/blob/main/prompt.md#update-agentsmd-files)
         *   Keep one project-level `agents.md` as long-term memory per project (while beads are short-term memory).
         *   After each completed ticket, extract reusable learnings from notes/logs/diffs and propose updates (only if necessary). If it does not exist yet, create it and then update it.
@@ -118,13 +119,13 @@ search: false
     *   Include deduplication against existing docs/agents so duplicate guidance is not re-added.
     *   Require user review with explicit action per item: `approved` or `rejected`.
     *   Apply only approved items and persist `harvested_at`, `source_bead_ids`, and `applied_by`.
-    *   Persist memory candidates in `.looptroop/tickets/<ticket-id>/memory-candidates.yaml` with lifecycle state: `candidate`, `approved`, `rejected`, `superseded`.
+    *   Persist memory candidates in `.looptroop/worktrees/<ticket-id>/.ticket/memory-candidates.yaml` with lifecycle state: `candidate`, `approved`, `rejected`, `superseded`.
     *   Memory candidate records must include: `memory_id`, `category`, `evidence_refs`, `source_bead_ids`, `status`, `reviewed_by`, `reviewed_at`, `superseded_by`, `source_tag`, `private` (boolean), `scope_path`.
     *   Add hierarchical scope paths for memory retrieval (examples: `/project/<project-id>`, `/project/<project-id>/repo_conventions`, `/ticket/<ticket-id>/runtime_lessons`).
     *   Add read-slice retrieval mode: combine multiple approved scopes in one query while hiding private scope entries unless source matches.
     *   Add deterministic memory retrieval priority for execution context: `safety_rules` -> `repo_conventions` -> `validation_commands` -> `historical_notes`.
     *   Enforce bounded memory injection budget with deterministic top-k selection and explicit skip reasons for excluded memories.
-    *   Archive final plan at `.looptroop/tickets/<ticket-id>/archive/harvest-plan-<date>.md`.
+    *   Archive final plan at `.looptroop/worktrees/<ticket-id>/.ticket/archive/harvest-plan-<date>.md`.
 *   **Date-Stamped Ticket Archive + Living Project Spec (delta-merge contract):**
     *   On transition to `COMPLETED`, copy the full ticket folder to immutable archive path `.looptroop/archive/YYYY-MM-DD-<ticket-id>/`.
     *   Persist archive index at `.looptroop/archive/index.jsonl` with `ticket_id`, `archived_at`, `source_path`, `archive_path`, `source_commit`, and `snapshot_hash`.
@@ -140,8 +141,8 @@ search: false
         *   `REMOVED`: remove/strike target requirement and record removal metadata with source ticket.
     *   Domain inference: use ticket epic/domain labels (`auth`, `payments`, `notifications`, etc.); create target domain file if missing.
     *   Merge safety:
-        *   non-blocking on failure; write unmapped delta to `.looptroop/tickets/<ticket-id>/unmapped-spec-delta.md`,
-        *   persist merge report `.looptroop/tickets/<ticket-id>/spec-merge-report.md`,
+        *   non-blocking on failure; write unmapped delta to `.looptroop/worktrees/<ticket-id>/.ticket/unmapped-spec-delta.md`,
+        *   persist merge report `.looptroop/worktrees/<ticket-id>/.ticket/spec-merge-report.md`,
         *   require user review of living-spec diff before finalize action.
     *   Add spec visibility surfaces:
         *   CLI command `looptroop spec status` (or equivalent) for cross-domain living-spec status and freshness.
@@ -167,7 +168,7 @@ search: false
         *   strict no-code-execution / no-project-write guardrail;
         *   Model runs in `thinking_partner` mode (clarify tradeoffs, avoid premature implementation commitments);
         *   No formal artifact by default (ephemeral panel/session);
-        *   Optional export as read-only `.looptroop/tickets/<ticket-id>/explore-session.md` or concise `.looptroop/tickets/<ticket-id>/explore-notes.md`;
+        *   Optional export as read-only `.looptroop/worktrees/<ticket-id>/.ticket/explore-session.md` or concise `.looptroop/worktrees/<ticket-id>/.ticket/explore-notes.md`;
         *   Allow `Promote to Ticket` to convert exploration into draft ticket text + optional `seed_summary`.
     *   Track B `opportunity`:
         *   business-value validation and prioritization (Opportunity/Audience/JTBD/SLC artifacts below).
@@ -177,18 +178,18 @@ search: false
         *   Track B `opportunity` skipped by default for `SMALL` bugfix/maintenance tickets unless user enables it,
         *   Track A `explore` remains optional and available at ticket creation for every scope.
     *   Phase 0 must produce:
-        *   `.looptroop/tickets/<ticket-id>/opportunity-brief.yaml`:
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/opportunity-brief.yaml`:
             *   problem statement,
             *   target audience,
             *   desired outcome metric(s),
             *   constraints/non-goals,
             *   key assumptions.
-        *   `.looptroop/tickets/<ticket-id>/opportunity-map.yaml`:
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/opportunity-map.yaml`:
             *   outcome -> opportunities (customer needs/pain points/desires) -> candidate solutions -> assumption tests.
-        *   `.looptroop/tickets/<ticket-id>/opportunity-score.yaml`:
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/opportunity-score.yaml`:
             *   prioritization fields using `Reach`, `Impact`, `Confidence`, `Effort`,
             *   confidence notes and evidence references for each score.
-        *   `.looptroop/tickets/<ticket-id>/go-no-go.yaml`:
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/go-no-go.yaml`:
             *   verdict: `go`, `pivot`, or `no_go`,
             *   rationale,
             *   recommended next action.
@@ -197,7 +198,7 @@ search: false
         *   JTBD outcomes per audience,
         *   first release slice using SLC criteria (`Simple`, `Lovable`, `Complete`),
         *   explicit out-of-scope list for the ticket.
-    *   Persist artifacts: `.looptroop/tickets/<ticket-id>/audience-jtbd.yaml` and `.looptroop/tickets/<ticket-id>/release-slice.yaml`.
+    *   Persist artifacts: `.looptroop/worktrees/<ticket-id>/.ticket/audience-jtbd.yaml` and `.looptroop/worktrees/<ticket-id>/.ticket/release-slice.yaml`.
     *   Transition policy:
         *   Interview/Planning (Proposal + Options Synthesis + Design) cannot start unless `go-no-go` is approved (`go` or approved `pivot`) and Audience/JTBD/SLC artifacts are approved.
         *   `no_go` routes ticket to backlog/canceled with archived evidence instead of continuing execution planning.
@@ -241,11 +242,11 @@ search: false
         *   `Existing project` - modify an existing codebase.
     *   Add deterministic single-active-ticket start guard (for policies that keep one active ticket per project):
         *   when user attempts to start another ticket while one is active, block with explicit message including `active_ticket_id`, `active_ticket_status`, and allowed actions (`wait`, `open_active`, `cancel_active`);
-        *   persist blocked-start receipt at `.looptroop/tickets/<ticket-id>/start-blocked-<timestamp>.json` for auditability.
+        *   persist blocked-start receipt at `.looptroop/worktrees/<ticket-id>/.ticket/start-blocked-<timestamp>.json` for auditability.
     *   For `Existing project`, run a read-only codebase mapping pass before planning artifacts are generated:
         *   Explore repository structure and key files with read-only permissions (no writes allowed in this pass).
         *   Spawn parallel mappers for: stack/integrations, architecture/structure, conventions/testing, and risks/concerns.
-        *   Save detailed mapping artifacts at `.looptroop/tickets/<ticket-id>/codebase-map/`:
+        *   Save detailed mapping artifacts at `.looptroop/worktrees/<ticket-id>/.ticket/codebase-map/`:
             *   `STACK.md`
             *   `INTEGRATIONS.md`
             *   `ARCHITECTURE.md`
@@ -253,14 +254,14 @@ search: false
             *   `CONVENTIONS.md`
             *   `TESTING.md`
             *   `CONCERNS.md`
-        *   Keep compact `.looptroop/tickets/<ticket-id>/repo-discovery.yaml` as an index that references those files plus canonical commands.
+        *   Keep compact `.looptroop/worktrees/<ticket-id>/.ticket/repo-discovery.yaml` as an index that references those files plus canonical commands.
         *   If discovery pass fails, block progression with actionable remediation.
         *   Add provider session discovery pass (read-only) before `change-request.yaml`:
             *   scan provider session stores for sessions whose `cwd` matches the repository (including sessions created before LoopTroop installation),
             *   persist `.looptroop/project/session-discovery.yaml` with `provider`, `session_id`, `last_active_at`, `cwd`, `summary_hint`, and `importable`,
             *   default policy is no auto-import; user explicitly selects sessions to attach as read-only planning context,
             *   unresolved selected sessions produce warning receipts and continue (non-blocking).
-    *   Then create a structured change request (`.looptroop/tickets/<ticket-id>/change-request.yaml`) with:
+    *   Then create a structured change request (`.looptroop/worktrees/<ticket-id>/.ticket/change-request.yaml`) with:
         *   requested change,
         *   affected areas/files,
         *   expected behavior,
@@ -286,14 +287,14 @@ search: false
         *   each profile declares required artifacts and dependencies in deterministic order;
         *   each artifact has runtime state `blocked | ready | done`;
         *   progression is allowed only when dependencies are `done`.
-    *   Expose machine-readable planning status at `.looptroop/tickets/<ticket-id>/planning-status.json` with stable fields: `profile`, `artifacts[]`, `state`, `missing_dependencies`, and `next_recommended_step`.
+    *   Expose machine-readable planning status at `.looptroop/worktrees/<ticket-id>/.ticket/planning-status.json` with stable fields: `profile`, `artifacts[]`, `state`, `missing_dependencies`, and `next_recommended_step`.
     *   For `MEDIUM` and `LARGE`, require a natural-language `work_scope` and generate one scoped plan artifact per flow:
-        *   `.looptroop/tickets/<ticket-id>/plans/IMPLEMENTATION_PLAN.<flow-id>.<scope-slug>.md`
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/plans/IMPLEMENTATION_PLAN.<flow-id>.<scope-slug>.md`
     *   Build mode may read only the active scoped plan and execute the highest-priority open item from that plan; runtime semantic task filtering is disallowed.
     *   If execution drifts outside scope, regenerate the scoped plan (`plan-work`) for the current flow instead of patching ad-hoc filtering rules.
     *   Add deterministic `plan_sync` drift detection after material file edits:
         *   compare step spec expectations (`target_files`, declared interfaces/exports/contracts) against actual implementation changes;
-        *   on mismatch, mark step `needs_sync`, append drift evidence to `.looptroop/tickets/<ticket-id>/planning/drift-history.jsonl`, and auto-trigger scoped downstream plan regeneration;
+        *   on mismatch, mark step `needs_sync`, append drift evidence to `.looptroop/worktrees/<ticket-id>/.ticket/planning/drift-history.jsonl`, and auto-trigger scoped downstream plan regeneration;
         *   block downstream execution until drift is reconciled or explicitly waived with a persisted decision receipt.
     *   Require explicit user approval of `repo-discovery.yaml` + `change-request.yaml` before execution planning continues.
     *   Allow scope override before approval, but require explicit reason and persist it in ticket artifacts.
@@ -328,7 +329,7 @@ search: false
         *   include `failed_bead_id`, `failed_gate`, latest error signatures, and probable-cause codes (`dependency_missing`, `env_misconfigured`, `test_harness_broken`, `requirement_ambiguous`);
         *   provide ordered recovery actions and allow one-click insertion of selected guidance into the next retry notes.
         *   include raw `error_message` text and explicit CTA order (`retry`, `edit`, `cancel`) so remediation is unambiguous.
-    *   Persist escalation records at `.looptroop/tickets/<ticket-id>/escalations/escalations.jsonl` with `escalation_id`, `severity`, `status` (`open|acknowledged|closed`), `source_event`, `created_at`, `ack_at`, `closed_at`, `route_actions[]`, and `last_delivery_result`.
+    *   Persist escalation records at `.looptroop/worktrees/<ticket-id>/.ticket/escalations/escalations.jsonl` with `escalation_id`, `severity`, `status` (`open|acknowledged|closed`), `source_event`, `created_at`, `ack_at`, `closed_at`, `route_actions[]`, and `last_delivery_result`.
     *   Add explicit user/system actions: `acknowledge`, `close`, `list_open`, `list_stale`.
     *   Add stale policy: if `status=open` longer than `stale_threshold` (default `4h`), re-escalate one level and retry route actions until `max_reescalations` is reached.
     *   Delivery failures must never block execution, but every failed action is logged with `channel`, `error_code`, `attempt`, and `next_retry_at`.
@@ -385,7 +386,7 @@ search: false
         *   Step B `Options Synthesis` (viable paths, tradeoffs, recommendation, and why alternatives were not selected).
         *   Step C `Design` (architecture constraints, libraries, data/schema decisions, API contracts, security/performance/reliability patterns).
     *   Options Synthesis runs when architectural/product ambiguity is detected or `phase_flags.options_synthesis.mode=required`.
-    *   Persist `.looptroop/tickets/<ticket-id>/options-pack.yaml` with `options[]`, `recommended_option`, `why_not_the_others[]`, and optional `spike.required`.
+    *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/options-pack.yaml` with `options[]`, `recommended_option`, `why_not_the_others[]`, and optional `spike.required`.
     *   Reserve `spike` for bounded runnable uncertainty reduction that is explicitly approved; do not treat every option comparison as a prototype.
     *   Clear tickets may skip Options Synthesis automatically and record the skip reason in planning status.
     *   Ambiguous tickets should compare at least two materially different viable options, with tradeoffs and a single recommendation.
@@ -394,23 +395,23 @@ search: false
     *   Design generation is blocked until Proposal and any required Options Synthesis are approved.
     *   Require feasibility cross-check: each Proposal requirement must map to at least one Design decision path or explicit blocker.
     *   Persist approved artifacts:
-        *   `.looptroop/tickets/<ticket-id>/proposal.yaml`
-        *   `.looptroop/tickets/<ticket-id>/options-pack.yaml` when Options Synthesis runs
-        *   `.looptroop/tickets/<ticket-id>/design.yaml`
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/proposal.yaml`
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/options-pack.yaml` when Options Synthesis runs
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/design.yaml`
     *   Keep compatibility PRD composite:
-        *   generate `.looptroop/tickets/<ticket-id>/prd.yaml` as derived composite/manifest from approved Proposal + Options Synthesis + Design (not primary authoring surface).
+        *   generate `.looptroop/worktrees/<ticket-id>/.ticket/prd.yaml` as derived composite/manifest from approved Proposal + Options Synthesis + Design (not primary authoring surface).
     *   Council role routing:
         *   product-focused roles vote primarily on Proposal quality/value alignment.
         *   engineering-focused roles vote primarily on Design feasibility/coherence.
     *   Council decision contract (deterministic + audit-ready):
-        *   apply blind-review protocol before scoring: strip model/provider markers, randomize anonymous labels (`candidate_1`, `candidate_2`, ...), and persist reversible mapping for audit-only use at `.looptroop/tickets/<ticket-id>/council/candidate-map.json`.
+        *   apply blind-review protocol before scoring: strip model/provider markers, randomize anonymous labels (`candidate_1`, `candidate_2`, ...), and persist reversible mapping for audit-only use at `.looptroop/worktrees/<ticket-id>/.ticket/council/candidate-map.json`.
         *   required council pipeline for Interview/Proposal/Options/Design/Beads phases when `execution_profile=council`: `draft -> self_reflection -> adversarial_critique -> voting -> synthesis`.
         *   `execution_profile=quick` uses single-model path: `draft -> coverage_verify`; system auto-escalates to full council when quick-path escalation triggers fire.
         *   self-reflection output is mandatory per draft: `top_weaknesses[]` (minimum 3), `assumptions[]`, `confidence_pct` (0-100), and `needs_user_input[]`.
         *   adversarial critique pass is mandatory: each member must record at least one concrete weakness/risk per peer draft (`issue`, `impact`, `evidence_ref`, `suggested_fix`); empty critique payloads are `invalid_output`.
         *   default decision mode is rubric scoring across required Proposal/Options/Design criteria; optional `pairwise` mode is allowed only for close finalists and must emit explicit criterion-level win/loss reasons.
         *   each vote must emit structured evidence fields: `criterion`, `score`, `confidence`, `evidence_refs[]`, `concerns[]`.
-        *   persist per-phase scorecards with category totals, score spread, and candidate rank order at `.looptroop/tickets/<ticket-id>/council/scorecard-<phase>-<timestamp>.json`.
+        *   persist per-phase scorecards with category totals, score spread, and candidate rank order at `.looptroop/worktrees/<ticket-id>/.ticket/council/scorecard-<phase>-<timestamp>.json`.
         *   stream provisional vote updates during council voting (`council_score_update`) and mark them as provisional until quorum is met.
         *   compute confidence-weighted ranking with `adjusted_score = raw_score * sqrt(max(confidence_pct,1)/100)` and include both raw and adjusted scores in receipts.
         *   compute `decision_confidence` from score spread + cross-model agreement; if all candidates are low-confidence (`confidence_pct < 50`) or `decision_confidence` is below threshold, route to clarification/context-refresh before auto-accept.
@@ -424,7 +425,7 @@ search: false
     *   Execution cannot start unless Proposal, any required Options Synthesis, and Design are approved.
 *   **Test Strategy Phase (risk-first planning contract; TEA-inspired):**
     *   Insert a dedicated `TEST_STRATEGY` planning step after Proposal + Options Synthesis + Design approval and before Beads generation.
-    *   Persist `.looptroop/tickets/<ticket-id>/test-strategy.yaml` with:
+    *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/test-strategy.yaml` with:
         *   risk tier per epic/user-story (`critical`, `high`, `medium`, `low`),
         *   critical-path markers (`auth`, `payments`, data integrity, external side effects),
         *   required verification depth per risk tier (`unit`, `integration`, `e2e`, `non-functional`).
@@ -434,7 +435,7 @@ search: false
     *   If strategy is missing or invalid, block transition to Beads/Execution with deterministic remediation.
 *   **Planning Sharding for Beads Generation (proposal/options/design decomposition):**
     *   Add pre-computation sharding step for multi-epic or large approved Proposal/Options/Design composites before bead drafting.
-    *   Persist shards at `.looptroop/tickets/<ticket-id>/planning/shards/`:
+    *   Persist shards at `.looptroop/worktrees/<ticket-id>/.ticket/planning/shards/`:
         *   one self-contained shard per epic with only relevant requirements, constraints, acceptance criteria, and dependency notes,
         *   `index.yaml` containing shard IDs, source section refs, and content hashes.
     *   Beads drafting contract:
@@ -449,10 +450,10 @@ search: false
     *   Replace standard text/markdown codebase map dumps with structured XML-wrapped context.
     *   Canonical format example:
         *   `<repo><file path="src/main.js" lang="js">...</file></repo>`
-    *   Persist map artifacts at `.looptroop/tickets/<ticket-id>/context/codebase-map.xml` with deterministic file ordering and stable node attributes.
+    *   Persist map artifacts at `.looptroop/worktrees/<ticket-id>/.ticket/context/codebase-map.xml` with deterministic file ordering and stable node attributes.
     *   Include explicit file-boundary metadata (`path`, `language`, `size_bytes`, `last_modified`, `symbol_summary`) to reduce boundary confusion during model retrieval.
     *   Add optional Tree-sitter repository map generation (signature-only: files, classes, functions, exports/imports) to compress very large repos into bounded planning context.
-        *   Persist compact symbol map at `.looptroop/tickets/<ticket-id>/context/repo-map.tree-sitter.json`.
+        *   Persist compact symbol map at `.looptroop/worktrees/<ticket-id>/.ticket/context/repo-map.tree-sitter.json`.
     *   Add adaptive map-fidelity fallback when signature-only context is insufficient:
         *   default to signature-only map for token efficiency;
         *   if repeated failure signatures persist for the same bead (default `>=2` attempts) or diagnosis confidence is low, inject bounded implementation snippets for touched symbols plus direct callers/callees;
@@ -467,12 +468,12 @@ search: false
         *   PRD/Beads council phases: codebase map + interview/PRD summary snippets only (never full planning files by default);
         *   bead execution phases: active bead JSON + referenced PRD section excerpts (by ID) + last `2-3` bead notes + codebase map.
     *   For each prompt call, persist context-pack token estimate and model limit headroom; if estimated usage exceeds `40%` of model context window, emit `context_budget_warning` in execution logs with dropped/kept source breakdown.
-    *   Persist each iteration pack receipt at `.looptroop/tickets/<ticket-id>/context/context-pack-<flow-id>-<bead-id>-<iteration>.json` with selected/skipped sources and skip reasons.
+    *   Persist each iteration pack receipt at `.looptroop/worktrees/<ticket-id>/.ticket/context/context-pack-<flow-id>-<bead-id>-<iteration>.json` with selected/skipped sources and skip reasons.
     *   Enforce a hard context budget per pack; if budget is exceeded, trim in deterministic priority order (`bead spec` -> `tests/commands` -> `AST slice` -> `conventions/testing` -> `integrations/concerns` -> `retry notes`) and log what was dropped.
     *   If XML map generation fails, fallback to existing map mode but emit warning telemetry (`context_map_fallback`) and remediation hints.
     *   Add repository-map freshness contract to prevent stale map hallucinations:
         *   on file create/update/delete/rename during execution, mark map `stale` and queue `changed-only` regeneration for touched paths,
-        *   persist map manifest `.looptroop/tickets/<ticket-id>/context/repo-map.manifest.json` with `map_version`, `source_tree_hash`, `generated_at`, and `changed_paths[]`,
+        *   persist map manifest `.looptroop/worktrees/<ticket-id>/.ticket/context/repo-map.manifest.json` with `map_version`, `source_tree_hash`, `generated_at`, and `changed_paths[]`,
         *   planning/execution phases must load latest `map_version`; if stale/missing, regenerate before next model call.
     *   Pre-generate the base codebase map during `PRE_FLIGHT_CHECK` and reuse it for bead startup to avoid synchronous map generation on each bead.
     *   After each bead commit, trigger background map refresh (`changed-only` first, `full` fallback) and atomically swap map manifest only after successful regeneration.
@@ -490,10 +491,10 @@ search: false
         *   watcher is read-only by default (`monitor_mode=observe_only`) and cannot mutate code or phase state.
         *   optional policy `monitor_mode=critical_pause` allows auto-pause + `NEEDS_INPUT` on repeated `critical_issues` verdicts.
         *   monitor path must never block main execution; on watcher failure, continue execution and emit `watcher_unavailable`.
-        *   persist watcher cards at `.looptroop/tickets/<ticket-id>/observer-reports/<bead-id>-<iteration>-<timestamp>.json`.
+        *   persist watcher cards at `.looptroop/worktrees/<ticket-id>/.ticket/observer-reports/<bead-id>-<iteration>-<timestamp>.json`.
     *   Completion handshake (before review starts): implementer must emit structured `mark_complete` payload with `summary`, `files_modified`, and `checks_executed`.
     *   Add deterministic verification queue contract to prevent post-implementation stalls:
-        *   on accepted `mark_complete`, enqueue required verifications at `.looptroop/tickets/<ticket-id>/verification/queue.jsonl`;
+        *   on accepted `mark_complete`, enqueue required verifications at `.looptroop/worktrees/<ticket-id>/.ticket/verification/queue.jsonl`;
         *   queue item schema includes `verification_id`, `source_step_id`, `verifier_role`, `attempt`, `timeout_seconds`, `status` (`pending|running|passed|failed|timed_out`), and `result_receipt_path`;
         *   orchestrator must consume this queue and complete required verifications before allowing transition to next step/bead.
     *   Stage 1 (broad parallel review): run 5 reviewer roles in parallel:
@@ -547,7 +548,7 @@ search: false
         *   if fast changed-files gate fails, retry after targeted fixes; repeated failure follows the same bead retry/circuit-breaker policy.
         *   if security pass fails or times out, retry once.
         *   if second attempt fails, mark `security_gate_unavailable`; continue only when policy profile explicitly allows degraded mode.
-    *   Persist per-bead reports at `.looptroop/tickets/<ticket-id>/security/bead-security-<flow-id>-<bead-id>-<iteration>.json`.
+    *   Persist per-bead reports at `.looptroop/worktrees/<ticket-id>/.ticket/security/bead-security-<flow-id>-<bead-id>-<iteration>.json`.
     *   After all beads complete, run a broader ticket-level security audit to catch cross-bead and integration risks.
 *   **Interactive Interview UI + Session Ledger (deterministic persistence):** Enhance the interview phase to support an interface with multiple-choice options (between 1 and 5) and a custom free-text field. The first option (the one the model considers best) is bolded and marked as recommended. Include a short explanation per option plus Pros/Cons/Best-for tooltips. For each question, allow an AI dialog so the user can understand implications/utility/necessity before answering.
     *   Add optional `spec_paste` fast path at interview start:
@@ -560,8 +561,8 @@ search: false
         *   rerank results by relevance + recency before presenting to user.
         *   show source cards with `title`, `url`, `retrieved_at`, `confidence`, and `why_this_source`.
         *   enforce hard bounds (`max_results`, token budget, timeout) so retrieval never stalls planning.
-        *   persist retrieval trace at `.looptroop/tickets/<ticket-id>/research/interview-search-<timestamp>.json`.
-        *   Persist interview session metadata at `.looptroop/tickets/<ticket-id>/interview/session.json` and append-only Q/A stream at `.looptroop/tickets/<ticket-id>/interview/conversation.jsonl`.
+        *   persist retrieval trace at `.looptroop/worktrees/<ticket-id>/.ticket/research/interview-search-<timestamp>.json`.
+        *   Persist interview session metadata at `.looptroop/worktrees/<ticket-id>/.ticket/interview/session.json` and append-only Q/A stream at `.looptroop/worktrees/<ticket-id>/.ticket/interview/conversation.jsonl`.
     *   Show interview progress header with deterministic fields: `question N/M`, `phase P/3`, and a rolling ETA range from median answer duration.
     *   Auto-save unsent per-question draft answers on the client (default every 5s), prompt restore on reopen, and provide explicit `discard_draft` action.
     *   If unsent draft text exists, warn on tab/window close to prevent accidental interview data loss.
@@ -586,13 +587,13 @@ search: false
     *   Add prompt migration map so legacy prompt IDs can be remapped to contract-safe targets (for example `PROM4` -> `interview_turn.v1`, finalization -> `interview_final.v1`) with explicit deprecation warnings.
     *   Store canonical schema files at `.looptroop/schemas/<artifact-type>.schema.json`; every persisted artifact must carry `schema_version`.
     *   Enforce artifact-level validation on every write/read path for planning artifacts:
-        *   `.looptroop/tickets/<ticket-id>/interview.yaml` must validate against the current interview-final schema.
-        *   `.looptroop/tickets/<ticket-id>/prd.yaml` must validate against the current PRD schema.
-        *   `.looptroop/tickets/<ticket-id>/beads/main/.beads/issues.jsonl` must validate line-by-line against the current beads issue schema.
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/interview.yaml` must validate against the current interview-final schema.
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/prd.yaml` must validate against the current PRD schema.
+        *   `.looptroop/worktrees/<ticket-id>/.ticket/beads/main/.beads/issues.jsonl` must validate line-by-line against the current beads issue schema.
     *   If artifact validation fails, quarantine the invalid payload, keep last known-good artifact untouched, and persist a validation report with `phase`, `model_id`, `schema_version`, `errors[]`, and `attempt`.
-    *   Add dedicated loop-control schema (`loop_control.v1`) for per-bead loop files (`.looptroop/tickets/<ticket-id>/loops/<flow-id>/<bead-id>.loop.md`) with frontmatter fields + canonical instruction body hash.
+    *   Add dedicated loop-control schema (`loop_control.v1`) for per-bead loop files (`.looptroop/worktrees/<ticket-id>/.ticket/loops/<flow-id>/<bead-id>.loop.md`) with frontmatter fields + canonical instruction body hash.
     *   Validate `loop_control.v1` at bead start and before every retry (`active`, `ticket_id`, `flow_id`, `bead_id`, `iteration`, `max_iterations`, `loop_mode`, `completion_intent`).
-    *   If loop-control validation fails, quarantine the artifact to `.looptroop/tickets/<ticket-id>/quarantine/` with the validation report and force deterministic failure (`BLOCKED_ERROR`) until corrected.
+    *   If loop-control validation fails, quarantine the artifact to `.looptroop/worktrees/<ticket-id>/.ticket/quarantine/` with the validation report and force deterministic failure (`BLOCKED_ERROR`) until corrected.
     *   Add a schema migration contract for every schema bump: `from_version`, `to_version`, deterministic migration function, and explicit rollback behavior.
     *   Keep a bounded backward-compatibility window (default: previous 1 version) and auto-migrate older accepted artifacts to current version on write.
     *   Add compatibility fixture suites with frozen historical artifacts for each phase and loop-control artifacts; every fixture must pass parse -> migrate -> validate.
@@ -602,7 +603,7 @@ search: false
     *   Add deterministic `Doctor` run modes:
         *   `quick` - binary/config/path checks only.
         *   `full` - includes live provider/agent preflight responsiveness checks.
-    *   In `full` mode, run provider/model readiness probes and persist snapshots at `.looptroop/tickets/<ticket-id>/doctor/model-readiness-<timestamp>.json` with `model_id`, `status`, `latency_ms`, `failure_class`, and `checked_at`.
+    *   In `full` mode, run provider/model readiness probes and persist snapshots at `.looptroop/worktrees/<ticket-id>/.ticket/doctor/model-readiness-<timestamp>.json` with `model_id`, `status`, `latency_ms`, `failure_class`, and `checked_at`.
     *   Add explicit Doctor check-scope contract (`required` vs `optional`) independent from severity:
         *   required checks (must pass to start): main implementer readiness, OpenCode/provider connectivity, git safety/ownership checks, required ticket artifacts, beads graph integrity, and runnable verification-command availability.
         *   optional checks (warning/advisory): fallback/council model readiness, non-critical tooling hints, and advisory environment drift.
@@ -633,13 +634,13 @@ search: false
     *   Add Doctor target-scope gate: every runnable bead must provide non-empty `target_files`; if no file edits are intended, require explicit `target_mode=none` plus restricted no-write execution policy.
     *   Add Doctor graph-repair policy: run cycle detection on Beads dependencies, attempt deterministic edge removal based on lowest-priority conflicting edge, and block only if cycles remain after repair.
     *   Add deterministic topological-sort gate before execution start: compute canonical bead run order and fail fast on cycle or missing-dependency errors with offending bead IDs.
-    *   Add Doctor gitignore hygiene check/fix: ensure `.env`, `.env.*`, and `.looptroop/tickets/*/opencode-sessions.yaml` are ignored before execution start.
+    *   Add Doctor gitignore hygiene check/fix: ensure `.env`, `.env.*`, and `.looptroop/worktrees/*/.ticket/opencode-sessions.yaml` are ignored before execution start.
     *   Add startup config-bounds validation gate and reject out-of-range values before runtime boot:
         *   `per_iteration_timeout_minutes > 0`,
         *   `max_iterations <= 10`,
         *   `council_members <= 4`,
         *   invalid values return deterministic `config_out_of_range` diagnostics plus corrected defaults.
-    *   Persist doctor reports at `.looptroop/tickets/<ticket-id>/doctor/doctor-report-<timestamp>.json` with per-check `check_id`, `severity`, `status`, `duration_ms`, and `remediation`.
+    *   Persist doctor reports at `.looptroop/worktrees/<ticket-id>/.ticket/doctor/doctor-report-<timestamp>.json` with per-check `check_id`, `severity`, `status`, `duration_ms`, and `remediation`.
     *   Allow Runtime Gate to reuse a recent `Doctor` report when freshness window is valid (`max_age_minutes` policy); otherwise force a fresh `Doctor` run.
     *   Add `Doctor` resume-compatibility gate for resumed runs:
         *   validate ownership tuple match (`ticket_id`, `flow_id`, `run_id`, `session_id`), active branch/worktree parity, and tracker-source resolvability (`issues.jsonl`/epic/PRD references).
@@ -651,7 +652,7 @@ search: false
     *   Add Spec Drift Sentinel gate (`doctor --contracts` and startup preflight):
         *   parse `plan.md`, `architecture.md`, `prompts.yaml`, and runtime contract registry;
         *   detect missing/extra prompt IDs, state-name mismatches, and phase contract conflicts;
-        *   hard-fail execution start on unresolved drift and persist diagnostics at `.looptroop/tickets/<ticket-id>/doctor/contract-drift-<timestamp>.json`.
+        *   hard-fail execution start on unresolved drift and persist diagnostics at `.looptroop/worktrees/<ticket-id>/.ticket/doctor/contract-drift-<timestamp>.json`.
     *   Priority bands:
         *   `P1_hard_stop` (never violate: ownership, safety, forbidden actions),
         *   `P2_safety` (security, sandbox, data protection),
@@ -682,13 +683,13 @@ search: false
         *   attempt 4 (optional): escalate to higher-capability repair model for schema-conformant reconstruction.
     *   Add partial-acceptance mode for near-valid payloads: if `valid_field_ratio >= 0.90`, keep valid fields and request only missing/invalid fields in the next retry.
     *   For multi-member council phases, members that fail the retry ladder are marked `invalid_output`; phase continues only if quorum + `min_valid_responses` are still satisfied.
-    *   Persist field-level validation reports at `.looptroop/tickets/<ticket-id>/validation/<phase>-<member-id>-<timestamp>.json`.
+    *   Persist field-level validation reports at `.looptroop/worktrees/<ticket-id>/.ticket/validation/<phase>-<member-id>-<timestamp>.json`.
     *   Add execution-output format contract (`execution_output.v1`) with `json` as primary mode for machine actions/status.
     *   If `json` output is missing/invalid, fall back to text parsing with deterministic extraction rules, then normalize to the same internal schema before any decision/gate evaluation.
     *   Persist parse mode and fallback path used per iteration (`json_primary`, `text_fallback`) for audit/debug.
     *   Add phase-specific `coverage + consistency` gates before transitions:
         *   For each phase, run a read-only analyzer pass first; analyzers may emit findings but cannot mutate artifacts or transition state.
-        *   Persist analyzer outputs at `.looptroop/tickets/<ticket-id>/analysis/<phase>-round-<n>.md` and `.json`.
+        *   Persist analyzer outputs at `.looptroop/worktrees/<ticket-id>/.ticket/analysis/<phase>-round-<n>.md` and `.json`.
         *   Each finding must include stable `finding_id`, `category`, `severity` (`low|medium|high|critical`), `location`, `summary`, and `recommended_fix`.
         *   Include a requirement coverage matrix in each report: `requirement_id -> mapped_artifact_ids -> mapped_verification_ids`.
         *   Limit detailed findings to 50 per run; summarize overflow by severity/category.
@@ -696,14 +697,14 @@ search: false
         *   If interview analysis detects a contradiction, emit `CONTRADICTION_DETECTED`, add a targeted contradiction follow-up question, and loop back through follow-up answers -> reanalysis until resolved (or explicitly accepted by user policy).
         *   PRD gate: detect missing requirements plus duplicate/overlapping stories with incompatible acceptance criteria.
         *   PRD requirements-writing quality gate: validate PRD text quality (not implementation behavior) for completeness, clarity, consistency, measurability, and edge-case coverage.
-        *   Persist PRD writing-quality checklist at `.looptroop/tickets/<ticket-id>/checklists/prd-requirements-quality.md` with item IDs, status (`pass|fail`), and evidence refs.
+        *   Persist PRD writing-quality checklist at `.looptroop/worktrees/<ticket-id>/.ticket/checklists/prd-requirements-quality.md` with item IDs, status (`pass|fail`), and evidence refs.
         *   Beads gate: detect uncovered PRD requirements, missing dependency edges, and sibling overlap on critical files without explicit dependency edges.
         *   Pre-Execution Cross-Artifact Analysis (required, after Beads approval and before execution start):
             *   holistically read Interview + PRD + Beads together and detect contradictions across artifacts;
             *   detect orphaned requirements (Interview requirements not represented in PRD);
             *   detect orphaned epics/stories (PRD items with no corresponding beads);
             *   detect scope creep (beads not traceable to PRD requirements).
-            *   Persist machine-readable report at `.looptroop/tickets/<ticket-id>/consistency-report.json`.
+            *   Persist machine-readable report at `.looptroop/worktrees/<ticket-id>/.ticket/consistency-report.json`.
             *   Contradictions/orphaned requirements require explicit user resolution or intentional acceptance before execution can start.
             *   Scope-creep findings are warnings by default but require explicit user confirmation.
         *   Verification mapping rule: every acceptance criterion must map to at least one explicit executable verification path.
@@ -782,7 +783,7 @@ search: false
         *   Safety-critical parsing/validation failures must be `fail_closed` (block), not silent allow.
         *   The guard must hard-block known destructive signatures (`rm -rf /`, raw-disk `dd`, fork-bomb patterns) even when runtime permission mode is `--yolo`/allow-all.
         *   Enforce path confinement before execution: command targets must resolve inside the active project/worktree root; out-of-bound paths are blocked with deterministic reason codes.
-        *   Persist guard decisions to `.looptroop/tickets/<ticket-id>/safety/command-guard.jsonl`.
+        *   Persist guard decisions to `.looptroop/worktrees/<ticket-id>/.ticket/safety/command-guard.jsonl`.
     *   Research a sandbox isolation solution (Docker / namespaces / VM).
     *   Add explicit sandbox config contract:
         *   `sandbox.enabled`,
@@ -802,7 +803,7 @@ search: false
     *   In `auto` mode, choose the most secure available backend for the current platform; if unavailable, downgrade to `off` with explicit warning diagnostics.
     *   Add isolation fallback contract:
         *   if worktree setup fails due to repo topology/path errors (nested worktree repos, invalid `.git/worktrees` path, unsupported linked-repo state), auto-fallback to sandbox mode for that run;
-        *   persist fallback decision at `.looptroop/tickets/<ticket-id>/parallel/<run-id>/isolation-report.yaml` with `requested_mode`, `effective_mode`, `fallback_reason`, `timestamp`.
+        *   persist fallback decision at `.looptroop/worktrees/<ticket-id>/.ticket/parallel/<run-id>/isolation-report.yaml` with `requested_mode`, `effective_mode`, `fallback_reason`, `timestamp`.
     *   Add lightweight sandbox profile for fallback:
         *   symlink read-only heavy dependency folders by default (`node_modules`, `.git`, `.venv`, `.pnpm-store`, `.yarn`, `.cache`);
         *   copy writable source/config paths into sandbox with preserved mtimes for deterministic modified-file detection;
@@ -810,7 +811,7 @@ search: false
         *   sync back only detected modified files.
     *   Add sandbox failure handling:
         *   cleanup must retry lock-related filesystem errors (`EBUSY`, `EPERM`, `ENOTEMPTY`) with bounded exponential backoff before giving up;
-        *   if sandbox execution fails after modifications, preserve sandbox folder under `.looptroop/tickets/<ticket-id>/preserved-sandboxes/<run-id>/<worker-id>/` for manual recovery;
+        *   if sandbox execution fails after modifications, preserve sandbox folder under `.looptroop/worktrees/<ticket-id>/.ticket/preserved-sandboxes/<run-id>/<worker-id>/` for manual recovery;
         *   cleanup report must list removed vs preserved sandbox folders and include failure reason codes.
     *   Add sandbox file-transfer safety contract:
         *   copy-in excludes secrets by default (`.env*`, private keys, credential files) and heavy dependency/build folders;
@@ -857,7 +858,7 @@ search: false
     *   Validate policy configuration during `Doctor`; invalid/missing policy blocks execution with actionable remediation text.
     *   Validate sandbox backend availability and sandbox path rules during `Doctor`; invalid/unsafe sandbox config blocks execution with actionable remediation.
     *   If `sandbox.network=false` and selected provider/capabilities require network access, block run start with deterministic remediation guidance.
-    *   Persist sandbox evaluation artifact at `.looptroop/tickets/<ticket-id>/preflight/sandbox-evaluation.yaml`.
+    *   Persist sandbox evaluation artifact at `.looptroop/worktrees/<ticket-id>/.ticket/preflight/sandbox-evaluation.yaml`.
     *   Persist blocked-command attempts in execution logs with timestamp, policy id, and reason.
     *   Add approval request queue for `confirm-required` actions with explicit lifecycle contract:
         *   states: `waiting`, `released`, `expired`, `cancelled`; every transition stores actor + timestamp + reason.
@@ -873,7 +874,7 @@ search: false
     *   Allow per-ticket temporary override only with explicit user confirmation and audit log entry.
 *   **Nested Parallel Flows:** Allow parallel flows (running in its sequential mode) to spawn additional sub-parallel flows that can handle their own blocking dependencies.
 *   **Execution Dispatcher + Queue State Contract (atomic claim + lease + transition guards):**
-    *   Materialize runnable beads into `.looptroop/tickets/<ticket-id>/execution-queue.jsonl` before dispatch.
+    *   Materialize runnable beads into `.looptroop/worktrees/<ticket-id>/.ticket/execution-queue.jsonl` before dispatch.
     *   Queue item contract: `queue_id`, `ticket_id`, `flow_id`, `bead_id`, `priority`, `state`, `attempt`, `claim_owner_run_id`, `claim_version`, `lease_expires_at`, `enqueued_at`, `started_at`, `completed_at`, `error_code`, `source_signature`, `source_cursor`, `last_transition_at`, `transition_reason`.
     *   Enqueue operation must be idempotent with dedupe key `{ticket_id, flow_id, bead_id, source_signature}`; duplicates emit `enqueue_deduped` and do not create additional runnable items.
     *   Claim operation is compare-and-swap: claim succeeds only when `state=PENDING` and `claim_version` matches current value; on success set `state=RUNNING`, increment `claim_version`, and assign lease fields atomically.
@@ -934,7 +935,7 @@ search: false
     *   For Interview, Proposal, Options Synthesis, Design, and Beads planning phases, support a bounded research pre-pass that generates an `External Research Brief` (official docs, current versions, breaking changes, security advisories, migration notes, best-practice notes, and source links).
     *   External Research Brief output is read-only context for council drafting and is never counted as a council vote.
     *   Research pass is non-blocking: configurable timeout (default 5 minutes); on timeout/failure, continue planning with warning `research_pass_skipped`.
-    *   Persist research artifacts at `.looptroop/tickets/<ticket-id>/research/external-brief-<phase>-<timestamp>.json` with provenance metadata, retrieval time, freshness, confidence, and source type.
+    *   Persist research artifacts at `.looptroop/worktrees/<ticket-id>/.ticket/research/external-brief-<phase>-<timestamp>.json` with provenance metadata, retrieval time, freshness, confidence, and source type.
     *   Distinguish official docs, vendor announcements, security advisories, and community commentary in the stored source metadata.
     *   Capture conflicts or uncertainty explicitly instead of smoothing over contradictory sources.
     *   Enforce source allowlists, recency filters, and max injected-token budget before adding findings to planning context.
@@ -942,7 +943,7 @@ search: false
         *   provider options: `duckduckgo` (default), `tavily`, `exa`, `brave` (project-configurable).
         *   bounded retrieval contract: max 5 results, max 2000 injected tokens, source allowlist + recency filter.
         *   if ticket mentions specific technologies, auto-generate a focused tech brief (`stable_version`, `breaking_changes`, `security_advisories`, `recommended_patterns`).
-        *   persist search snapshots at `.looptroop/tickets/<ticket-id>/research/web-search-<phase>-<timestamp>.json`.
+        *   persist search snapshots at `.looptroop/worktrees/<ticket-id>/.ticket/research/web-search-<phase>-<timestamp>.json`.
         *   search failure is non-blocking and emits `council_web_search_skipped`.
     *   Add council composition diversity indicator based on provider/model-family mix:
         *   `green`: 3+ families/providers.
@@ -963,7 +964,7 @@ search: false
         *   persist `failure_class`, `parser_mode`, `source_channel`, and `error_excerpt_last_12_lines` for each failed attempt;
         *   feed persisted `failure_class` into deferral/rotation/escalation decisions.
     *   **API Resilience:** Implement automated retry logic with configurable delay (default: 1 minute), exponential backoff + jitter, and max retries (default: 10) for provider/transient failures.
-    *   **Provider Deferral Ledger (durable):** Persist transient-failure deferrals per `{ticket_id, flow_id, bead_id, model_id, failure_signature}` in `.looptroop/tickets/<ticket-id>/provider-deferrals.json` with `deferral_count`, `first_seen_at`, `last_seen_at`. Stop run early on repeated transient failures and resume from deferred items first.
+    *   **Provider Deferral Ledger (durable):** Persist transient-failure deferrals per `{ticket_id, flow_id, bead_id, model_id, failure_signature}` in `.looptroop/worktrees/<ticket-id>/.ticket/provider-deferrals.json` with `deferral_count`, `first_seen_at`, `last_seen_at`. Stop run early on repeated transient failures and resume from deferred items first.
     *   **Retry Budget Split (important):**
         *   provider/transient failures do **not** consume bead iteration budget;
         *   code/test failures consume bead iteration budget as usual.
@@ -977,7 +978,7 @@ search: false
         *   For unattended/AFK mode, apply configured default action with timeout fallback (for example auto-`wait_for_reset` for N minutes, then escalate).
         *   Persist decision + timeout path in runtime logs (`limit_type`, `detected_at`, `selected_action`, `auto_fallback_action`).
     *   Persist retry/rotation timeline in logs (`attempt`, `delay_ms`, `pattern`, `action_taken`, `model_used`, `rotation_index`).
-    *   Persist provider command failure evidence in `.looptroop/tickets/<ticket-id>/provider-failures.jsonl` with `provider_id`, `command_id`, `exit_code`, `stderr_tail`, `stdout_tail`, and `classifier_result` (bounded tails: max 30 lines each).
+    *   Persist provider command failure evidence in `.looptroop/worktrees/<ticket-id>/.ticket/provider-failures.jsonl` with `provider_id`, `command_id`, `exit_code`, `stderr_tail`, `stdout_tail`, and `classifier_result` (bounded tails: max 30 lines each).
 *   **Timeout + Inactivity Watchdog + Stagnation Heuristics:**
     *   Add phase-timeout + quorum policy for council/planning phases (defaults: `AI response timeout = 15 minutes`, `minimum council quorum = 2`):
         *   `AI response timeout` is a hard wall-clock deadline per model-output prompt during scan, planning, drafting, voting, coverage, review, final-test generation, and PR-drafting phases.
@@ -1031,7 +1032,7 @@ search: false
             *   persist compaction receipts (`before_tokens`, `after_tokens`, `saved_pct`, `source_ranges`, `model_id`) for auditability.
         *   if post-compaction `context_used_pct` is still above hard threshold (default 90%) or compaction fails, trigger deterministic handoff before next model call;
             *   if provider supports native handoff/compaction, use provider-native handoff;
-            *   otherwise generate deterministic fallback handoff artifacts (`handoff-summary.md` + `handoff-queue.json`) and persist bounded resume context at `.looptroop/tickets/<ticket-id>/runtime/next-session-context.md`;
+            *   otherwise generate deterministic fallback handoff artifacts (`handoff-summary.md` + `handoff-queue.json`) and persist bounded resume context at `.looptroop/worktrees/<ticket-id>/.ticket/runtime/next-session-context.md`;
             *   separate handoff reasons: `compaction_handoff` (context saturation) and `session_end_handoff` (runtime/session termination);
             *   on startup/resume, inject only project-matching handoff context and enforce a max context-injection budget before first model call;
             *   persist handoff events (`threshold_reached`, `handoff_started`, `handoff_completed`, `handoff_failed`) in runtime logs with threshold and reason.
@@ -1056,7 +1057,7 @@ search: false
         *   after `stuck_auto_recoveries_max` recoveries on the same bead, stop auto-recovery and escalate to `BLOCKED_ERROR` with remediation guidance.
     *   Persist inactivity/stagnation events and selected actions in execution logs for audit/recovery.
 *   **Deterministic Bead Loop Control Artifact (Ralph-style, bead-scoped):**
-    *   At bead start, create `.looptroop/tickets/<ticket-id>/loops/<flow-id>/<bead-id>.loop.md` with frontmatter: `active`, `ticket_id`, `flow_id`, `bead_id`, `iteration`, `max_iterations`, `loop_mode`, `completion_intent`, `started_at`, `updated_at`.
+    *   At bead start, create `.looptroop/worktrees/<ticket-id>/.ticket/loops/<flow-id>/<bead-id>.loop.md` with frontmatter: `active`, `ticket_id`, `flow_id`, `bead_id`, `iteration`, `max_iterations`, `loop_mode`, `completion_intent`, `started_at`, `updated_at`.
     *   Keep the markdown body as the canonical bead instruction; retries must reuse this instruction body unchanged to prevent prompt drift.
     *   On each retry, only update runtime evidence fields (iteration counters, notes, validation evidence, failure summaries); do not mutate canonical instruction text.
     *   If loop artifact is missing/corrupted/unreadable, stop autonomous retry and route ticket to `BLOCKED_ERROR` with exact remediation.
@@ -1064,7 +1065,7 @@ search: false
 *   **Execution Logging + Away Summary + Transcript Intelligence (channelized + visibility-aware + replay-safe):**
     *   Keep structured event logs with stable fields: `event_id`, `event_type`, `severity`, `title`, `details`, `timestamp`, `ticket_id`, `run_id`, `flow_id`, `state_version`, `metadata`, `visibility`.
     *   Treat append-only event logs as the primary SSE replay source; reconnect catch-up must read persisted events by `event_id` (not in-memory cursor state).
-    *   Persist per-command execution audit stream at `.looptroop/tickets/<ticket-id>/runs/<run-id>/execution-log.jsonl` with `command_id`, `tool`, `cwd`, `argv_redacted`, `command_hash`, `started_at`, `ended_at`, `duration_ms`, `exit_code`, `timed_out`, and truncated `stdout/stderr` digests.
+    *   Persist per-command execution audit stream at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/execution-log.jsonl` with `command_id`, `tool`, `cwd`, `argv_redacted`, `command_hash`, `started_at`, `ended_at`, `duration_ms`, `exit_code`, `timed_out`, and truncated `stdout/stderr` digests.
     *   `execution-log.jsonl` integrity contract: append-only writes with per-write `fsync`; on startup, truncate only one incomplete trailing line (if present) and preserve all prior valid lines.
     *   `execution-log.jsonl` is non-authoritative audit/debug evidence; authoritative resume correctness is SQLite state + run journal. Missing/truncated command logs must not block resume when authoritative stores are healthy.
     *   Add Node/Bun event-loop protection contract for long-running logs:
@@ -1080,7 +1081,7 @@ search: false
         *   handlers can declare `depends_on` relations;
         *   event bus builds deterministic execution levels (dependency order), with async handlers concurrent inside the same level.
     *   Add scoped temporary handlers for tests/diagnostics (`scoped_handlers`) so instrumentation can be attached and removed safely.
-    *   Persist append-only audit stream at `.looptroop/tickets/<ticket-id>/events/audit.jsonl` and derive user timeline/feed projection at `.looptroop/tickets/<ticket-id>/events/feed.jsonl`.
+    *   Persist append-only audit stream at `.looptroop/worktrees/<ticket-id>/.ticket/events/audit.jsonl` and derive user timeline/feed projection at `.looptroop/worktrees/<ticket-id>/.ticket/events/feed.jsonl`.
     *   Maintain a fast ticket conversation index at `.looptroop/project/conversation-index.json` with `ticket_id`, `title`, `status`, `last_activity_at`, `last_phase`, and `preview`.
     *   Sidebar/filter/search reads this index first for fast lookup; detailed logs are loaded only on open.
     *   If the index is missing/corrupt/stale, rebuild it from ticket artifacts + audit logs on startup and emit `conversation_index_rebuilt` with counts + duration.
@@ -1090,8 +1091,8 @@ search: false
         *   ticket view can expand drafts while deliberation continues; voting matrix is shown with anonymous candidate labels.
         *   at phase completion, show a council scorecard with `candidate_id`, per-voter score, weighted total, and winner rationale (anonymize voter identity by policy).
         *   SSE events: `council_stage_start`, `council_draft_received`, `council_critique_received`, `council_vote_cast`, `council_winner_selected`.
-        *   persist council stage timeline at `.looptroop/tickets/<ticket-id>/council/stage-events.jsonl`.
-    *   Emit `.looptroop/tickets/<ticket-id>/runtime-status.json` on interval and on state changes with: `phase`, `active_bead`, `loop_count`, `max_iterations`, `loop_mode`, `completion_intent`, `status`, `last_success_at`, `current_blocker`, `recommended_action`, `last_cancel_reason`, `afk_ready`, and `afk_blockers[]`.
+        *   persist council stage timeline at `.looptroop/worktrees/<ticket-id>/.ticket/council/stage-events.jsonl`.
+    *   Emit `.looptroop/worktrees/<ticket-id>/.ticket/runtime-status.json` on interval and on state changes with: `phase`, `active_bead`, `loop_count`, `max_iterations`, `loop_mode`, `completion_intent`, `status`, `last_success_at`, `current_blocker`, `recommended_action`, `last_cancel_reason`, `afk_ready`, and `afk_blockers[]`.
     *   Split runtime logs by channel: main run log (global orchestration timeline), per-worker/per-flow logs (isolated execution trace), merge/conflict log (all merge decisions and outcomes); all channels use monotonic `log_id`.
     *   Event identity contract:
         *   `event_id` must be globally unique (ULID/UUIDv7), and duplicate IDs are rejected idempotently.
@@ -1116,17 +1117,17 @@ search: false
         *   execution log + reasoning streams must use virtualization (`react-window`, `react-virtuoso`, or equivalent) with viewport-only rendering (target around `~100` mounted rows);
         *   never render full-history logs as raw DOM nodes; historical navigation must page through logs API/artifacts into the virtualized data source;
         *   maintain stable row keys and bounded in-memory row cache so 10+ hour sessions do not degrade tab responsiveness.
-    *   Persist per-viewer stream cursor at `.looptroop/tickets/<ticket-id>/stream-cursors/<viewer-id>.json` for reconnect recovery.
-    *   Add per-iteration run summary files at `.looptroop/tickets/<ticket-id>/runs/<run-id>/iter-<n>.md` with: start/end time, duration, active bead ID, git head before/after, commits created, changed files, dirty files, verification commands/results, final iteration status, and `session_refs` (`provider`, `session_id`, `thread_url_or_id`, `message_start_offset`, `message_end_offset`) so operators can reopen the exact AI conversation that produced the change.
-    *   Add rolling run summary artifact `.looptroop/tickets/<ticket-id>/runs/<run-id>/progress-summary.md` (append-only, one entry per completed bead) to preserve the "big picture" for long unattended runs.
+    *   Persist per-viewer stream cursor at `.looptroop/worktrees/<ticket-id>/.ticket/stream-cursors/<viewer-id>.json` for reconnect recovery.
+    *   Add per-iteration run summary files at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/iter-<n>.md` with: start/end time, duration, active bead ID, git head before/after, commits created, changed files, dirty files, verification commands/results, final iteration status, and `session_refs` (`provider`, `session_id`, `thread_url_or_id`, `message_start_offset`, `message_end_offset`) so operators can reopen the exact AI conversation that produced the change.
+    *   Add rolling run summary artifact `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/progress-summary.md` (append-only, one entry per completed bead) to preserve the "big picture" for long unattended runs.
         *   Each entry must include at least: `bead_id`, short objective/result, files changed (compact list), verification commands + pass/fail outcome, open risks, and `next_recommended_bead`.
         *   Context pack builder injects only the latest bounded slice (for example last 3 entries) into execution prompts to reduce token bloat while preserving continuity.
         *   Recovery UI/CLI should surface the latest entry first so operators can resume with immediate situational awareness.
     *   Add branch-change archive contract:
         *   detect target execution branch changes (`previous_branch` != `current_branch`) before a new execution start/resume;
-        *   archive prior run-scoped artifacts (`progress`, run summaries, loop snapshots, handoff artifacts) to `.looptroop/tickets/<ticket-id>/archive/<timestamp>-<previous_branch>/`;
+        *   archive prior run-scoped artifacts (`progress`, run summaries, loop snapshots, handoff artifacts) to `.looptroop/worktrees/<ticket-id>/.ticket/archive/<timestamp>-<previous_branch>/`;
         *   initialize a fresh progress ledger for the new branch while preserving immutable archive history;
-        *   persist archive index entry in `.looptroop/tickets/<ticket-id>/archive/index.jsonl` with `archived_from_branch`, `archived_to_branch`, `reason`, `archived_at`.
+        *   persist archive index entry in `.looptroop/worktrees/<ticket-id>/.ticket/archive/index.jsonl` with `archived_from_branch`, `archived_to_branch`, `reason`, `archived_at`.
     *   Add transcript parser layer to detect semantic runtime signals: `tool_start`, `tool_end`, `assistant_complete`, `plan_mode_prompt`, `error_detected`.
     *   Add `response_analyzer.v1` for semantic loop interpretation:
         *   classify loop outcome (`progressing`, `stalled`, `blocked`, `candidate_complete`) from normalized events + execution evidence;
@@ -1177,7 +1178,7 @@ search: false
         *   only explicit `stop_confirm` within the active window executes a hard stop; otherwise pending stop auto-expires;
         *   on confirmed hard stop, terminate owned process trees deterministically, persist stop receipt (`checkpoint_type`, `bead_id`, `iteration`, `git_head`, `open_processes[]`, `cleanup_result`), then transition per policy.
     *   Add `feedback_provider` interface for non-blocking human review channels (`in_app`, `email_link`, `slack`, `webhook`).
-    *   Persist pending feedback at `.looptroop/tickets/<ticket-id>/hitl/pending-feedback.json` with: `flow_id`, `run_id`, `method_name`, `prompt_message`, `method_output_ref`, `emit_options[]`, `default_outcome`, `requested_at`, `callback_info`.
+    *   Persist pending feedback at `.looptroop/worktrees/<ticket-id>/.ticket/hitl/pending-feedback.json` with: `flow_id`, `run_id`, `method_name`, `prompt_message`, `method_output_ref`, `emit_options[]`, `default_outcome`, `requested_at`, `callback_info`.
     *   When waiting on external review, return deterministic runtime state `PENDING_FEEDBACK` (not unstructured error).
     *   Add deterministic resume APIs:
         *   `resume_with_feedback(flow_id, feedback_text)` (sync);
@@ -1189,7 +1190,7 @@ search: false
     *   `abort_council_phase` cancels the active council deliberation/voting phase server-side using per-member request IDs, discards all partial phase outputs, and rewinds ticket state to the pre-phase checkpoint.
     *   Abort propagation must reach all active model sessions within 5 seconds and emit lifecycle events: `council_abort_requested`, `council_member_canceled`, `council_phase_aborted`.
     *   If a member does not acknowledge cancel before timeout, mark it `abort_timeout`, detach its stream, and complete rollback without hanging the ticket.
-    *   Persist abort receipt at `.looptroop/tickets/<ticket-id>/council/abort-<timestamp>.json` with canceled member count, per-member cancel lag, and rollback status.
+    *   Persist abort receipt at `.looptroop/worktrees/<ticket-id>/.ticket/council/abort-<timestamp>.json` with canceled member count, per-member cancel lag, and rollback status.
     *   Add XState actor lifecycle contract for long-running model calls:
         *   use spawned child actors for council/execution provider streams so parent machine stays responsive to `pause`, `cancel_loop`, `abort_council_phase`, and timeout watchdogs,
         *   reserve `invoke` for short bounded tasks (for example: schema validation, artifact write),
@@ -1197,9 +1198,9 @@ search: false
     *   `follow_up` supports two deterministic message types applied only at safe checkpoints (never mid-command):
         *   `guidance_note` - short instruction for the next iteration.
         *   `plan_patch` - user-reviewed update to the current execution plan (approve/refine/cancel workflow before apply).
-    *   Persist plan patches at `.looptroop/tickets/<ticket-id>/hitl/plan-patches.jsonl` with `patch_id`, `run_id`, `created_at`, `status`, `approved_at`, and `applied_iteration`.
+    *   Persist plan patches at `.looptroop/worktrees/<ticket-id>/.ticket/hitl/plan-patches.jsonl` with `patch_id`, `run_id`, `created_at`, `status`, `approved_at`, and `applied_iteration`.
     *   Resume contract must preserve `ticket_id`, `flow_id`, `run_id`, current iteration number, context summary, `preserve_context` (boolean), `start_iteration`, and pending `guidance_note`/`plan_patch` IDs.
-    *   Add append-only execution session ledger for all interruption and recovery actions at `.looptroop/tickets/<ticket-id>/hitl/execution-session-ledger.jsonl`:
+    *   Add append-only execution session ledger for all interruption and recovery actions at `.looptroop/worktrees/<ticket-id>/.ticket/hitl/execution-session-ledger.jsonl`:
         *   required fields per event: `event_id`, `timestamp`, `action` (`pause_requested`, `paused`, `resume_requested`, `resumed`, `stop_requested`, `canceled`, `follow_up_applied`), `ticket_id`, `flow_id`, `run_id`, `iteration`, `checkpoint_type`, `actor`, `result`.
         *   every `resumed` event must include `resumed_from_event_id` and `resume_basis` (`checkpoint_receipt` or `state_rebuild`) for deterministic auditability.
         *   on startup/resume, runtime must reconstruct current interruption state from the ledger first; missing or inconsistent linkage is `resume_state_inconsistent` and blocks execution until resolved.
@@ -1217,13 +1218,13 @@ search: false
     *   Use wrapper architecture: `ParallelExecutor` orchestrates multiple worker `ExecutionEngine` instances while the sequential engine path remains unchanged.
     *   Parallel mode policy supports `auto`, `always`, `never` (CLI override > project config > default).
     *   `auto` enables parallel only when all hold: at least one parallel group has `>=2` runnable beads, total runnable beads `>=3`, and dependency-cycle ratio `<=50%`; otherwise fall back to sequential mode.
-    *   Persist parallel-activation decision at `.looptroop/tickets/<ticket-id>/parallel/<run-id>/activation-report.yaml` with analyzed groups, cycle ratio, chosen mode, and chosen worker count.
+    *   Persist parallel-activation decision at `.looptroop/worktrees/<ticket-id>/.ticket/parallel/<run-id>/activation-report.yaml` with analyzed groups, cycle ratio, chosen mode, and chosen worker count.
     *   Use a worker worktree per parallel job, not nested worktrees. MVP job granularity is one runnable bead; later lane mode may let one worker execute a sequenced bead group only when dependency and overlap analysis proves the lane safe.
     *   Keep one ticket integration branch as the merge target. Each worker uses a unique worker branch (`looptroop/<ticket-id>/<run-id>/<job-id>` or equivalent), and LoopTroop must not force-checkout the same ticket/session branch into multiple worktrees.
     *   Create worker worktrees outside the project tree (sibling or configured external directory) to prevent agent CLI parent-repo misdetection; persist canonical absolute worktree paths in the run manifest.
     *   On worktree creation, sync local developer state from the ticket integration baseline/source workspace into the new worker worktree: copy untracked files + unstaged tracked modifications, while excluding `.git/`, other worktree roots, runtime logs, and dependency/build caches unless explicitly allowlisted.
     *   Add deterministic worktree-create conflict policy for `path_exists`, `branch_exists`, `worktree_locked`, `branch_checked_out_elsewhere`, and `dirty_source_workspace` with explicit outcomes (`reuse`, `rename`, `retry`, `fail_with_receipt`).
-    *   Persist worktree-create receipts at `.looptroop/tickets/<ticket-id>/worktrees/create-<timestamp>.json` with requested path/branch, base ref, target integration branch, conflict kind, chosen resolution, and final result.
+    *   Persist worktree-create receipts at `.looptroop/worktrees/<ticket-id>/.ticket/worktrees/create-<timestamp>.json` with requested path/branch, base ref, target integration branch, conflict kind, chosen resolution, and final result.
     *   Lock active worker worktrees with a reason while an agent owns them, enumerate them via porcelain-formatted `git worktree list`, and unlock/remove them through `git worktree remove` rather than raw filesystem deletion.
     *   Preserve symlinks/junctions during sync where supported, and persist `sync_stats` (`untracked_copied`, `modified_copied`, `skipped`, `errors`) in parallel run artifacts.
     *   **Worktree optimization track:** evaluate `git worktree add --detach` plus shared object/reference cache (`--reference`/alternates) to reduce spawn latency and disk I/O for parallel Ralph loops.
@@ -1251,11 +1252,11 @@ search: false
     *   If the one-time sequential re-queue fails again, route bead to `needs_manual_resolution` with preserved conflict artifacts; do not auto-discard either side.
     *   Snapshot + restore tracker state files around each merge so stale worker copies cannot overwrite completed statuses in source-of-truth artifacts.
     *   Worktree cleanup contract: if a worker worktree has uncommitted changes after merge/cleanup attempt, do not delete it; mark it as `left_in_place` and persist absolute path + reason in run manifest for manual recovery. Clean merged workers with `git worktree remove`, then prune stale metadata only after receipts are written.
-    *   Persist a run manifest at `.looptroop/tickets/<ticket-id>/parallel/<run-id>/manifest.tsv` with `job_id`, `bead_id`, `flow_id`, `base_ref`, `target_branch`, `worker_branch`, `worktree`, `locked`, `overlap_score`, `status`, `log_path`, `merge_result`, `backup_tag`, `cleanup_state`, `cleanup_reason`.
+    *   Persist a run manifest at `.looptroop/worktrees/<ticket-id>/.ticket/parallel/<run-id>/manifest.tsv` with `job_id`, `bead_id`, `flow_id`, `base_ref`, `target_branch`, `worker_branch`, `worktree`, `locked`, `overlap_score`, `status`, `log_path`, `merge_result`, `backup_tag`, `cleanup_state`, `cleanup_reason`.
     *   Unresolved conflicts remain preserved for manual review and are linked in the run manifest with conflict file list.
     *   Implementation impact: scheduler dispatch, OpenCode session ownership, execution logs, tracker writes, merge receipts, cleanup, and UI Worktree Manager must key parallel state by `run_id` + `job_id` + `worker_branch` rather than assuming one ticket worktree.
     *   Add UI Worktree Manager per ticket/project: list active/stale worktrees, open path, retry cleanup, prune stale, and resolve creation/merge conflicts with guided actions.
-    *   Every UI worktree action must emit audit receipts at `.looptroop/tickets/<ticket-id>/worktrees/actions-<date>.jsonl`.
+    *   Every UI worktree action must emit audit receipts at `.looptroop/worktrees/<ticket-id>/.ticket/worktrees/actions-<date>.jsonl`.
 *   **Per-ticket override + Council Presets:** You can change the main implementer and council members per ticket to override the general configuration.
     *   Add named model presets (implementer + council + optional quorum/timeout overrides) with CRUD operations and per-ticket one-click apply.
     *   Include built-in starter presets (`budget`, `balanced`, `quality`) and allow full user customization.
@@ -1291,7 +1292,7 @@ search: false
     *   Auto-unlock rule: completion of a prerequisite ticket automatically moves dependents from blocked to runnable.
     *   Workspace creation for multi-repo tickets must be atomic: if any repo worktree creation fails, rollback all newly created worktrees and persist a failure report.
     *   Add per-repo path locks so concurrent runs cannot create/cleanup worktrees for the same repo path at the same time.
-    *   Add deterministic landing queue for completed ticket branches/worktrees with idempotent land semantics, persisted as append-only events at `.looptroop/tickets/<ticket-id>/landing/landing-queue.jsonl`.
+    *   Add deterministic landing queue for completed ticket branches/worktrees with idempotent land semantics, persisted as append-only events at `.looptroop/worktrees/<ticket-id>/.ticket/landing/landing-queue.jsonl`.
     *   Landing queue states: `queued -> merging -> merged | needs_review | discarded`; allow retry transition `needs_review -> merging`; terminal states (`merged`, `discarded`) are immutable.
     *   Add optional `bulk_land` operation for multiple completed tickets:
         *   precompute overlap map (`git diff --name-only`) across candidate tickets;
@@ -1409,8 +1410,8 @@ search: false
     *   Support deterministic conversion both ways: `workflow_graph.json <-> playbook.yaml` with schema validation and diff report.
     *   Support deterministic conversion both ways for persona topology: `persona_topology.json <-> playbook.yaml` with schema validation and diff report.
     *   Apply playbooks through deterministic config merge: `project base config` + `playbook overlay` + `ticket overrides`, with explicit precedence plus per-key merge policy (`replace`, `append`, `block_inheritance`, `additive_int`).
-    *   Persist `.looptroop/tickets/<ticket-id>/merged-config.yaml`, `.looptroop/tickets/<ticket-id>/merge-report.yaml`, and `.looptroop/tickets/<ticket-id>/workflow-graph.snapshot.json` with per-key `winning_layer`, `merge_policy`, `blocked_by`, and `effective_value`.
-    *   Persist `.looptroop/tickets/<ticket-id>/persona-topology.snapshot.yaml` with resolved personas, routing rules, and validation outcome.
+    *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/merged-config.yaml`, `.looptroop/worktrees/<ticket-id>/.ticket/merge-report.yaml`, and `.looptroop/worktrees/<ticket-id>/.ticket/workflow-graph.snapshot.json` with per-key `winning_layer`, `merge_policy`, `blocked_by`, and `effective_value`.
+    *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/persona-topology.snapshot.yaml` with resolved personas, routing rules, and validation outcome.
     *   Playbook apply must never silently overwrite safety-critical settings (`policy profile`, budget caps, lock settings, ownership guards).
     *   E.g., Optimize SEO on the project website: user edits only fields marked editable (site name, description, target pages, and constraints).
     *   E.g., Don't Know What to Build? — ideas preset — this launches Idea Mode, a brainstorming session to help users discover project ideas:
@@ -1431,7 +1432,7 @@ search: false
     *   **Deep Repository Analysis + Agent Readiness Audit (two-tier):** before ticket creation, run a structured scan and score 8 pillars.
         *   Tier A (fix-eligible): Style/Validation, Build System, Testing, Documentation, Dev Environment.
         *   Tier B (report-only governance): Observability, Security, Workflow/Process.
-        *   Emit `.looptroop/tickets/<ticket-id>/readiness-report.md` and `.json` with per-pillar score, overall maturity level, blockers, and prioritized fixes.
+        *   Emit `.looptroop/worktrees/<ticket-id>/.ticket/readiness-report.md` and `.json` with per-pillar score, overall maturity level, blockers, and prioritized fixes.
         *   Support modes: `report_only` and `fix_selected`; never overwrite existing files without explicit user confirmation.
         *   Remediation templates can propose `.env.example`, pre-commit hooks, linter/formatter baseline, runtime version pin files, and command docs when missing.
     *   **Proactive Suggestions:** AI provides prioritized suggestions after the audit with rationale, expected impact, and confidence.
@@ -1441,7 +1442,7 @@ search: false
     *   Add template resolution order: `ticket override` -> `project template` -> `global template` -> `built-in default`.
     *   Validate template before export (syntax + required placeholders). Invalid templates fall back to built-in default and emit warning diagnostics.
     *   Exports are read-only artifacts and must never become source-of-truth or mutate PRD execution status.
-    *   Persist exports under `.looptroop/tickets/<ticket-id>/exports/` with `template_source`, `template_version`, `render_hash`, and `generated_at`.
+    *   Persist exports under `.looptroop/worktrees/<ticket-id>/.ticket/exports/` with `template_source`, `template_version`, `render_hash`, and `generated_at`.
     *   Optional integrations: Export PRD to workflow tools (e.g., Linear tickets, UML diagrams) for immediate action.
 *   **Shareable Completion Summary + Image Generator:** When a ticket reaches `COMPLETED`, add a prominent Share action in the ticket detail view/dashboard that creates a polished summary card for celebrating the result.
     *   Generate the summary from approved ticket artifacts and execution evidence: ticket title/ID, completion date, final status, outcome summary, key impact, challenges handled, participants, planning artifact links, bead/commit counts, elapsed calendar time, and active execution time when tracked.
@@ -1456,7 +1457,7 @@ search: false
         *   `Why:` 1-2 lines describing the behavior change.
         *   `Caveats:` breaking changes, migration notes, known limitations (`None` if not applicable).
         *   `Verification:` exact commands executed and pass/fail summary.
-    *   Persist one machine-readable commit receipt per completed bead at `.looptroop/tickets/<ticket-id>/runs/<run-id>/receipts/<bead-id>.yaml`.
+    *   Persist one machine-readable commit receipt per completed bead at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/receipts/<bead-id>.yaml`.
     *   Receipt must include at least: `commit_sha`, changed files, verification commands, gate outcomes, and timestamp.
     *   State transition to bead `done` is blocked if receipt is missing or invalid.
 *   **Voice Integration:** Implement Speech-to-Text for user input and Text-to-Speech for AI output (e.g., providing audio summaries).
@@ -1469,7 +1470,7 @@ search: false
     *   Add a provider registry manifest at `.looptroop/providers/registry.yaml` with deterministic fields: `provider_id`, `adapter`, `kind` (`local_cli` | `remote_api`), `auth_mode`, `required_capabilities`, `status` (`experimental` | `stable`).
     *   Persist provider capability matrix at `.looptroop/providers/capability-matrix.yaml` with per-provider fields: `streaming`, `resume_session`, `tool_event_parse`, `permission_modes`, `cost_telemetry`, `known_limits`.
     *   Enforce layered provider config precedence: `built-in defaults` -> `user config` -> `project config` -> `ticket override`; merge must be deterministic and schema-validated at every layer.
-    *   Persist resolved runtime provider config snapshot at `.looptroop/tickets/<ticket-id>/provider-config.resolved.yaml` so resumes/retries use the same effective settings.
+    *   Persist resolved runtime provider config snapshot at `.looptroop/worktrees/<ticket-id>/.ticket/provider-config.resolved.yaml` so resumes/retries use the same effective settings.
     *   Reject unknown provider keys and incompatible layer overrides with explicit `invalid_provider_config` diagnostics (no silent fallback).
     *   Add per-provider binary override environment variables (example: `LT_CODEX_BINARY`) plus OS-aware command resolution (`.cmd` fallback on Windows).
     *   Add provider prompt-transport contract for local CLIs:
@@ -1485,9 +1486,9 @@ search: false
         *   Define required hook environment payload keys: `ticket_id`, `flow_id`, `run_id`, `project_root`, `workspace_path`, `phase`, `stage`, `timestamp`.
         *   Enforce per-hook timeout budget (default 30s) with deterministic timeout result code `hook_timeout`.
         *   Add hook failure policy per hook (`fail_open`, `fail_closed`); default `fail_open` for non-safety hooks and `fail_closed` for safety hooks.
-        *   Persist per-hook telemetry in `.looptroop/tickets/<ticket-id>/hooks/hook-execution.jsonl` with `hook_location`, `hook_name`, `stage`, `status`, `exit_code`, `duration_ms`, and `error`.
+        *   Persist per-hook telemetry in `.looptroop/worktrees/<ticket-id>/.ticket/hooks/hook-execution.jsonl` with `hook_location`, `hook_name`, `stage`, `status`, `exit_code`, `duration_ms`, and `error`.
         *   Add safe hook creation/bootstrap: `hooks init` generates `.looptroop-hooks/AGENTS.md`, `.looptroop-hooks/README.md`, and executable examples; hook init failures are non-blocking and emit `hook_init_failed`.
-        *   Persist resolved instruction snapshot per run at `.looptroop/tickets/<ticket-id>/instructions/resolved-pack.yaml` with `source_layers[]`, `resolved_hash`, and `generated_at`.
+        *   Persist resolved instruction snapshot per run at `.looptroop/worktrees/<ticket-id>/.ticket/instructions/resolved-pack.yaml` with `source_layers[]`, `resolved_hash`, and `generated_at`.
         *   Add deterministic tooling: `instructions sync`, `instructions diff`, `instructions init` to regenerate runtime settings and detect drift before execution.
         *   Add `Doctor` check `instructions-sync`; with `--fix`, regenerate out-of-sync runtime settings automatically.
         *   Require semantic parity tests so normalized outcomes (`done`, `blocked`, `needs_input`, `completion_marker`) remain equivalent across providers before promotion to `stable`.
@@ -1514,7 +1515,7 @@ search: false
     *   Add `Preview` (read-only fetch view) and `Test` (auth/connectivity check) actions before first import.
     *   Normalize every imported item to one schema (`ticket_input.v1`) before ticket creation, with stable fields: `source_type`, `source_id`, `title`, `body`, `labels[]`, `priority_hint`, optional `parallel_group`, and `raw_ref`.
     *   Deduplicate imported items using deterministic fingerprint (`source + external_id + normalized_title + normalized_scope_hash`).
-    *   Persist import receipts under `.looptroop/tickets/<ticket-id>/imports/`:
+    *   Persist import receipts under `.looptroop/worktrees/<ticket-id>/.ticket/imports/`:
         *   `raw-source.json`
         *   `normalized.json`
         *   `import-receipt.yaml` (`source`, `fetched_at`, `dedupe_result`, `created_ticket_ids`)
@@ -1524,7 +1525,7 @@ search: false
         *   skip outbound update when `payload_hash` is unchanged from last successful send;
         *   enforce `min_sync_interval_seconds` (default 30) per external item to avoid API spam/rate bursts;
         *   classify sync failures as `transient` vs `fatal_auth_or_scope` and never block local execution for transient failures.
-    *   Persist outbound sync receipts at `.looptroop/tickets/<ticket-id>/imports/sync-log.jsonl` with `event`, `external_id`, `payload_hash`, `result`, `failure_class`, `timestamp`.
+    *   Persist outbound sync receipts at `.looptroop/worktrees/<ticket-id>/.ticket/imports/sync-log.jsonl` with `event`, `external_id`, `payload_hash`, `result`, `failure_class`, `timestamp`.
     *   **Repo Listener:** Link with a repository to monitor new Issues/PRs. ([I1](https://davidfowl.github.io/ralph-experiments/index.html))
         *   Listener mode should support webhook/polling with idempotent dedupe keys so the same item is never imported twice.
 *   **Cost Management (step-accurate accounting):** Dashboard for current usage, forecasts, and token limits. Visual indicators will turn the ticket Yellow or Red as limits are approached or reached. Hard spending limits set per ticket.
@@ -1574,11 +1575,11 @@ search: false
     *   Freeze `run_fingerprint` at execution start (hash of approved planning artifacts, bead graph, resolved config, and prompt contract versions).
     *   Recompute `run_fingerprint` at iteration boundaries; on mismatch emit `run_fingerprint_mismatch` and require explicit action (`accept_new_baseline` or `restore_expected_state`) before continuing.
     *   Maintain global session registry at `~/.config/looptroop/sessions.json` with `schema_version`, `session_id`, `ticket_id`, `flow_id`, `run_id`, `cwd`, `status`, `last_heartbeat`, `lock_owner`, `prompt_hash`, `worktree_path`, `repo_root`, and `last_event_cursor`.
-    *   Add ticket-local runtime loop registry at `.looptroop/tickets/<ticket-id>/loops/loops.json` with `loop_id`, `pid`, `started_at`, `prompt_excerpt`, `worktree_path`, and `state` for operator visibility and deterministic reattach.
+    *   Add ticket-local runtime loop registry at `.looptroop/worktrees/<ticket-id>/.ticket/loops/loops.json` with `loop_id`, `pid`, `started_at`, `prompt_excerpt`, `worktree_path`, and `state` for operator visibility and deterministic reattach.
     *   Registry durability contract: serialize writes behind a lock file with stale-lock timeout recovery, and persist via atomic write (`tmp` -> `fsync` -> `rename`) to prevent partial/corrupt registry state.
     *   Registry file-permission contract: enforce owner-only permissions where OS supports it (for example `0700` config dir and `0600` registry file semantics).
     *   Bind all OpenCode sessions, runtime events, completion markers, and review receipts to `{ticket_id, flow_id, run_id, session_id}`.
-    *   Add OS-level lock file per active run at `.looptroop/tickets/<ticket-id>/locks/<flow-id>.lock` with metadata: `run_id`, `session_id`, `pid`, `host`, `started_at`, `workspace_path`, and `prompt_hash`.
+    *   Add OS-level lock file per active run at `.looptroop/worktrees/<ticket-id>/.ticket/locks/<flow-id>.lock` with metadata: `run_id`, `session_id`, `pid`, `host`, `started_at`, `workspace_path`, and `prompt_hash`.
     *   Add per-project branch-switch serialization for ticket navigation:
         *   all checkout/switch actions go through a single project-scoped mutex queue;
         *   debounce rapid switch intents (default `250ms`) and keep only the latest pending target ticket;
@@ -1610,7 +1611,7 @@ search: false
         *   `flush` must explicitly drain all buffered writer queues before `close` (`flush_state_queue`, `flush_bead_projection_queue`, `flush_progress_queue`, `flush_sync_receipts`).
         *   If any flush step fails, persist `flush_failed` receipt (with impacted files/queues) and block autonomous resume until persistence health checks pass.
         *   Enforce shutdown timeout budget; on timeout, persist `shutdown_forced=true` receipt with the last safe checkpoint so restart recovery can branch correctly.
-        *   Persist shutdown receipt at `.looptroop/tickets/<ticket-id>/runs/<run-id>/recovery/shutdown-<timestamp>.json` with `phase`, `active_bead`, `state_version`, `open_processes`, and `completed_steps`.
+        *   Persist shutdown receipt at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/recovery/shutdown-<timestamp>.json` with `phase`, `active_bead`, `state_version`, `open_processes`, and `completed_steps`.
         *   On startup after unclean termination, mark run `interrupted_unclean_shutdown`, block autonomous resume until recovery checks pass, and surface one-click actions (`resume_safe`, `inspect`, `cancel_run`).
     *   **`BLOCKED_ERROR` Retry Re-entry Contract:**
         *   On transition into `BLOCKED_ERROR`, persist `blocked_origin_state`, `blocked_origin_reason`, and `blocked_bead_id` (if present).
@@ -1627,7 +1628,7 @@ search: false
         *   `GREEN_PHASE`: implement until required bead-scoped tests pass; persist `bead_green_commit` snapshot when phase passes.
         *   `REFACTOR_PHASE`: improve code quality while preserving passing tests and quality gates; on regression, allow rollback to `bead_green_commit`.
         *   Completion marker is valid only after all three phases complete with recorded evidence.
-        *   Persist phase transitions and evidence at `.looptroop/tickets/<ticket-id>/runs/<run-id>/tdd/<bead-id>.json` for resume/recovery parity.
+        *   Persist phase transitions and evidence at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/tdd/<bead-id>.json` for resume/recovery parity.
     *   **Ticket-Level Circuit Breaker (execution-state contract):**
         *   Add explicit breaker states at ticket runtime level: `CLOSED` (normal), `HALF_OPEN` (constrained recovery attempt), `OPEN` (autonomous execution halted).
         *   Trigger candidates: repeated no-progress windows, repeated identical error signatures, repeated permission-denied loops, or contradiction between completion claims and failed quality gates.
@@ -1647,7 +1648,7 @@ search: false
         *   Create a linked `bug` bead with failure evidence (`failing command`, `error output`, `suspected cause`, `timestamp`) and add dependency so the feature bead is blocked by that bug bead.
         *   Return the feature bead to `pending` and continue scheduling other runnable, unrelated beads.
         *   Block ticket only when no runnable beads remain and all open paths are blocked on unresolved bugs.
-        *   Persist per-bead bearings reports in `.looptroop/tickets/<ticket-id>/runs/<run-id>/bearings/<bead-id>.yaml`.
+        *   Persist per-bead bearings reports in `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/bearings/<bead-id>.yaml`.
     *   **Dynamic Bead Fission (Recursive Sub-Planning) + Continue Strategy (before HITL):**
         *   Allow the Ralph loop executor to reject the current `in_progress` bead as `too_complex` and trigger a local planning event before max retries are exhausted.
         *   Convert the current bead into a non-runnable `parent_split` bead and spawn 2-5 child beads with explicit dependency edges and parent-to-child acceptance-criteria trace mapping.
@@ -1662,7 +1663,7 @@ search: false
         *   Authoritative XState transition persistence must be non-debounced (`SQLite` first); debounce applies only to projection/log fan-out writes.
         *   Add per-bead atomic state-commit sync on successful implementation:
             *   a bead can transition to `done` only when both operations succeed as one logical transaction: (1) git commit for bead changes, and (2) runtime state update (`issues.jsonl`/authoritative state + `state.yaml` projection) that records `commit_sha`.
-            *   persist commit-state sync receipt at `.looptroop/tickets/<ticket-id>/runs/<run-id>/receipts/commit-state-sync-<bead-id>.json` with `bead_id`, `commit_sha`, `pre_state_version`, `post_state_version`, `synced_at`, and `result`.
+            *   persist commit-state sync receipt at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/receipts/commit-state-sync-<bead-id>.json` with `bead_id`, `commit_sha`, `pre_state_version`, `post_state_version`, `synced_at`, and `result`.
             *   if commit succeeds but state update fails, classify `commit_state_desync`, keep bead non-done, and trigger deterministic recovery (`replay_state_from_commit_receipt` or rollback-to-last-synced state) before allowing resume.
         *   Persist `rehydrating_from_crash` in runtime context during startup recovery so state-entry logic can avoid replaying non-idempotent side effects.
         *   Add startup machine fidelity guard `assertStateMachineMatchesPlan()` that checks runtime transitions against the canonical workflow/state table; if mismatch is detected, block boot with `machine_plan_mismatch` diagnostics.
@@ -1674,7 +1675,7 @@ search: false
             *   recover ownership/lock + active OpenCode session first;
             *   only after ownership/session validation succeeds may runtime actors resume side effects;
             *   if validation fails, create replacement session and persist explicit `session_replaced_on_recovery` receipt before resume.
-        *   On resume in `CODING`, read `.looptroop/tickets/<ticket-id>/opencode-sessions.yaml` for the active bead:
+        *   On resume in `CODING`, read `.looptroop/worktrees/<ticket-id>/.ticket/opencode-sessions.yaml` for the active bead:
             *   if a valid session exists, reconnect/reattach instead of starting a new provider run;
             *   start a new session only when the previous one is missing/invalid and persist explicit replacement receipt.
         *   Publish authoritative ownership matrix to prevent split-brain:
@@ -1696,13 +1697,13 @@ search: false
             *   keep all recent snapshots (default 24h), then compact older snapshots by interval while preserving latest per ticket;
             *   run idle-window maintenance (`incremental_vacuum`/`VACUUM` by policy) and persist DB size trend diagnostics.
         *   Maintain monotonic `state_version` in authoritative SQLite state; projection/journal writes must carry the same `state_version` or be rejected as stale.
-        *   Treat append-only run journal as canonical replay history for execution recovery (`.looptroop/tickets/<ticket-id>/runs/<run-id>/journal/`).
+        *   Treat append-only run journal as canonical replay history for execution recovery (`.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/journal/`).
         *   Define deterministic restart precedence:
             1. SQLite snapshot is canonical for workflow phase/state transitions.
             2. Run journal is canonical for execution event timeline and retry evidence.
             3. `state.yaml` is a rebuildable projection/cache and must be regenerated on conflict.
             4. Provider session history is supplemental context only; it cannot advance local state without matching receipts.
-        *   Persist reconciliation report at `.looptroop/tickets/<ticket-id>/runs/<run-id>/recovery/reconcile-<timestamp>.json` with mismatch classes and chosen winner per field.
+        *   Persist reconciliation report at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/recovery/reconcile-<timestamp>.json` with mismatch classes and chosen winner per field.
         *   On startup/hydration, if ticket recovers from a non-terminal execution state, append structured recovery event to run journal/execution log: `{"type":"SYSTEM_RECOVERED_FROM_CRASH","timestamp":"<ISO-8601>","preCrashStatus":"<status>","beadId":"<id-or-empty>","iterationBeforeCrash":<n>}`.
         *   Add drift sentinel between authoritative state and workspace reality:
             *   on each iteration boundary and startup, compare SQLite authoritative state, ticket projection files, and git workspace snapshot (`HEAD`, dirty set, and target-file hashes);
@@ -1738,11 +1739,11 @@ search: false
         *   `recent_iterations_to_keep=2` (older iterations summarized).
         *   `max_file_chars=30000`; larger files must be chunked with explicit line ranges.
     *   Add context-aware tool wrappers (`read_file`, `write_file`, `edit_file`) that automatically track touched files and append change-log entries (`decision`, `action`, `error`, `observation`) for next-iteration context injection.
-    *   Generate `.looptroop/tickets/<ticket-id>/artifact-read-index.md` that classifies planning artifacts by priority (`critical`, `high`, `medium`, `low`) with file size and one-line summary.
+    *   Generate `.looptroop/worktrees/<ticket-id>/.ticket/artifact-read-index.md` that classifies planning artifacts by priority (`critical`, `high`, `medium`, `low`) with file size and one-line summary.
     *   Execution must read `critical` artifacts first and avoid loading large `low` artifacts unless explicitly required by the active bead.
     *   During execution, record actual token usage per bead iteration and compute `drift_pct` versus preflight estimate.
     *   If drift exceeds threshold (default: 25% for 3 consecutive iterations), emit `context_drift_warning` and require a context-reduction action before continuing.
-    *   Persist telemetry to `.looptroop/tickets/<ticket-id>/context-metrics.jsonl` with `phase`, `bead_id`, `estimated_tokens`, `actual_tokens`, `drift_pct`, and `model_id`.
+    *   Persist telemetry to `.looptroop/worktrees/<ticket-id>/.ticket/context-metrics.jsonl` with `phase`, `bead_id`, `estimated_tokens`, `actual_tokens`, `drift_pct`, and `model_id`.
     *   Add export profiles for evaluation datasets: `raw_jsonl`, `deepeval_json`, `openai_evals_jsonl`.
     *   Add telemetry privacy tiers:
         *   `anonymous` (default): store metrics and tool parameter keys only (no prompt text, no raw tool arguments, no file contents);
@@ -1764,7 +1765,7 @@ search: false
         *   score each bead `complexity_score` from 1 to 10 using deterministic signals (estimated files touched, dependency depth, integration surface, logic density, and risk indicators);
         *   produce `decomposition_recommendation` and `suggested_model_tier` (`fast` 1-4, `standard` 5-7, `reasoning` 8-10).
     *   Mandatory fission threshold: beads scoring `>7` are auto-rejected for execution and must be split before approval; if splitting fails, route to `NEEDS_INPUT` with rationale.
-    *   Surface complexity in approval and navigator views (color bands + warning icon for `>=8`) and persist analysis artifacts under `.looptroop/tickets/<ticket-id>/planning/complexity/`.
+    *   Surface complexity in approval and navigator views (color bands + warning icon for `>=8`) and persist analysis artifacts under `.looptroop/worktrees/<ticket-id>/.ticket/planning/complexity/`.
     *   Add `scope_sentence` rule: each bead must be describable in one sentence without using the word `and`; if not, split it.
     *   Add overlap-minimization rule: sibling beads should avoid editing same files; if overlap is required, explicit dependency edges are mandatory.
     *   Add dependency-order normalization before execution:
@@ -1825,15 +1826,15 @@ search: false
         *   After any manual edit, run a bounded Clarification Repair pass before regeneration:
             *   ask at most 5 high-impact clarification questions, one question at a time;
             *   each question must be either multiple-choice (2-5 options) or short free-text answer (max 5 words);
-            *   persist Q/A to `.looptroop/tickets/<ticket-id>/clarifications/session-<timestamp>.md`;
-            *   persist apply report to `.looptroop/tickets/<ticket-id>/clarifications/apply-report-<timestamp>.md`.
+            *   persist Q/A to `.looptroop/worktrees/<ticket-id>/.ticket/clarifications/session-<timestamp>.md`;
+            *   persist apply report to `.looptroop/worktrees/<ticket-id>/.ticket/clarifications/apply-report-<timestamp>.md`.
         *   If blocking ambiguities remain after the Clarification Repair pass, move to `NEEDS_INPUT`.
         *   Every approved edit increments `artifact_iteration` and writes a version snapshot:
-            *   `.looptroop/tickets/<ticket-id>/history/interview-results.v<artifact_iteration>.yaml`
-            *   `.looptroop/tickets/<ticket-id>/history/proposal.v<artifact_iteration>.yaml`
-            *   `.looptroop/tickets/<ticket-id>/history/design.v<artifact_iteration>.yaml`
-            *   `.looptroop/tickets/<ticket-id>/history/prd.v<artifact_iteration>.yaml`
-            *   `.looptroop/tickets/<ticket-id>/history/beads.<flow-id>.v<artifact_iteration>.jsonl`
+            *   `.looptroop/worktrees/<ticket-id>/.ticket/history/interview-results.v<artifact_iteration>.yaml`
+            *   `.looptroop/worktrees/<ticket-id>/.ticket/history/proposal.v<artifact_iteration>.yaml`
+            *   `.looptroop/worktrees/<ticket-id>/.ticket/history/design.v<artifact_iteration>.yaml`
+            *   `.looptroop/worktrees/<ticket-id>/.ticket/history/prd.v<artifact_iteration>.yaml`
+            *   `.looptroop/worktrees/<ticket-id>/.ticket/history/beads.<flow-id>.v<artifact_iteration>.jsonl`
         *   Re-run matrix is deterministic:
             *   Interview changed -> regenerate Proposal + Options Synthesis + Design + Beads
             *   Proposal changed -> regenerate Design + Beads
@@ -1842,7 +1843,7 @@ search: false
             *   Beads changed -> rerun Beads coverage validation only
     *   **Artifact metadata + traceability contract:**
         *   `interview-results`, `interview-decision-log`, `proposal`, `design`, `prd`, and Beads outputs must include: `artifact_type`, `ticket_id`, `flow_id`, `artifact_version`, `artifact_iteration`, `source_hash`, `approved`.
-        *   Maintain `.looptroop/tickets/<ticket-id>/traceability.yaml` with required links:
+        *   Maintain `.looptroop/worktrees/<ticket-id>/.ticket/traceability.yaml` with required links:
             *   `question_id -> decision_id -> proposal_requirement_id`
             *   `proposal_requirement_id -> design_decision_id`
             *   `design_decision_id -> bead_id`
@@ -1850,7 +1851,7 @@ search: false
         *   Add required Interview-to-PRD integrity sync pass before execution handoff:
             *   run one `planning_sync_pass` after PRD + Beads are approved and before transition to `PRE_FLIGHT_CHECK`.
             *   compare approved `interview-results` against approved `prd` and active Beads graph; detect omissions, contradictions, and out-of-scope complexity drift.
-            *   persist report at `.looptroop/tickets/<ticket-id>/planning/sync-pass-<timestamp>.json` with finding severity (`critical|major|minor`), linked artifact IDs, and remediation suggestions.
+            *   persist report at `.looptroop/worktrees/<ticket-id>/.ticket/planning/sync-pass-<timestamp>.json` with finding severity (`critical|major|minor`), linked artifact IDs, and remediation suggestions.
             *   block execution start on any `critical` finding until artifacts are corrected or user explicitly waives with a signed decision receipt.
         *   Add per-criterion runtime status fields: `pass_state` (`not_started|in_progress|pass|fail`), `last_checked_at`, and `evidence_refs`.
         *   Execution start is blocked if any approved interview decision has no Proposal mapping, any in-scope Proposal acceptance criterion has no Design mapping, or any in-scope requirement has no bead + verification mapping.
@@ -1861,7 +1862,7 @@ search: false
         *   `manual_resolution` - user resolves directly, then validators re-run.
     *   Never auto-select sync direction when contradictions are present.
     *   Offer explicit modes after direction is chosen: `merge_status` (recommended), `restart_affected_phase`, `full_restart`.
-    *   Before applying regeneration, generate `.looptroop/tickets/<ticket-id>/planning-diff-report.md` with `added`, `modified`, `removed`, and `renamed` sections.
+    *   Before applying regeneration, generate `.looptroop/worktrees/<ticket-id>/.ticket/planning-diff-report.md` with `added`, `modified`, `removed`, and `renamed` sections.
     *   Add requirement-level diff contract:
         *   `modified` entries must include previous and new acceptance-criteria checksum;
         *   `renamed` entries must include old ID/title -> new ID/title mapping plus confidence score;
@@ -1882,8 +1883,8 @@ search: false
         *   `small` -> log discovery and continue.
         *   `medium` -> create follow-up beads marked `pending_approval`.
         *   `large` -> pause ticket and move to `NEEDS_INPUT`.
-    *   Persist discoveries in `.looptroop/tickets/<ticket-id>/discoveries.jsonl` with impact, rationale, and source evidence.
-    *   Persist emergent runtime tasks in `.looptroop/tickets/<ticket-id>/runtime-tasks.jsonl` with: `runtime_task_id`, `source_discovery_id`, `linked_bead_id`, `status`, `priority`, `created_at`, `updated_at`, `evidence_refs`.
+    *   Persist discoveries in `.looptroop/worktrees/<ticket-id>/.ticket/discoveries.jsonl` with impact, rationale, and source evidence.
+    *   Persist emergent runtime tasks in `.looptroop/worktrees/<ticket-id>/.ticket/runtime-tasks.jsonl` with: `runtime_task_id`, `source_discovery_id`, `linked_bead_id`, `status`, `priority`, `created_at`, `updated_at`, `evidence_refs`.
     *   Runtime task lifecycle: `open` -> `in_progress` -> `resolved` | `blocked` | `rejected`.
     *   Runtime tasks that are approved for scope inclusion must auto-convert into follow-up beads with explicit dependency edges and trace links.
     *   Runtime tasks that remain `blocked` must include deterministic blocker metadata (`blocker_type`, `blocker_reason`, `next_action`).
@@ -1923,7 +1924,7 @@ search: false
         *   `preflight_full` before `PRE_FLIGHT_CHECK`: full runtime/product/agent readiness;
         *   `bead_start_quick` before each bead start in `CODING`: project/temp disk headroom + main implementer model ping + git worktree/branch sanity + `.gitignore` temp-pattern hygiene.
     *   Add deterministic disk policy for all phase-triggered checks: hard minimum `>= 5 GB`, recommended `>= 15 GB`; if below hard minimum, block with `disk_headroom_low` and exact remediation text.
-    *   Persist results in `.looptroop/tickets/<ticket-id>/preflight.yaml` and `.looptroop/tickets/<ticket-id>/preflight.json` with checks, status (`ready` / `not_ready`), timestamp, and blocking reasons.
+    *   Persist results in `.looptroop/worktrees/<ticket-id>/.ticket/preflight.yaml` and `.looptroop/worktrees/<ticket-id>/.ticket/preflight.json` with checks, status (`ready` / `not_ready`), timestamp, and blocking reasons.
     *   Policy:
         *   Critical failure in any gate -> `BLOCKED_ERROR`.
         *   Warnings require explicit user confirmation.
@@ -1949,12 +1950,12 @@ search: false
     *   Keep strict command allowlist in mock mode so harness cannot execute arbitrary shell commands.
 *   **Execution Dry-Run Mode (preview only):** Add an optional execution-phase dry-run that computes planned bead order/dependencies/risk/cost with zero file or git mutations, and always show a disclaimer that real execution will almost certainly drift due to non-deterministic LLM output and other factors.
 *   **Ticket Completion Finalization Contract (landing receipt + finalize-safe commit + optional release tag):**
-    *   Before marking a ticket `COMPLETED`, persist `.looptroop/tickets/<ticket-id>/landing/landing-receipt.json` with `ticket_id`, `run_id`, `flow_id`, `head_sha`, `dirty_before_finalize`, `auto_commit_sha`, `finalization_mode`, `open_blockers`, and `timestamp`.
+    *   Before marking a ticket `COMPLETED`, persist `.looptroop/worktrees/<ticket-id>/.ticket/landing/landing-receipt.json` with `ticket_id`, `run_id`, `flow_id`, `head_sha`, `dirty_before_finalize`, `auto_commit_sha`, `finalization_mode`, `open_blockers`, and `timestamp`.
     *   If tracked files are dirty at finalize time, create one deterministic safety commit (`looptroop: finalize <ticket-id>`) before squash/land so no tracked work is silently lost.
     *   Persist finalization audit event `ticket_finalized` with links to landing receipt, merge/land result, and cleanup report for post-run investigation.
     *   Optional release tag: if ticket metadata includes `target_version_tag`, create an annotated git tag after manual verification; if the tag already exists, skip creation and log a warning.
 *   **Message Steering (deterministic queued control):** During execution, while an active bead is running, user steering messages are accepted in a chat-like panel and queued for deterministic application at safe checkpoints without pausing the run. Another steering direction can be for the rest of the project, not only for next bead or active bead.
-    *   Persist steering queue at `.looptroop/tickets/<ticket-id>/steering/queue.jsonl` with `queue_id`, `run_id`, `bead_id`, `created_at`, `status`, `applied_at`, and `result`.
+    *   Persist steering queue at `.looptroop/worktrees/<ticket-id>/.ticket/steering/queue.jsonl` with `queue_id`, `run_id`, `bead_id`, `created_at`, `status`, `applied_at`, and `result`.
     *   Apply policy: if the agent is mid-iteration, apply on the next checkpoint (after current command/test cycle) unless message is marked `urgent_stop`.
     *   Queue guarantees: FIFO within priority class, max queue size, deterministic dedupe for identical pending messages, and explicit expiration policy.
     *   On reconnect/restart, restore pending steering messages and show applied vs skipped outcomes in the ticket dashboard.
@@ -1992,7 +1993,7 @@ search: false
         *   **Workflow action triggering:** Trigger workflow actions via natural language (e.g., "Retry the failed bead", "Skip the coverage check", "Cancel this ticket", "Re-run the PRD drafting phase", "Retry all the failed ones"). Actions map to the same state-machine transitions and handlers as UI buttons.
         *   **Safety model — full auto-execute with undo/rollback:**
             *   Actions execute immediately upon model interpretation — no separate confirmation dialog.
-            *   Every chat-initiated action is journaled in an append-only audit trail at `.looptroop/tickets/<ticket-id>/chat-action-audit.jsonl` with: `action_id`, `timestamp`, `action_type` (`approve`, `reject`, `edit_artifact`, `edit_file`, `workflow_action`), `target` (artifact path, file path, or transition), `before_state` (snapshot or hash of the affected state before the action), `after_state` (snapshot or hash after), `operator` (`chat_assistant`), `model_id`, `user_message` (the natural-language command that triggered the action), `result` (`success`, `failed`, `rolled_back`), and `rollback_of` (links to the original `action_id` when this entry is a rollback).
+            *   Every chat-initiated action is journaled in an append-only audit trail at `.looptroop/worktrees/<ticket-id>/.ticket/chat-action-audit.jsonl` with: `action_id`, `timestamp`, `action_type` (`approve`, `reject`, `edit_artifact`, `edit_file`, `workflow_action`), `target` (artifact path, file path, or transition), `before_state` (snapshot or hash of the affected state before the action), `after_state` (snapshot or hash after), `operator` (`chat_assistant`), `model_id`, `user_message` (the natural-language command that triggered the action), `result` (`success`, `failed`, `rolled_back`), and `rollback_of` (links to the original `action_id` when this entry is a rollback).
             *   Every action is individually reversible: the user can say "Undo that" or "Rollback the last action" and the system restores the `before_state` from the audit journal. Rollback itself is journaled as a new entry with `result: rolled_back` linking to the original.
             *   Multi-action rollback: "Undo the last N actions" replays rollbacks in reverse chronological order.
             *   Actions that trigger irreversible external side effects (e.g., git push, PR creation) are flagged as `irreversible: true` in the audit journal; rollback for these restores only the local LoopTroop state and emits a warning that the external side effect cannot be undone.
@@ -2015,13 +2016,13 @@ search: false
 *   **Ticket-Scoped Commands & Instructions (testing + workspace setup):** Allow users to attach executable commands and free-form instructions directly to a ticket at creation time, which are then consumed during execution by the appropriate workflow phases.
     *   **Testing commands/instructions:** Users can specify test commands or testing instructions in the ticket description at creation. These are persisted, validated, and injected into the execution loop so the implementing agent can use them when writing and running tests.
         *   Accept both shell commands (e.g., `npm run test:integration`, `pytest tests/api/`) and natural-language instructions (e.g., "Run all unit tests after each bead", "Always test edge cases for null inputs").
-        *   Persist testing commands at `.looptroop/tickets/<ticket-id>/testing-commands.yaml` with fields: `id`, `kind` (`command` | `instruction`), `value`, `phase_scope` (`per_bead` | `per_ticket` | `on_demand`), `created_at`, `source` (`user` | `ai_suggested`).
+        *   Persist testing commands at `.looptroop/worktrees/<ticket-id>/.ticket/testing-commands.yaml` with fields: `id`, `kind` (`command` | `instruction`), `value`, `phase_scope` (`per_bead` | `per_ticket` | `on_demand`), `created_at`, `source` (`user` | `ai_suggested`).
         *   Validate command entries for shell-injection safety (deny `&&`, `||`, `;`, pipe unless explicitly escaped) and path confinement before persistence; invalid entries are rejected with deterministic reason codes.
         *   Inject approved testing commands into execution context at relevant checkpoints: bead-scoped commands before each bead's test gate, ticket-scoped commands before the final verification pass.
         *   If a testing command fails, capture structured failure diagnostics (`command`, `exit_code`, `stderr_summary`, `timestamp`) and route to ticket recovery flow (retry, skip with warning, or block depending on policy).
     *   **Workspace setup commands/instructions:** Users can specify workspace setup commands or instructions in the ticket description at creation. These are executed or followed during workspace initialization/approval before implementation begins.
         *   Accept both shell commands (e.g., `cp .env.example .env && npm install`, `docker compose up -d db`) and natural-language instructions (e.g., "Ensure the Redis container is running before starting", "Create a test database named `test_<ticket_id>`").
-        *   Persist workspace setup commands at `.looptroop/tickets/<ticket-id>/workspace-setup.yaml` with fields: `id`, `kind` (`command` | `instruction`), `value`, `execution_order` (explicit sequence number), `created_at`, `source` (`user` | `ai_suggested`).
+        *   Persist workspace setup commands at `.looptroop/worktrees/<ticket-id>/.ticket/workspace-setup.yaml` with fields: `id`, `kind` (`command` | `instruction`), `value`, `execution_order` (explicit sequence number), `created_at`, `source` (`user` | `ai_suggested`).
         *   Execute command-type entries deterministically during workspace setup phase (before first bead starts) with per-command timeout (default 60s) and structured output logging.
         *   Instruction-type entries are injected into the agent's planning context so the implementer follows them during workspace preparation and bead execution.
         *   Workspace setup must complete with explicit user approval before implementation proceeds; persist approval receipt with `approved_by`, `approved_at`, and `command_results` summary.
@@ -2065,7 +2066,7 @@ search: false
     *   Add provider-agnostic tracing adapter in backend (no direct coupling to workflow logic) with feature flag `observability.laminar.enabled`.
     *   Trace required boundaries: council phases, bead iteration start/end, test/lint runs, retry decisions, fallback-model switches, and `BLOCKED_ERROR` transitions.
     *   Standardize span metadata for joins across systems: `ticket_id`, `flow_id`, `bead_id`, `phase`, `iteration`, `model_id`, `provider`, `status`, `latency_ms`, `token_in`, `token_out`, `cost_estimate`.
-    *   Persist local-to-remote correlation map at `.looptroop/tickets/<ticket-id>/observability/trace-map.jsonl` (`local_event_id` -> `laminar_trace_id`) so UI logs can deep-link to external traces.
+    *   Persist local-to-remote correlation map at `.looptroop/worktrees/<ticket-id>/.ticket/observability/trace-map.jsonl` (`local_event_id` -> `laminar_trace_id`) so UI logs can deep-link to external traces.
     *   Add privacy contract before export:
         *   redaction profiles (`strict`, `balanced`, `off`) for prompts/artifacts;
         *   default `strict` for production projects;
@@ -2094,7 +2095,7 @@ search: false
         *   filter mode: `include` (show only matches) and `exclude` (hide matches),
         *   match mode: `keyword` and `regex`,
         *   navigation shortcuts: `next_match`, `previous_match`, `clear_filter`,
-        *   optional per-ticket presets persisted at `.looptroop/tickets/<ticket-id>/log-filters.yaml`.
+        *   optional per-ticket presets persisted at `.looptroop/worktrees/<ticket-id>/.ticket/log-filters.yaml`.
     *   Add a flow map topology layer using ticket structure + execution dependencies (`Epic -> Story -> Bead` and `depends_on` edges) so users can see execution order and blockers at a glance.
     *   Make flow map nodes clickable to sync the detail panel (logs, status, linked PRD sections, and related artifacts) to the selected node.
     *   Persist per-user preference (`default_view = kanban | timeline | flow_map`) in profile settings; mobile defaults to compact timeline mode with optional flow map mini-view.
@@ -2116,10 +2117,10 @@ search: false
     *   **TOON-style Context Compression + Council Payload Compaction:** apply compact formatting to system-generated payloads before model submission to reduce token cost without dropping decision-critical data.
     *   Compression coverage includes council/planning payloads, execution context scaffolding, and verifier/reviewer inputs (user-authored text remains unmodified).
     *   Compression modes: `off` (debug readability), `standard` (scaffolding-only), `aggressive` (full system payload compaction).
-    *   Persist compaction receipts at `.looptroop/tickets/<ticket-id>/context/compaction/receipt-<phase>-<timestamp>.json` with `raw_tokens`, `packed_tokens`, `saved_percent`, `mode`, and `fallback_used`.
+    *   Persist compaction receipts at `.looptroop/worktrees/<ticket-id>/.ticket/context/compaction/receipt-<phase>-<timestamp>.json` with `raw_tokens`, `packed_tokens`, `saved_percent`, `mode`, and `fallback_used`.
     *   If compaction fails validation, fallback to the standard context pack path, emit `context_compaction_fallback`, and keep execution non-blocking.
     *   **Context Externalization (RLM-inspired) for Large Runs:** keep large context and loop outputs in a queryable external workspace instead of re-sending everything every iteration.
-        *   Persist per-iteration prompt snapshots, assistant last message, and raw logs in `.looptroop/tickets/<ticket-id>/context-trace/`.
+        *   Persist per-iteration prompt snapshots, assistant last message, and raw logs in `.looptroop/worktrees/<ticket-id>/.ticket/context-trace/`.
         *   Maintain an index file (`index.tsv` or `index.jsonl`) with iteration number, phase, status, and artifact paths for fast lookup.
         *   Add bounded retrieval commands (`search`, `slice`, `summarize`) so agents load only necessary segments.
         *   Enforce hard size limits and eviction policy for traces to prevent unbounded disk growth.
@@ -2160,8 +2161,8 @@ search: false
     *   Require remote context binding before task operations (`workspace_id`, `project_alias`, `ticket_scope`); reject ambiguous or missing bindings.
     *   Add deterministic remote health checks before run start (`auth`, `latency`, `quota`, `workspace_access`); failures must block start with actionable remediation.
     *   `push_config` must create remote backup before overwrite, validate schema before apply, and return deterministic diff summary.
-    *   Persist resolved backend context snapshot at `.looptroop/tickets/<ticket-id>/remote/context.json` for crash-resume parity.
-    *   Persist remote audit trail at `.looptroop/tickets/<ticket-id>/remote/audit.jsonl` with `request_id`, `endpoint`, `status_code`, `duration_ms`, `retry_count`, `timestamp`.
+    *   Persist resolved backend context snapshot at `.looptroop/worktrees/<ticket-id>/.ticket/remote/context.json` for crash-resume parity.
+    *   Persist remote audit trail at `.looptroop/worktrees/<ticket-id>/.ticket/remote/audit.jsonl` with `request_id`, `endpoint`, `status_code`, `duration_ms`, `retry_count`, `timestamp`.
     *   Persist remote instance-management audit events with alias + action + outcome in the same audit trail.
     *   Define outage policy per ticket: `block`, `retry_with_backoff`, or `fallback_to_local` (fallback allowed only if explicitly enabled).
 *   **Headless Loop Entry (CLI/API path + autopilot lifecycle):**
@@ -2170,7 +2171,7 @@ search: false
     *   Add lifecycle commands/API: `autopilot start`, `autopilot next`, `autopilot status`, `autopilot finalize`.
     *   Every headless command must return a normalized action envelope: `result_type` (`success | error | confirm | choice | input | progress | info`), `message`, optional `options[]`, optional `callback_id`, and `next_allowed_actions[]`.
     *   Add callback endpoints for interactive headless flows: `/api/callbacks/confirm/:callback_id`, `/api/callbacks/choice/:callback_id`, `/api/callbacks/input/:callback_id`.
-    *   Persist `.looptroop/tickets/<ticket-id>/autopilot/autopilot-state.json` with `run_id`, `session_id`, `current_phase`, `last_step`, `last_result_type`, `pending_callback_id`, `next_allowed_actions[]`, `last_error`.
+    *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/autopilot/autopilot-state.json` with `run_id`, `session_id`, `current_phase`, `last_step`, `last_result_type`, `pending_callback_id`, `next_allowed_actions[]`, `last_error`.
     *   `autopilot next` must execute exactly one deterministic step and persist state before returning, enabling safe resume after crashes.
     *   `autopilot finalize` must run final checks and publish a machine-readable closure report (`finalize-report.json`) before marking done.
     *   Keep behavior parity tests across sequential UI, parallel UI, and headless paths; include smoke tests that each mode mounts its correct execution bridge (`runWithUi`, `runParallelWithUi`, headless executor) so no mode can run silently without expected state updates.
@@ -2198,7 +2199,7 @@ search: false
     *   Add AI-safe metadata namespace (`metadata.ai_safe`) that is excluded from all AI prompt schemas and cannot be read/modified by council, implementer, or verifier models.
     *   Allow writes to `metadata.ai_safe` only via direct user edits and system-managed sync/import operations.
     *   Keep scheduling/execution semantics unchanged unless a field is explicitly mapped by policy (default: metadata is non-scheduling).
-    *   Persist imported source snapshot at `.looptroop/tickets/<ticket-id>/task-source-snapshot.yaml` (`source`, `external_id`, `title`, `description_hash`, `labels`, `imported_at`).
+    *   Persist imported source snapshot at `.looptroop/worktrees/<ticket-id>/.ticket/task-source-snapshot.yaml` (`source`, `external_id`, `title`, `description_hash`, `labels`, `imported_at`).
     *   Reuse one source-adapter contract for all boards (`github`, `linear`, `jira`) with deterministic operations: `test_connection`, `preview_items`, `import_item`, `push_status_update`.
     *   Require `test_connection` and `preview_items` to pass before first import or first outbound sync on a new source binding; failed checks must block binding with actionable diagnostics.
     *   Add deterministic auth fallback chain per source (no implicit guessing):
@@ -2206,12 +2207,12 @@ search: false
         *   Linear: OAuth token -> configured API key.
         *   Jira: OAuth token -> configured API token.
         *   if all candidates fail, return `source_auth_unavailable` with per-attempt reason codes.
-    *   Persist source binding receipts at `.looptroop/tickets/<ticket-id>/imports/source-binding.json` with `source`, `auth_path_used`, `test_result`, `preview_count`, `bound_at`.
+    *   Persist source binding receipts at `.looptroop/worktrees/<ticket-id>/.ticket/imports/source-binding.json` with `source`, `auth_path_used`, `test_result`, `preview_count`, `bound_at`.
     *   Add optional outbound `tasks_to_issues` sync mode with hard target validation: outbound writes are allowed only when configured target owner/repo/project exactly matches linked source metadata.
     *   If target validation fails, block outbound action and emit `target_mismatch` diagnostics; never write to fallback targets.
     *   During execution, do not auto-sync mutable external changes; surface drift as `NEEDS_INPUT` with explicit `accept_remote`, `keep_local`, or `merge` decision.
     *   Keep bi-directional update optional and explicit; never overwrite local planning artifacts silently.
-    *   Persist outbound sync receipts at `.looptroop/tickets/<ticket-id>/imports/sync-log.jsonl` including `mode`, `target`, `validated`, `result`, and `timestamp`.
+    *   Persist outbound sync receipts at `.looptroop/worktrees/<ticket-id>/.ticket/imports/sync-log.jsonl` including `mode`, `target`, `validated`, `result`, and `timestamp`.
 *   **Effort + Bead Complexity Routing:** Extend effort routing from PRD-level labels to bead-level complexity-aware execution (cheap model for simple beads, stronger reasoning models for complex beads). ([I1](https://x.com/ValiNagacevschi/status/2014736018507768235))
     *   Route model tier primarily from bead `complexity_score` and `suggested_model_tier` (from the Complexity Analysis Pass), with PRD-level effort only as fallback.
     *   Persist per-bead routing decision evidence (`score`, `tier`, `selected_model`, `fallback_reason`) in run receipts.
@@ -2241,9 +2242,9 @@ search: false
     *   **Expansion:** generate 3 distinct strategies for the blocked task (debug current path, refactor approach, temporary simplification/stub path).
     *   **Simulation:** run a lightweight first-step simulation for each strategy and score expected success/reward.
     *   **Selection + pruning:** switch execution to the highest-scoring path, prune the stuck path, and record why it was abandoned.
-    *   Persist strategy-tree artifacts at `.looptroop/tickets/<ticket-id>/planning/strategy-tree-<timestamp>.json` with assumptions, scores, and chosen branch.
+    *   Persist strategy-tree artifacts at `.looptroop/worktrees/<ticket-id>/.ticket/planning/strategy-tree-<timestamp>.json` with assumptions, scores, and chosen branch.
 *   **Reflexion Loop (memory-based self-correction):**
-    *   On each failed bead iteration, require a structured reflection entry in `.looptroop/tickets/<ticket-id>/ticket_memory.md` with `trigger`, `fault`, and `correction`.
+    *   On each failed bead iteration, require a structured reflection entry in `.looptroop/worktrees/<ticket-id>/.ticket/ticket_memory.md` with `trigger`, `fault`, and `correction`.
     *   The next retry must reference and apply the latest `correction`; retries without a new valid correction are rejected by loop control.
     *   Persist reflection outcomes (`applied`, `not_applied`, `regressed`) so harvest/review phases can measure whether the correction helped.
 *   **Global rankings:** Maestro has a global ranking for people who run the longest sessions, with badges and different levels of achievements. E.g., the best level is for those who run for 10 years (which can be achieved faster by running parallel sessions). Rankings are also done by cost. Users should be able to opt into these rankings and see their position in a leaderboard. [I1](https://runmaestro.ai/)
