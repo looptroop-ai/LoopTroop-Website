@@ -172,7 +172,7 @@ At `WAITING_PRD_APPROVAL`, the user can:
 - review any unresolved coverage warnings from a capped coverage loop
 - click `Fix gaps with AI` when unresolved warnings remain, or explicitly approve with gaps and optionally record why
 
-Approving with gaps takes an optional reason. It is stored on the approval receipt as a `gap_acknowledgement` block and in the ticket's skip trail, and it is the only record of why those gaps were accepted. The reason is about the gaps in front of you at that moment; it is not carried over from a previous coverage run.
+Approving with gaps takes an optional reason. It is stored on the approval receipt as a `gap_acknowledgement` block, which is the current record, and in the ticket's append-only skip trail as history. Nothing else explains why those gaps were accepted. The reason is about the gaps in front of you at that moment; it is not carried over from a previous coverage run.
 
 ### Saving Before Approval
 

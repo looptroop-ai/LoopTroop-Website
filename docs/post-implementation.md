@@ -230,7 +230,7 @@ If the user chooses merge, LoopTroop marks the PR ready when needed, merges it o
 
 ### 5.2 Finish-without-merge path
 
-If the user chooses the non-merge finish path (`close_unmerged` in the workflow actions), LoopTroop asks for confirmation first and takes an optional reason for stopping here. It records `disposition: closed_unmerged` in `merge_report`, along with that reason as `closeReason`, and proceeds to cleanup **without** modifying the remote PR or the remote ticket branch. Nothing later in the ticket asks why the branch stopped, so that field is the only record.
+If the user chooses the non-merge finish path (`close_unmerged` in the workflow actions), LoopTroop asks for confirmation first and takes an optional reason for stopping here. It records `disposition: closed_unmerged` in `merge_report`, along with that reason as `closeReason`, and proceeds to cleanup **without** modifying the remote PR or the remote ticket branch. It also writes an append-only skip receipt, so the reason appears in the ticket-wide **Skips** history as well as on the report. Nothing else in the ticket asks why the branch stopped.
 
 > [!IMPORTANT]
 > The current implementation does **not** auto-close or delete the PR on the `close_unmerged` path. It finishes the ticket locally while leaving the draft PR and branch untouched for later manual handling.
