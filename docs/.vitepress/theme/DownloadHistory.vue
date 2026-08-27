@@ -62,6 +62,10 @@ const hasIncompleteChanges = computed(() => metric.value === 'downloadsAdded'
 const generatedAt = computed(() => formatDateTime(history.value?.generatedAt))
 const trackingStarted = computed(() => formatDateTime(history.value?.trackingStartedAt))
 const selectedSourceMetadata = computed(() => history.value?.sources.filter(({ key }) => selectedSources.value.includes(key)) ?? [])
+const allSourcesSelected = computed(() => {
+  const sources = history.value?.sources ?? []
+  return sources.length > 0 && sources.every(({ key }) => selectedSources.value.includes(key))
+})
 const hasValues = computed(() => history.value?.buckets.some((item) => (
   selectedSources.value.some((key) => item[metric.value][key] !== null)
 )) ?? false)
@@ -91,6 +95,10 @@ function changeRange() {
 
 function toggleSource(key: string, checked: boolean) {
   selectedSources.value = updateHistorySourceSelection(selectedSources.value, key, checked)
+}
+
+function selectAllSources() {
+  selectedSources.value = history.value?.sources.map(({ key }) => key) ?? []
 }
 
 async function loadHistory() {
@@ -255,20 +263,31 @@ onBeforeUnmount(() => {
       Grouping options that would exceed 400 points are unavailable. Choose a longer interval to widen the range.
     </p>
 
-    <fieldset v-if="history" class="download-history__sources">
-      <legend>Sources</legend>
-      <label v-for="(source, index) in history.sources" :key="source.key">
-        <input
-          type="checkbox"
-          :checked="selectedSources.includes(source.key)"
-          :disabled="selectedSources.length === 1 && selectedSources.includes(source.key)"
-          @change="toggleSource(source.key, ($event.target as HTMLInputElement).checked)"
-        >
-        <span class="download-history__swatch" :style="{ backgroundColor: palette[index] }" aria-hidden="true" />
-        <span>{{ source.label }}</span>
-        <small v-if="!source.includedInTotal">not in total</small>
-      </label>
-    </fieldset>
+    <details v-if="history" class="download-history__sources">
+      <summary>
+        <span>Sources</span>
+        <span class="download-history__source-count">{{ selectedSources.length }} selected</span>
+      </summary>
+      <div class="download-history__source-controls">
+        <button type="button" :disabled="allSourcesSelected" @click="selectAllSources">
+          Select all
+        </button>
+      </div>
+      <fieldset class="download-history__source-options">
+        <legend>Choose sources</legend>
+        <label v-for="(source, index) in history.sources" :key="source.key">
+          <input
+            type="checkbox"
+            :checked="selectedSources.includes(source.key)"
+            :disabled="selectedSources.length === 1 && selectedSources.includes(source.key)"
+            @change="toggleSource(source.key, ($event.target as HTMLInputElement).checked)"
+          >
+          <span class="download-history__swatch" :style="{ backgroundColor: palette[index] }" aria-hidden="true" />
+          <span>{{ source.label }}</span>
+          <small v-if="!source.includedInTotal">not in total</small>
+        </label>
+      </fieldset>
+    </details>
 
     <div v-if="loading" class="download-history__notice" role="status">
       Loading download history…
@@ -299,36 +318,11 @@ onBeforeUnmount(() => {
         <canvas
           ref="canvas"
           role="img"
-          :aria-label="`${metric === 'downloadsAdded' ? 'Downloads added' : 'Cumulative downloads'} by ${bucket} for the selected sources. Exact values are available in the data table.`"
+          :aria-label="`${metric === 'downloadsAdded' ? 'Downloads added' : 'Cumulative downloads'} by ${bucket} for the selected sources.`"
         />
       </div>
 
       <p v-if="generatedAt" class="download-history__updated">Generated {{ generatedAt }}.</p>
-
-      <details v-if="history.buckets.length" class="download-history__data">
-        <summary>View data table</summary>
-        <div class="download-history__table-scroll">
-          <table>
-            <caption>Exact {{ metric === 'downloadsAdded' ? 'downloads added' : 'cumulative download' }} values</caption>
-            <thead>
-              <tr>
-                <th scope="col">UTC period</th>
-                <th v-for="source in selectedSourceMetadata" :key="source.key" scope="col">{{ source.label }}</th>
-                <th scope="col">Coverage</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in history.buckets" :key="item.start">
-                <th scope="row">{{ formatHistoryBucketLabel(item.start, item.end, bucket) }}</th>
-                <td v-for="source in selectedSourceMetadata" :key="source.key">
-                  {{ item[metric][source.key] === null ? 'No data' : formatHistoryCount(item[metric][source.key]!) }}
-                </td>
-                <td>{{ item.partial ? 'Partial, in progress' : item.complete ? 'Complete' : 'Incomplete' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </details>
     </template>
   </section>
 </template>
@@ -370,7 +364,7 @@ onBeforeUnmount(() => {
 }
 
 .download-history__controls label > span,
-.download-history__sources legend {
+.download-history__source-options legend {
   margin-bottom: 0.3rem;
   color: var(--vp-c-text-2);
   font-size: 0.76rem;
@@ -392,16 +386,57 @@ onBeforeUnmount(() => {
 }
 
 .download-history__sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.85rem;
   margin: 1rem 0 0;
   padding: 0.8rem;
   border: 1px solid var(--vp-c-divider);
   border-radius: 10px;
 }
 
-.download-history__sources label {
+.download-history__sources summary {
+  cursor: pointer;
+  color: var(--vp-c-text-2);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.download-history__source-count {
+  float: right;
+  color: var(--vp-c-text-3);
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+
+.download-history__source-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.download-history__source-controls button {
+  min-height: 2rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 7px;
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg);
+  cursor: pointer;
+}
+
+.download-history__source-controls button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.download-history__source-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.download-history__source-options label {
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
@@ -409,7 +444,7 @@ onBeforeUnmount(() => {
   font-size: 0.84rem;
 }
 
-.download-history__sources small {
+.download-history__source-options small {
   color: var(--vp-c-text-3);
   font-size: 0.7rem;
 }
@@ -463,39 +498,6 @@ onBeforeUnmount(() => {
 .download-history__updated {
   margin-top: 0.5rem !important;
   text-align: right;
-}
-
-.download-history__data {
-  margin-top: 1rem;
-}
-
-.download-history__data summary {
-  cursor: pointer;
-  font-weight: 650;
-}
-
-.download-history__table-scroll {
-  overflow-x: auto;
-  margin-top: 0.75rem;
-}
-
-.download-history__data table {
-  display: table;
-  width: 100%;
-  min-width: 38rem;
-  margin: 0;
-}
-
-.download-history__data caption {
-  padding: 0.5rem;
-  color: var(--vp-c-text-2);
-  text-align: left;
-}
-
-.download-history__data th,
-.download-history__data td {
-  font-variant-numeric: tabular-nums;
-  vertical-align: top;
 }
 
 @media (max-width: 720px) {

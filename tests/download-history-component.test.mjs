@@ -15,17 +15,26 @@ test('exposes all interactive chart controls and grouped datasets', () => {
   assert.match(source, /v-model="metric"/)
   assert.match(source, /v-model="chartStyle"/)
   assert.match(source, /type="checkbox"/)
+  assert.match(source, /Select all/)
+  assert.match(source, /function selectAllSources\(\)/)
+  assert.match(source, /allSourcesSelected/)
   assert.match(source, /stacked: false/)
 })
 
-test('keeps exact values and coverage available without reading the canvas', () => {
+test('keeps the chart accessible without rendering a data table', () => {
   assert.match(source, /role="img"/)
-  assert.match(source, /Exact values are available in the data table/)
-  assert.match(source, /<details[^>]+download-history__data/)
-  assert.match(source, /<caption>/)
-  assert.match(source, /<th scope="row">/)
+  assert.match(source, /:aria-label="\`\$\{metric === 'downloadsAdded'/)
+  assert.doesNotMatch(source, /View data table/)
+  assert.doesNotMatch(source, /download-history__data/)
+  assert.doesNotMatch(source, /<table>/)
   assert.match(source, /No data/)
-  assert.match(source, /Partial, in progress/)
+  assert.match(source, /current UTC bucket is still in progress/)
+})
+
+test('collapses source filters by default', () => {
+  assert.match(source, /<details v-if="history" class="download-history__sources">/)
+  assert.match(source, /<summary>/)
+  assert.doesNotMatch(source, /<details[^>]+download-history__sources[^>]+open/)
 })
 
 test('has independent loading, empty, stale, partial, and error messages', () => {
