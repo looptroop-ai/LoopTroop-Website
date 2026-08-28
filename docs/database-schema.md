@@ -105,6 +105,7 @@ The project database is the operational store for one attached repository. LoopT
 | `ticket_status_history` | Append-only status transition log |
 | `ticket_error_occurrences` | Append-only blocked-error history plus resolution state |
 | `bead_execution_metrics` | One row per completed bead; powers throughput/ETA forecasting |
+| `question_waits` | One row per stretch a ticket spent waiting for a human answer to an AI question |
 | `ticket_ai_turn_metrics` | One idempotent row per newly completed OpenCode assistant message; powers AI/model details |
 | `execution_log_projection` | Rebuildable, query-oriented rows projected from the three durable JSONL log channels |
 | `execution_log_projection_cursors` | Per-ticket/channel byte offsets used for incremental projection catch-up |
@@ -319,7 +320,7 @@ Columns:
 - `size_bucket` — ticket size class by total bead count (`S` 1-5, `M` 6-12, `L` 13+)
 - `effort_tier` — the ticket's locked main-implementer reasoning variant (e.g. `medium`)
 - `iterations` — attempts including retries
-- `active_duration_ms` — bead completion time, excluding windows where the ticket was outside `CODING`
+- `active_duration_ms` — bead completion time, excluding windows where the ticket was outside `CODING` and any time spent waiting on an answer to an AI question
 - `wall_clock_ms` — `completed_at - started_at` (diagnostic only)
 - `completed_at`
 - `schema_version`
@@ -327,10 +328,26 @@ Columns:
 
 Operational notes:
 
-- `active_duration_ms` is measured from bead start to bead completion, minus any window the ticket spent outside `CODING`; this keeps local finalization in the ETA because the forecast represents time until the bead is actually complete
+- `active_duration_ms` is measured from bead start to bead completion, minus any window the ticket spent outside `CODING` and minus any time it spent waiting for a human answer to an AI question; this keeps local finalization in the ETA because the forecast represents time until the bead is actually complete, while keeping a wait for a person out of it — a question does not change the ticket's status, so without `question_waits` the wait would be indistinguishable from coding and would train the forecast on throughput that never happened
 - rows with no usable timing (`active_duration_ms <= 0`) are skipped so they cannot poison future medians
 - ETA is computed **read-time** in `buildRuntime` from these rows (rich bucketed history with a `(size+effort) -> effort -> any` fallback, current-run samples while the ticket is building its own signal, sparse history before the hardcoded default); nothing about the forecast itself is persisted
 - the reserved token/cost columns let Cost Management extend the same per-bead record later without changing existing readers
+
+### `question_waits`
+
+One row per stretch a ticket spent waiting for a person to answer an AI question.
+
+Columns:
+
+- `ticket_id`
+- `started_at`, `ended_at`
+
+Operational notes:
+
+- an interval opens when the ticket's first question arrives and closes when its last one is resolved, so two overlapping questions record one stretch of wall time rather than two that would each subtract the same minutes
+- the in-memory work budget holds the same number for the running phase timeouts; this table is the copy that survives a restart and can be asked about a window in the past
+- read by the ticket's implementation timing (`activeDurationMs`, `workspacePreparationDurationMs`, `finalTestingDurationMs`, each net of the overlap, plus `questionWaitingMs` reported on its own) and by `bead_execution_metrics`
+- written best-effort; a lost row costs accuracy in a reported duration, never correctness in a run
 
 ### `ticket_ai_turn_metrics`
 

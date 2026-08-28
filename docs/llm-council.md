@@ -61,6 +61,8 @@ LoopTroop reduces obvious bias by:
 
 The goal is not consensus chat. The goal is competitive evaluation under the same rubric.
 
+**One exception to "the drafts are identical in kind."** If a member stopped to ask you something and you answered, that member drafted against instructions the others never saw — and the voters have not seen them either. Left unmarked, the draft that actually followed your steering reads as the one that disagrees with everybody else, so the most informed draft is the one most likely to lose. Such a draft carries a note saying its author was given an answer during drafting and that it should not be marked down merely for differing. The note names no model, so anonymity holds.
+
 ## 5. Step 3: Refinement
 
 Once a winner is selected, the winning direction is refined into the canonical artifact for the phase. This process is driven by the orchestration logic in `server/council/refiner.ts` and supported by utilities in `server/council/draftUtils.ts` to merge the strongest elements from competing drafts into the final output.

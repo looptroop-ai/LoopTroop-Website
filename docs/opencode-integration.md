@@ -294,7 +294,7 @@ Waiting does not consume the step's working time. Attaching a request suspends e
 
 Live timer state lives in memory; the durable copy is written to phase artifacts under the `opencode_question:` and `opencode_question_timer:` prefixes. On expiry, every request on the timer is rejected with up to three attempts, and a transport failure aborts the session rather than leaving the record pending, because "expiry that cannot reject" recreates the hang the module exists to prevent. Each rejection writes a skip receipt naming the actor (`timeout` for the wait running out, `user` for a manual skip, `system` for a lost session or a restart that could not re-attach), the configured window, the elapsed time, and the sibling requests the same expiry covered.
 
-On startup, `reconcilePendingQuestionsAfterRestart()` re-arms a question whose session reconnected with a fresh full wait, since the old deadline belonged to a process that is gone, and rejects one whose session did not come back.
+On startup, `reconcilePendingQuestionsAfterRestart()` runs once per project against a session-to-ticket ownership map covering the whole project, because `listPendingQuestions()` answers per project: reconciling ticket by ticket would show each pass its siblings' questions as ownerless, and a ticket whose sessions had all been abandoned would never be visited at all. A question whose session reconnected is rebuilt from its `opencode_question_timer:` artifact, which is authoritative — `stoppedAt` survives, a live deadline keeps its remaining time, and a deadline already past fires as soon as it is armed. One whose session did not come back is rejected.
 
 ## 10. Health And Model Discovery
 

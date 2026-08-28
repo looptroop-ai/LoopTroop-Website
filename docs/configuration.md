@@ -587,7 +587,9 @@ OpenCode's reject call carries only a request id, so a reason stays on the LoopT
 
 How long a question waits for you before the run carries on.
 
-**Waiting does not use up the step's working time.** While a question is pending, every clock on the ticket stops, and the elapsed wall time is credited back when it resolves. A step can therefore take its full timeout *plus* the time it spent waiting on you. The wait does not have to fit inside [Per-Iteration Timeout](#per-iteration-timeout), [Execution Setup Timeout](#execution-setup-timeout), or [AI Response Timeout](#ai-response-timeout), and there is no validation tying it to any of them.
+**Waiting does not use up the step's working time.** While a question is pending, every clock on the ticket stops, and the elapsed wall time is credited back when it resolves. A step can therefore take its full timeout *plus* the time it spent waiting on you. The wait does not have to fit inside [Per-Iteration Timeout](#per-iteration-timeout), [Execution Setup Timeout](#execution-setup-timeout), or [AI Response Timeout](#ai-response-timeout), and there is no validation tying it to any of them. This holds in every step that can ask, including the ones that do not manage a clock of their own.
+
+**Waiting is not counted as implementation time either.** A question does not change the ticket's status, so a wait inside `CODING` would otherwise be recorded as coding — inflating the ticket's active duration and training the delivery estimate on throughput that never happened. It is recorded separately and shown on its own line in the ticket header when there is any.
 
 **One countdown per step**, shared by every model asking inside it. It cannot be one per question: OpenCode's reply carries every answer in a single payload, so expiring question 2 would discard the answers already typed into 1 and 3. It is not one per request either, because a council seats several models in one step and that would put three countdowns on screen for one decision. A new model asking resets a running clock to full; it does not restart a stopped one.
 
@@ -595,7 +597,7 @@ How long a question waits for you before the run carries on.
 
 **The deadline belongs to the server.** Close the browser, come back two minutes later, and two minutes are gone. The page corrects for clock skew against a `serverNow` field sent with every timer update, but it never owns the clock.
 
-Sessions survive a daemon restart, so questions do too. On startup, a question whose session reconnected is re-armed with a fresh full wait, because the old deadline belonged to a process that is gone. One whose session did not come back is refused under a `system` actor.
+Sessions survive a daemon restart, so questions do too — and so does the clock they were on. A countdown you had stopped stays stopped. One still inside its window keeps the time it had left. One whose wait ran out while the daemon was down is refused immediately rather than being handed another full window, so a restart cannot postpone an expiry indefinitely. A question whose session did not come back is refused under a `system` actor.
 
 **Trade-offs:**
 
