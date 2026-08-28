@@ -847,7 +847,7 @@ There is deliberately no `skippedBy` field. A client claiming `timeout` would fo
 
 `POST /api/tickets/:id/opencode/question-timer/stop` takes an empty object and returns `{ "success": true, "timers": [...], "timer": ... }`. Every way of engaging goes through it: switching model tabs, moving between questions, focusing an answer field, and pressing **Stop timer**. It is idempotent, and a second call returns the same state rather than an error. There is no matching resume; the ways out of a stopped countdown are answering and skipping.
 
-Reply, reject, and expiry all race for the same request. Whichever arrives first claims it, and the losers get `409` with `That question was already resolved` rather than sending a second verdict for a question that already has one.
+Reply, reject, and expiry all race for the same request. Whichever arrives first claims it; a loser gets `409` with `That question was already resolved` while the claim is still in flight, and `404` once the request has been cleared. Neither sends a second verdict for a question that already has one. A reply or reject that fails to reach OpenCode hands its claim back, so the request stays answerable.
 
 See [Configuration → AI Questions](configuration.md#ai-questions) for the settings that decide whether a model may ask and how long it waits.
 
