@@ -561,7 +561,7 @@ On Start, LoopTroop freezes both values and where each came from: `lockedAiQuest
 
 **What you see when a model asks:**
 
-A collapsible panel opens at the top of the ticket and pushes the workspace down. There is no modal. Each asking model gets a tab, and the countdown appears once, in the panel header. Elsewhere in the app a slim bar slides down naming the ticket that is waiting.
+A collapsible panel opens at the top of the ticket and pushes the workspace down. There is no modal. When more than one model is asking, each gets its own tab. The countdown appears once, in the panel header, because there is only one. Elsewhere in the app a slim bar slides down naming the ticket that is waiting.
 
 On the board, the ticket moves to **Needs Input** and its status badge pulses blue, distinct from the red used for errors, because a question is not a failure. The ticket's workflow status does not change; only the board column does.
 
