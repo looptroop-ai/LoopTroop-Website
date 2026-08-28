@@ -419,15 +419,21 @@ Among the custom LoopTroop state providers, three carry most of the frontend-spe
 | --- | --- | --- |
 | `LogProvider` | `LogContext.tsx` | Owns the bounded in-memory live-log overlay for the active ticket. Merges SSE-delivered rows immediately by stable identity; paginated durable history stays in React Query and is never copied into `localStorage`. |
 | `UIProvider` | `UIContext.tsx` | Manages app UI state such as the selected ticket, `filters.search`, Kanban triage filters (`status`, `phase`, `priority`, `stuckDays`, `errorState`, `sortBy`), project-scoped triage presets (`presetsByProject`), sidebar state, log panel height, and theme. It persists that state to `localStorage` before paint after UI updates and keeps the browser URL in sync with the active view. |
-| `AIQuestionProvider` | `AIQuestionContext.tsx` | Manages the queue of pending OpenCode human-input requests across active tickets, including minimize/reopen state, answer/reject actions, and periodic recovery from `/api/opencode/questions`. |
+| `AIQuestionProvider` | `AIQuestionContext.tsx` | Manages the queue of pending OpenCode human-input requests across active tickets, including minimize/reopen state, answer/skip actions, the server-owned countdown, and periodic recovery from `/api/opencode/questions`. |
 
 Interview draft persistence is separate: `InterviewQAView` uses `useBatchSubmit()` and ticket UI-state artifacts for interview answers, while `AIQuestionProvider` is specifically for execution-time OpenCode questions.
+
+An AI question no longer opens a modal over whatever you were doing. `PendingQuestionsPanel` is a collapsible section at the top of the selected ticket that pushes the workspace down, with one tab per asking model and the countdown shown once in the panel header. For any other ticket, `AIQuestionProvider` renders a slim bar at the top of the app naming the ticket that is waiting; it can be opened or dismissed.
+
+The deadline belongs to the server. The provider measures a clock offset against the `serverNow` field on each timer update and renders the remaining time from the server's `deadlineAt`, so a browser whose clock is minutes out still counts down to the moment that will actually fire, and closing the tab pauses nothing. Every way of engaging — switching model tabs, moving between questions, focusing an answer field, pressing **Stop timer** — posts once to `/api/tickets/:id/opencode/question-timer/stop` and is remembered, so typing does not re-post. Stopping is permanent; the ways out are answering and skipping.
 
 ## 12. Kanban Board
 
 `KanbanBoard` (`src/components/kanban/KanbanBoard.tsx`) is the alternate ticket overview. It groups `TicketCard` components into four fixed board locations: To Do, Needs Input, In Progress, and Done.
 
-Ticket placement comes from the `kanbanPhase` mapping in `workflowMeta.ts`/`STATUS_TO_PHASE`. To Do is for created-but-not-started tickets, Needs Input is for any user-owned pause including blocked errors, In Progress is for active AI or system workflow work, and Done is for completed or canceled terminal tickets. `KanbanColumn` handles the per-column layout and empty-column suppression.
+Ticket placement comes from `resolveKanbanPhase()` in `shared/kanbanPhase.ts`, which reads the `kanbanPhase` mapping in `workflowMeta.ts` and then applies pending-question state on top. To Do is for created-but-not-started tickets, Needs Input is for any user-owned pause including blocked errors, In Progress is for active AI or system workflow work, and Done is for completed or canceled terminal tickets. `KanbanColumn` handles the per-column layout and empty-column suppression.
+
+The rule is shared rather than frontend-only because the server derives the same placement for the ticket list and the acknowledgement signature; two copies would drift the first time one learned about a new kind of blocker. An `in_progress` ticket with a pending AI question is redirected to Needs Input. Until you have seen it, its status badge pulses blue — a third treatment beside the red pulse for an unseen error and the amber one for an unseen approval or interview wait. The card also carries a question-mark icon and the number of questions outstanding.
 
 The board keeps fixed relative column weights on wide screens, with To Do and Done intentionally narrower than the middle workflow columns. Ticket cards therefore wrap long titles, project names, status badges, and timestamps inside the existing column width rather than forcing horizontal scrolling or clipping narrow edge columns. Kanban columns opt into block-based scroll-area content so the scroll viewport does not expand to the widest card.
 

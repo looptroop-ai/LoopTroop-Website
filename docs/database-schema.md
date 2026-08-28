@@ -60,6 +60,7 @@ Important columns:
 - timeout settings in milliseconds: `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`
 - coverage controls: `coverage_follow_up_budget_percent`, `max_coverage_passes`, `max_prd_coverage_passes`, `max_beads_coverage_passes`
 - Manual QA baseline: `manual_qa_enabled` (non-null boolean, default `true`)
+- AI question baseline: `ai_questions_enabled` (non-null boolean, default `true`) and `ai_question_window` (milliseconds, default `300000`)
 - internal Git behavior: `git_hook_policy` (non-null text, default `validate_advisory`)
 - LoopTroop folder ignore destination: `ignore_mode` (non-null text, default `local`)
 - OpenCode retry controls: `opencode_retry_limit`, `opencode_retry_delay`, `opencode_steps`
@@ -114,7 +115,7 @@ Important columns:
 
 - display/identity: `name`, `shortname`, `icon`, `color`, `folder_path`
 - saved project settings: `manual_qa_override`, `git_hook_policy`, `ignore_mode`
-- nullable overrides: `council_members`, `max_iterations`, `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`, `min_council_quorum`, `interview_questions`
+- nullable overrides: `council_members`, `max_iterations`, `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`, `min_council_quorum`, `interview_questions`, `ai_questions_override`, `ai_question_window_override`
 - sequencing: `ticket_counter`
 - metadata: `profile_id`
 
@@ -150,6 +151,7 @@ Important columns:
 - failure surface: `error_message`
 - cancellation: `cancel_reason`
 - Manual QA and reconciliation: nullable Draft-only `manual_qa_override`, frozen `locked_manual_qa_enabled`, frozen `locked_manual_qa_source`, and monotonic `workflow_revision`
+- AI questions: nullable Draft-only `ai_questions_override` and `ai_question_window_override`, frozen `locked_ai_questions_enabled`, `locked_ai_questions_source`, `locked_ai_question_window`, and `locked_ai_question_window_source`
 - Git-hook behavior: frozen `locked_git_hook_policy` and `locked_git_hook_policy_source`; fresh schemas have no ticket-level Git-hook override
 - frozen-on-start settings: `locked_main_implementer`, `locked_main_implementer_variant`, `locked_council_members`, `locked_council_member_variants`, `locked_interview_questions`, `locked_coverage_follow_up_budget_percent`, `locked_max_coverage_passes`, `locked_max_prd_coverage_passes`, `locked_max_beads_coverage_passes`, `locked_structured_retry_count`
 - lifecycle times: `started_at`, `planned_date`, `created_at`, `updated_at`
@@ -160,6 +162,7 @@ Operational notes:
 - `external_id` is the stable human-facing identifier; the API turns it into a public ticket ref by prefixing the public project id
 - locked configuration columns freeze the profile/project settings that were in force when the ticket started
 - `manual_qa_override` uses SQL `NULL` for Inherit and booleans for Enabled/Disabled; resolution order is ticket → project → profile, and missing locked values on older started tickets mean disabled
+- the two AI-question overrides follow the same `NULL`-means-inherit convention and the same ticket → project → profile order, but resolve independently of each other, so a ticket can hold its own window while inheriting the on/off answer. Missing locked values on older started tickets mean the run may not ask at all: a ticket already in flight should not silently gain the ability to stop and wait for a person
 - Start snapshots the project's `git_hook_policy` and its project source for execution-setup planning. Older databases may retain an obsolete ticket `git_hook_policy` column and data, but current create/update/read resolution ignores it; no compatibility migration is required.
 - `cancel_reason` holds why the operator cancelled, and is a ticket column rather than a phase artifact on purpose: cancelling with **Delete AI-generated artifacts** removes every `phase_artifacts` row for the ticket, so a receipt would be erased by the same action that wrote it. Cancelling with **Delete the ticket completely** leaves nothing, including this.
 - `workflow_revision` increases on status transitions and lets polling/SSE consumers reject stale state even when the workflow moves backward from Manual QA to Coding
@@ -186,7 +189,9 @@ Operational notes:
 - `phase_attempt` versions artifacts across retries, regenerations, and post-approval restarts for tracked phases
 - the database does **not** have a `file_path` column; API artifact payloads may expose `filePath`, but DB-backed artifacts currently return `null`
 - this table stores more than just final docs: examples include `interview`, `prd`, `beads`, `execution_setup_plan`, coverage artifacts, `approval_snapshot:*`, `ui_state:error_attention`, `cleanup_report`, `merge_report`, `final_test_report`, and `pull_request_report`
-- `skip_receipt:<surface>` rows are the append-only record of every user action that skipped something. The surface is part of the artifact type: `interview_question`, `interview_all`, `interview_approval_mark_skipped`, `approval_with_gaps`, `close_unmerged`, and `cancel_ticket`. Each row carries a schema version, an idempotent `action_id`, the item, the phase and attempt, the ticket status before the action, the timestamp, and the reason as it read at that moment. A bulk action writes one summary row plus one row per item, all in a single transaction, which is what makes a forty-question Skip All count as one action rather than forty-one skips. Manual QA is not in that list: it already wrote its own skip and waiver records, and the shared read API adapts those rather than adding a duplicate.
+- `skip_receipt:<surface>` rows are the append-only record of everything that got skipped. The surface is part of the artifact type: `interview_question`, `interview_all`, `interview_approval_mark_skipped`, `approval_with_gaps`, `close_unmerged`, `cancel_ticket`, and `opencode_question`. Each row carries a schema version, an idempotent `action_id`, the item, the phase and attempt, the ticket status before the action, the timestamp, and the reason as it read at that moment. A bulk action writes one summary row plus one row per item, all in a single transaction, which is what makes a forty-question Skip All count as one action rather than forty-one skips. Manual QA is not in that list: it already wrote its own skip and waiver records, and the shared read API adapts those rather than adding a duplicate.
+- receipts are at schema version `2`. `skipped_by` widened from the literal `user` to `user | timeout | system`, because a question the wait ran out on was refused by nobody and filing that under a person's name is a lie the trail cannot walk back. Rows written before the field existed report `user`, which is what they meant. `opencode_question` rows additionally carry a `question_context` object with the request and session IDs, the configured window, the armed and deadline times, how many times another model reset the shared clock, the elapsed wall and active time, the sibling requests the same refusal covered, an expiry reason, and a quorum-impact note where one applies. It is on the receipt because the request itself is gone the moment OpenCode is told, leaving no current state to read.
+- `opencode_question:<sessionId>:<requestId>` and `opencode_question_timer:<phase>:<attempt>` are the durable copies of live AI-question state. Memory is the cache and these are the record: a daemon restart rebuilds from them, or refuses what it cannot rebuild. Failing to write one costs a restart's worth of recovery, not the wait itself, so the write is best-effort and never blocks a run.
 - Manual QA keeps compact append-only checklist, coverage, results, draft snapshot, and summary artifacts here; live editing exists only as `ui_state:manual_qa_draft:vN` with a server-owned compare-and-set revision
 - council companion artifacts may embed draft/vote metadata and attempt diagnostics in `content`; malformed model text is intentionally kept out of structured fields
 

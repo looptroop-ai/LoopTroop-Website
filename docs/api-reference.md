@@ -143,6 +143,8 @@ Example profile update payload:
   "councilMembers": "[\"openai/gpt-5.4\",\"anthropic/claude-sonnet-4\"]",
   "councilMemberVariants": "{\"openai/gpt-5.4\": \"high\"}",
   "manualQaEnabled": true,
+  "aiQuestionsEnabled": true,
+  "aiQuestionWindow": 300000,
   "gitHookPolicy": "validate_advisory",
   "ignoreMode": "local",
   "minCouncilQuorum": 2,
@@ -183,6 +185,7 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `maxCoveragePasses` | `1` to `10` | Shared generic coverage loop |
 | `maxPrdCoveragePasses`, `maxBeadsCoveragePasses` | `2` to `20` | PRD and beads coverage loops have a stricter lower bound |
 | `maxIterations` | `0` to `20` | `0` is allowed for tickets that should not iterate |
+| `aiQuestionWindow` | `60000` to `3600000` ms | How long an AI question waits before the run carries on; defaults to `300000` |
 | `gitHookPolicy` | `observe_only`, `validate_advisory`, `validate_required`, `use_native_hooks` | Future-project default for LoopTroop-owned Git operations; `validate_advisory` is the built-in default |
 | `ignoreMode` | `repo`, `local`, `skip` | Future-project folder-ignore default; `local` is the built-in default |
 | `toolInputMaxChars`, `toolErrorMaxChars` | `500` to `50000` | Applied to OpenCode tool transcript truncation |
@@ -281,6 +284,8 @@ Create and update routes also accept optional project-level overrides for future
 {
   "councilMembers": "[\"openai/gpt-5.4\",\"anthropic/claude-sonnet-4\"]",
   "manualQaOverride": true,
+  "aiQuestionsOverride": null,
+  "aiQuestionWindowOverride": 600000,
   "gitHookPolicy": "use_native_hooks",
   "maxIterations": 7,
   "perIterationTimeout": 1500000,
@@ -290,6 +295,8 @@ Create and update routes also accept optional project-level overrides for future
   "interviewQuestions": 40
 }
 ```
+
+`aiQuestionsOverride` and `aiQuestionWindowOverride` are nullable, and `null` means inherit from the profile. They cascade independently, so a project can set its own wait while taking the on/off answer from Configuration. The window accepts `60000` to `3600000` ms.
 
 The Manual QA and Git-hook choices submitted for a new project are concrete saved project settings. If either is omitted at creation, LoopTroop copies the current profile default; an explicit value wins. Project updates affect future ticket starts, while existing tickets keep their locked values. `ignoreMode` is likewise concrete, but it is attach-time only and controls where LoopTroop appends its runtime-folder rules rather than ticket execution.
 
@@ -343,11 +350,28 @@ Example ticket creation payload:
   "title": "Implement refresh-token rotation",
   "description": "Rotate refresh tokens and invalidate the family on reuse.",
   "priority": 2,
-  "manualQaOverride": null
+  "manualQaOverride": null,
+  "aiQuestionsOverride": null,
+  "aiQuestionWindowOverride": null
 }
 ```
 
-Create-ticket validation requires a non-empty title up to 500 characters. The optional description is capped at 50,000 characters, and `manualQaOverride` accepts a boolean or `null`. Update validation is slightly narrower: patched titles are capped at 200 characters, Manual QA changes return `409` outside Draft, and `status` is API-protected so workflow transitions must go through the action routes below. Ticket create/update payloads do not accept `gitHookPolicy`; Git-hook policy belongs to the project.
+Create-ticket validation requires a non-empty title up to 500 characters. The optional description is capped at 50,000 characters, and `manualQaOverride` accepts a boolean or `null`. `aiQuestionsOverride` accepts a boolean or `null`, and `aiQuestionWindowOverride` accepts `60000` to `3600000` ms or `null`; `null` means inherit from the project, then the profile. Update validation is slightly narrower: patched titles are capped at 200 characters, Manual QA and AI-question changes return `409` outside Draft, and `status` is API-protected so workflow transitions must go through the action routes below. Ticket create/update payloads do not accept `gitHookPolicy`; Git-hook policy belongs to the project.
+
+Ticket read responses expose the resolved values as `effectiveAiQuestionsEnabled` / `effectiveAiQuestionsSource` and `effectiveAiQuestionWindow` / `effectiveAiQuestionWindowSource`, alongside the equivalent Manual QA fields. The source is `ticket`, `project`, or `profile`. Once a ticket has started, these read from the columns frozen at Start rather than from current settings, and a ticket that started before these settings existed resolves to off.
+
+Ticket list and detail responses also carry `pendingQuestions`, which is `null` when nothing is waiting:
+
+```json
+{
+  "requestCount": 3,
+  "questionCount": 6,
+  "deadlineAt": "2026-08-28T09:19:02.113Z",
+  "stoppedAt": null
+}
+```
+
+The two counts disagree on purpose: a council of three models asking two things each is 3 requests and 6 questions. Surfaces that speak to a person count questions. There is one `deadlineAt` rather than an earliest-of, because the countdown belongs to the step and every request in it shares one. This is what moves a card into the **Needs Input** board column; the ticket's `status` does not change.
 
 Before Start, ticket responses expose the stored Manual QA choice and its effective fields. Git-hook fields remain read-only workflow data: `effectiveGitHookPolicy` reflects the saved project choice, and Start snapshots it into `lockedGitHookPolicy` with a project source so later project edits do not alter that run. A legacy project whose saved policy is missing may still report `profile` as the fallback source until it is restored or resaved.
 
@@ -775,9 +799,30 @@ Regeneration payload:
 | `GET` | `/api/opencode/questions` | Aggregate pending OpenCode question requests across active tickets |
 | `GET` | `/api/tickets/:id/opencode/questions` | List pending OpenCode question requests |
 | `POST` | `/api/tickets/:id/opencode/questions/:requestId/reply` | Submit question answers |
-| `POST` | `/api/tickets/:id/opencode/questions/:requestId/reject` | Reject a question request |
+| `POST` | `/api/tickets/:id/opencode/questions/:requestId/reject` | Skip a question request, with an optional reason |
+| `POST` | `/api/tickets/:id/opencode/question-timer/stop` | Stop the countdown for a ticket because a person is dealing with it |
 
-List responses return `{ "questions": [...] }`, and the aggregate route may also include `{ "errors": [...] }` when some tickets fail question discovery.
+`GET /api/tickets/:id/opencode/questions` returns `{ "questions": [...], "timer": ... }`. The aggregate route returns `{ "questions": [...], "timers": {...} }`, keyed by ticket ID, and may also include `{ "errors": [...] }` when some tickets fail question discovery. Each question entry carries a `timerKey` naming the countdown it belongs to; several entries can share one.
+
+Both list routes reconcile against OpenCode before answering. A poll that succeeds prunes anything OpenCode no longer lists and arms a countdown for anything OpenCode has that LoopTroop is not yet tracking. A poll that fails prunes nothing, because an unreachable server is not evidence that a question went away.
+
+Timer shape, which appears as `timer` on the per-ticket route, as a value in `timers` on the aggregate route, and inside the `needs_input` SSE payload:
+
+```json
+{
+  "timerKey": "CODING:1",
+  "windowMs": 300000,
+  "armedAt": "2026-08-28T09:14:02.113Z",
+  "deadlineAt": "2026-08-28T09:19:02.113Z",
+  "stoppedAt": null,
+  "stoppedBy": null,
+  "resetCount": 0,
+  "revision": 1,
+  "serverNow": "2026-08-28T09:14:31.007Z"
+}
+```
+
+There is one countdown per `<phase>:<attempt>`, shared by every model asking inside that step, not one per question and not one per request. `resetCount` records how many times a new model arriving pushed a running clock back to full; a stopped clock is never restarted. `revision` increases on every transition, so a late SSE frame cannot undo a newer one. `serverNow` is the server's clock at the moment the state was built, and is what lets a client correct for skew without owning the deadline. A non-null `stoppedAt` means the countdown will never expire.
 
 Reply payload:
 
@@ -791,6 +836,20 @@ Reply payload:
 ```
 
 The outer `answers` array must stay in the same order as the returned `questions` array for that request. Each inner array carries the answer values for one question, which lets multi-select prompts submit more than one string.
+
+Reject payload, where `reason` is optional and capped at 20,000 characters:
+
+```json
+{ "reason": "Answered in the ticket description already." }
+```
+
+There is deliberately no `skippedBy` field. A client claiming `timeout` would forge a machine decision into the audit trail, so this route always records `user`. A question the wait ran out on is refused by the server under `timeout`, and one refused because a restart could not re-attach its session is refused under `system`.
+
+`POST /api/tickets/:id/opencode/question-timer/stop` takes an empty object and returns `{ "success": true, "timers": [...], "timer": ... }`. Every way of engaging goes through it: switching model tabs, moving between questions, focusing an answer field, and pressing **Stop timer**. It is idempotent, and a second call returns the same state rather than an error. There is no matching resume; the ways out of a stopped countdown are answering and skipping.
+
+Reply, reject, and expiry all race for the same request. Whichever arrives first claims it, and the losers get `409` with `That question was already resolved` rather than sending a second verdict for a question that already has one.
+
+See [Configuration → AI Questions](configuration.md#ai-questions) for the settings that decide whether a model may ask and how long it waits.
 
 ### Artifact And History Routes
 
@@ -815,6 +874,8 @@ The projected log route accepts `scope=phase|lifecycle`, `view=overview|system|c
 `GET /api/tickets/:id/ai-details` accepts `scope=phase|lifecycle` and an optional `modelId`. Phase scope requires `phase`; `phaseAttempt` selects an archived attempt or defaults to the active attempt using the same resolver as phase logs. Lifecycle scope ignores phase boundaries. The response contains completed turn/session counts, nullable cost and token aggregates, nullable total/average/longest duration, per-metric reporting coverage, and `updatedAt`. A nullable aggregate means OpenCode did not report that metric; it is not equivalent to zero.
 
 `GET /api/tickets/:id/skips` returns the append-only skip trail for a ticket, oldest first, with optional `phase` and comma-separated `surfaces` filters. An unknown surface returns `400`. It is deliberately not filtered by phase attempt: the artifact routes hide archived attempts, which is right for what a phase is working from and wrong for an audit trail, because a receipt from a retried attempt is still a decision somebody made. Each event carries its receipt and action IDs, surface, item, phase and attempt, timestamp, reason, and whether a later action on the same item superseded it. `counts` reports actions and items separately, so a forty-question Skip All is one action and forty items rather than forty-one skips.
+
+Every event also carries `skippedBy`, one of `user`, `timeout`, or `system`. Receipts written before this field existed report `user`, which is what they meant: a person was the only actor there was. Events on the `opencode_question` surface additionally carry `questionContext` with the request and session IDs, the asking model, the question count, the configured `window_ms`, `armed_at` and `deadline_at`, `reset_count`, `stopped_at` / `stopped_by`, `elapsed_wall_ms` and `elapsed_active_ms`, the `sibling_request_ids` the same refusal covered, an `expiry_reason`, and a `quorum_impact` line when the refusal cost a council round its quorum. `elapsed_active_ms` is wall time minus what the wait credited back, so a question that ran its full window reports zero: the wait cost the step nothing.
 
 ```json
 {
@@ -986,7 +1047,18 @@ The stream endpoint emits two categories of events:
 | `log` | A new execution log entry is written | flat `LogEvent` fields: `ticketId`, `type`, `content`, `kind`, `op`, `phase`, `entryId`, … (no `logEntry` wrapper) |
 | `bead_complete` | A single bead finishes execution | `ticketId`, `beadId`, `title`, `completed`, `total` |
 | `needs_input` | A pending question or interview batch needs the user | `ticketId`, `type`, plus a shape that varies by source (interview batch: `batch`; OpenCode question: `requestId`, `questions`, `answers`, `tool`, …) |
+
 | `artifact_change` | A phase artifact is created or updated | `ticketId`, `phase`, `artifactType`, `artifact` |
+
+`needs_input` carries three OpenCode question shapes, told apart by `type`:
+
+| `type` | When | Added fields |
+| --- | --- | --- |
+| `opencode_question` | A model asked | `action: "asked"`, `sessionId`, `requestId`, `questions`, `questionCount`, `phase`, `modelId`, `tool` |
+| `opencode_question_updated` | The countdown was armed, reset, or stopped | `timer`, `requests`, `phase`, `phaseAttempt` |
+| `opencode_question_resolved` | A request was answered or refused | `action: "replied"` or `"rejected"`, `requestId`, `sessionId`, and on a refusal `resolution` (`user_skipped`, `window_elapsed`, `ticket_canceled`, `session_lost`, `daemon_restart`) plus `rejectFailed` when OpenCode could not be told |
+
+`timer` uses the shape shown under [OpenCode Question Routes](#opencode-question-routes). `requests` lists every request still outstanding on that countdown, each with its `sessionId`, `requestId`, `memberId`, `questions`, `questionCount`, and `timerKey`. Both are additive; the fields the browser already read are unchanged.
 
 > The `SSEEventType` union in `server/sse/eventTypes.ts` also declares `progress` and `app_error`, but no broadcaster call site emits them today. They are reserved type slots, not live events — runtime errors surface as `log` entries (`kind: 'error'`) instead.
 

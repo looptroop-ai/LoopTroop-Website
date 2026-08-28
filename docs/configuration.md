@@ -89,8 +89,8 @@ LoopTroop applies configuration in three layers:
 | Layer | What it controls | When it applies |
 | --- | --- | --- |
 | Profile | App-wide baseline values | Advanced values preselect future-project choices; other supported values resolve through normal inheritance |
-| Project setting | Saved Manual QA, Git-hook, and folder-ignore choices | Manual QA seeds new tickets; Git-hook and folder-ignore policy stay project-scoped |
-| Ticket choice | Draft-only Manual QA choice | Wins over the project choice when the ticket starts |
+| Project setting | Saved Manual QA, Git-hook, and folder-ignore choices, plus nullable AI-question overrides | Manual QA and the AI-question settings seed new tickets; Git-hook and folder-ignore policy stay project-scoped |
+| Ticket choice | Draft-only Manual QA and AI-question choices | Wins over the project choice when the ticket starts |
 | Ticket start lock | Frozen planning-critical values captured on **Start** | Stays fixed for that ticket run |
 
 The Configuration dialog edits the singleton profile. Its collapsed **Advanced** section contains the defaults for Manual QA, Git-hook policy, and [LoopTroop folder ignore policy](#looptroop-folder-ignore-policy). The Project form copies those defaults into concrete saved choices for a newly attached project and exposes all three in Project **Advanced** before attachment. Restoring an existing project keeps its saved choices. Later Configuration edits affect only projects created after the edit.
@@ -105,6 +105,8 @@ Other project-level fields may still override the profile where supported. The p
 - `minCouncilQuorum`
 - `interviewQuestions`
 - `manualQaOverride`
+- `aiQuestionsOverride`
+- `aiQuestionWindowOverride`
 - `gitHookPolicy`
 - `ignoreMode` (attach-time only)
 
@@ -123,6 +125,7 @@ These values are captured before the ticket enters `SCANNING_RELEVANT_FILES` and
 | Interview / PRD / Beads Coverage Passes | Coverage-loop budgets must stay stable for that ticket |
 | Structured Output Retries | Repair behavior must stay stable across the ticket's structured phases |
 | Manual QA effective value + source | The post-test route must not change after work starts; missing locks on older/in-progress tickets mean disabled |
+| AI Questions + AI Question Wait, with the source of each | Editing the profile at 3 a.m. must not change what an overnight run does mid-flight; missing locks on older/in-progress tickets mean the run may not ask |
 | Project Git-hook policy + project source | Repository-hook behavior must stay stable throughout setup, internal commits, and integration |
 
 ### What is read later instead of locked
@@ -195,6 +198,8 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | [Min Council Quorum](#min-council-quorum) | 2 | 1–4 | AI Thinking | next planning phase |
 | [Max Interview Questions](#max-interview-questions) | 50 | 0–50 | AI Thinking | ticket start lock |
 | [Structured Output Retries](#structured-output-retries) | 1 | 0–5 | AI Thinking | ticket start lock |
+| [AI Questions](#ai-questions) | On | On / Off | AI Questions | ticket start lock |
+| [AI Question Wait](#ai-question-wait) | 300 s | 60–3600 s | AI Questions | ticket start lock |
 | [Coverage Follow-Up Budget](#coverage-follow-up-budget) | 20 % | 0–100 % | Coverage | ticket start lock |
 | [Interview Coverage Passes](#interview-coverage-passes) | 2 | 1–10 | Coverage | ticket start lock |
 | [PRD Coverage Passes](#prd-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
@@ -527,6 +532,77 @@ This setting applies to structured-output repair paths such as council drafts/vo
 | --- | --- |
 | Fails fast and spends fewer tokens | More tolerance for malformed YAML/JSON or transient provider output |
 | 0 disables automatic structured repair prompts | Higher values can delay surfacing persistent prompt/parser issues |
+
+---
+
+## AI Questions
+
+**Type:** On / Off  
+**Default:** On  
+**Profile field:** `aiQuestionsEnabled`
+
+OpenCode's `question` tool lets a running model stop mid-step and ask you something. LoopTroop runs unattended, so a stop with no end is a stalled run. This setting decides whether a model may ask at all; [AI Question Wait](#ai-question-wait) decides how long it waits before the run carries on without you.
+
+Configuration puts both settings in their own **AI Questions** group. The Project form and a ticket's **Advanced** section offer the same pair with an extra **Inherit** choice, and the Draft workspace exposes them until **Start**.
+
+The two settings cascade independently, so a ticket can set its own wait while taking the on/off answer from its project. Each resolves the same way:
+
+1. a non-null ticket override wins;
+2. otherwise a non-null project override wins;
+3. otherwise the profile value is used.
+
+On Start, LoopTroop freezes both values and where each came from: `lockedAiQuestionsEnabled` / `lockedAiQuestionsSource` and `lockedAiQuestionWindow` / `lockedAiQuestionWindowSource` (`ticket`, `project`, or `profile`). Only Draft tickets may change either override. A started ticket shows both read-only under **Advanced Settings** in its header, with the level each came from. A ticket that started before these settings existed has no locked values and may not ask at all: a run already in flight should not silently gain the ability to stop.
+
+**Three cases beat the setting, whatever it says:**
+
+- **The interview.** It generates its own questions and has its own screen for them. A tool question there would put two unrelated kinds of question on screen at once. The exclusion is derived from the interview workflow group, so a status added to the interview later is covered without anyone remembering to.
+- **Steps running the `disabled` tool policy.** Those prompts only reformat text they were handed: compiling interview answers into questions, writing a pull request body, summarizing verification output. A step with nothing to investigate has nothing to ask about. See [Tool Policy Layer](opencode-integration.md#_4-1-tool-policy-layer).
+- **The preflight capability probe.** It is a diagnostic, not a workflow step.
+
+**What you see when a model asks:**
+
+A collapsible panel opens at the top of the ticket and pushes the workspace down. There is no modal. Each asking model gets a tab, and the countdown appears once, in the panel header. Elsewhere in the app a slim bar slides down naming the ticket that is waiting.
+
+On the board, the ticket moves to **Needs Input** and its status badge pulses blue, distinct from the red used for errors, because a question is not a failure. The ticket's workflow status does not change; only the board column does.
+
+**What happens when nobody answers:**
+
+The question refuses itself and the model carries on without an answer. The refusal is recorded in the ticket's skip trail under a `timeout` actor rather than under your name, along with the configured wait, the elapsed time, and every unanswered question the refusal covered. Skipping by hand takes an optional reason, recorded the same way. In a council phase a refused member may return nothing at all, which can drop the round below [Min Council Quorum](#min-council-quorum) and block the ticket; the receipt says so, instead of leaving a bare quorum failure with no cause attached.
+
+OpenCode's reject call carries only a request id, so a reason stays on the LoopTroop side. The model is never told why it was refused.
+
+**When to change:**
+
+- Turn it off for fully unattended overnight runs where nobody will be watching, and every step should decide for itself.
+- Leave it on when you want a model to check an ambiguous requirement with you rather than guess, and you are around to answer.
+
+---
+
+### AI Question Wait
+
+**Type:** integer (seconds)  
+**Default:** 300 s (5 minutes)  
+**Range:** 60–3600 s  
+**Profile field:** `aiQuestionWindow` (stored in milliseconds)
+
+How long a question waits for you before the run carries on.
+
+**Waiting does not use up the step's working time.** While a question is pending, every clock on the ticket stops, and the elapsed wall time is credited back when it resolves. A step can therefore take its full timeout *plus* the time it spent waiting on you. The wait does not have to fit inside [Per-Iteration Timeout](#per-iteration-timeout), [Execution Setup Timeout](#execution-setup-timeout), or [AI Response Timeout](#ai-response-timeout), and there is no validation tying it to any of them.
+
+**One countdown per step**, shared by every model asking inside it. It cannot be one per question: OpenCode's reply carries every answer in a single payload, so expiring question 2 would discard the answers already typed into 1 and 3. It is not one per request either, because a council seats several models in one step and that would put three countdowns on screen for one decision. A new model asking resets a running clock to full; it does not restart a stopped one.
+
+**Any interaction stops the clock, permanently.** Switching model tabs, moving between questions, focusing an answer field, and pressing **Stop timer** are the same event. There is no resume. The ways out are answering and skipping, and until you do one of them the ticket waits in **Needs Input** for as long as it takes.
+
+**The deadline belongs to the server.** Close the browser, come back two minutes later, and two minutes are gone. The page corrects for clock skew against a `serverNow` field sent with every timer update, but it never owns the clock.
+
+Sessions survive a daemon restart, so questions do too. On startup, a question whose session reconnected is re-armed with a fresh full wait, because the old deadline belonged to a process that is gone. One whose session did not come back is refused under a `system` actor.
+
+**Trade-offs:**
+
+| Lower | Higher |
+| --- | --- |
+| A run left alone recovers sooner and keeps moving | More chance you see the question and answer it |
+| More questions refused unanswered, and more council members returning nothing | A ticket sits in Needs Input longer before it decides for itself |
 
 ---
 

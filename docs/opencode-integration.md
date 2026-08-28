@@ -119,6 +119,8 @@ Prompt templates choose from four OpenCode tool policies:
 
 That policy layer is resolved into a complete ordered session permission ruleset and applied at the `runOpenCodePrompt()` / `runOpenCodeSessionPrompt()` boundary before each prompt. Explicit restrictions follow the permissive baseline and therefore win for read-only and tool-disabled phases. For the prompt-to-policy mapping, see [Prompt Inventory](prompts.md).
 
+The `question` tool is the one exception to the table above: none of the four policies decides it any more. It is set from the ticket's AI-questions setting, except under `disabled`, which never asks whatever the setting says. See [Who May Ask](#_9-1-who-may-ask).
+
 Planning prompts that can make or preserve repository-specific claims use `read_only` selectively: they review their supplied context first and inspect the repository only when they need concrete evidence. This covers Full Answers, PRD and beads drafting, refinement, and coverage, plus blueprint expansion and the non-voting interview workflow. Council voting remains tool-disabled; no planning prompt receives shell execution or mutation tools through this policy.
 
 ## 5. Session Ownership
@@ -258,14 +260,41 @@ The frontend never talks directly to OpenCode. It receives normalized ticket eve
 
 ## 9. Questions And Human Input
 
-OpenCode may request user input during execution. LoopTroop exposes that queue through:
+OpenCode's `question` tool may stop a run and ask the operator something. LoopTroop exposes that queue through:
 
 - `GET /api/opencode/questions`
 - `GET /api/tickets/:id/opencode/questions`
 - `POST /api/tickets/:id/opencode/questions/:requestId/reply`
 - `POST /api/tickets/:id/opencode/questions/:requestId/reject`
+- `POST /api/tickets/:id/opencode/question-timer/stop`
 
 The per-ticket route filters the global OpenCode question queue down to active sessions that LoopTroop currently owns for that ticket. Reply/reject actions emit deduplicated question lifecycle log entries and `needs_input` SSE updates, so the browser can remove resolved prompts without polling OpenCode directly.
+
+### 9.1 Who May Ask
+
+Whether a prompt may raise `question` is a setting, not a property of the prompt. `runOpenCodePrompt()` resolves it once at its own boundary, so every retry and same-session continuation is covered by the same answer, and passes it into `resolveOpenCodePermissions()` as a single `question` permission rule. That rule replaces whatever the tool policy said, rather than being appended to it: precedence between a wildcard `{ permission: '*' }` rule and a specific `{ permission: 'question' }` one is not documented, so relying on last-wins would be a guess. The default is deny, so a call site that forgets to opt in fails closed.
+
+Three denials are structural and beat the setting:
+
+- a prompt with no ticket has nobody to ask, which covers the preflight capability probe and ad-hoc calls;
+- the interview generates its own questions, and is excluded by workflow group rather than by a hand-written list of statuses;
+- the `disabled` tool policy means the step only reformats text it was handed, so it has nothing to investigate.
+
+`default`, `read_only`, and `execution_setup_online` all follow the setting. Before this, `read_only` and `disabled` both carried a hard `question: false`, which is why only five prompts could ever ask regardless of configuration. The resolved rule sets are cached per `(policy, allowed)` pair, and the four "asking is off" variants are exported as `SILENT_*_PERMISSIONS` so tests assert against what is actually sent rather than against the policy tables.
+
+See [Configuration → AI Questions](configuration.md#ai-questions) for the profile/project/ticket cascade and the ticket-start lock.
+
+### 9.2 The Wait
+
+A question that nobody answers is an unbounded stop, so `server/workflow/questionWindows.ts` gives every one an end. The countdown is per `(ticket, phase, attempt)` and shared by every model asking inside that step. It is deliberately coarser than a question and coarser than a request: OpenCode's reply carries every answer in one payload, so expiring a single question would discard answers already given to its siblings, and a council seats several models in one step. A new model asking resets a running clock to full; a stopped clock never restarts.
+
+Any human interaction stops the clock permanently through `POST /api/tickets/:id/opencode/question-timer/stop`. Switching model tabs, moving between questions, focusing an answer field, and pressing **Stop timer** all funnel to that one call, which is idempotent and returns the current state rather than an error on a repeat.
+
+Waiting does not consume the step's working time. Attaching a request suspends every work budget on the ticket through `server/workflow/workBudget.ts`, and resolving it credits the elapsed wall time back. The ledger is ticket-scoped rather than session-scoped because there is no single clock to key: PRD drafting runs two prompts in two sessions under one deadline, the council drafter and voter own `Promise.race` timers that never see the prompt timer, and execution had its own copy of the remaining-time helper. Suspension is reference-counted, so a step with two questions outstanding stays held until the second is dealt with.
+
+Live timer state lives in memory; the durable copy is written to phase artifacts under the `opencode_question:` and `opencode_question_timer:` prefixes. On expiry, every request on the timer is rejected with up to three attempts, and a transport failure aborts the session rather than leaving the record pending, because "expiry that cannot reject" recreates the hang the module exists to prevent. Each rejection writes a skip receipt naming the actor (`timeout` for the wait running out, `user` for a manual skip, `system` for a lost session or a restart that could not re-attach), the configured window, the elapsed time, and the sibling requests the same expiry covered.
+
+On startup, `reconcilePendingQuestionsAfterRestart()` re-arms a question whose session reconnected with a fresh full wait, since the old deadline belonged to a process that is gone, and rejects one whose session did not come back.
 
 ## 10. Health And Model Discovery
 
@@ -297,16 +326,20 @@ OpenCode questions produce multiple log entries: when a question is asked, repli
 
 ### 11.2 How It Works
 
-`buildOpenCodeQuestionLogIdentity()` generates a stable identity for each question lifecycle event:
+`buildOpenCodeQuestionLogIdentity()` builds a stable identity from the session ID, the request ID, and the action (`asked`, `replied`, `rejected`, `reply_failed`, `reject_failed`). Both values are plain composed strings, not hashes:
 
-- **`entryId`** — A deterministic SHA-256 fingerprint combining the ticket ID, session ID, request ID, and action type (`asked`, `replied`, `rejected`, `reply_failed`, `reject_failed`). The same question+action combination always produces the same `entryId`.
-- **`fingerprint`** — A broader SHA-256 fingerprint spanning ticket ID, session ID, and request ID. All events for the same question share the same fingerprint, so separate lifecycle stages can still be correlated.
+- **`entryId`** — `<sessionId>:question:<requestId>:<action>`, falling back to `opencode-question:<requestId>:<action>` when no session is known. The same question and action always produce the same `entryId`.
+- **`fingerprint`** — `opencode-question:<sessionId>:<requestId>:<action>`, with `no-session` standing in for a missing session.
+
+Both carry the action, so the fingerprint identifies one stage of one question rather than the question as a whole. That is what the dedupe needs: the same pending question observed twice produces the same identity and is written once, while the later reply or rejection is a different identity and is written as its own entry.
 
 ### 11.3 Usage
 
 `extractLogFingerprint()` reads the fingerprint from a log record's metadata. `hasMatchingLogFingerprint()` compares fingerprints across records to detect duplicate or related entries.
 
 The fingerprinting system is used by the OpenCode question polling loop and the execution-log pipeline to prevent duplicate question entries when the same pending question state is observed multiple times.
+
+Fingerprinting says nothing about *why* a question ended. The reject route appends the reason a person typed to its `[QUESTION] AI question skipped.` entry, but a question the wait ran out on has no such entry to carry one. The durable record of who refused a question and why is the skip receipt, which names the actor (`user`, `timeout`, or `system`) along with the window and the elapsed time. Read it through `GET /api/tickets/:id/skips`, not the log.
 
 ## 12. Why LoopTroop Wraps OpenCode This Heavily
 

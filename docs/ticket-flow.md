@@ -177,11 +177,13 @@ Every ticket belongs to exactly one Kanban board location determined by its `kan
 | Board Location | `kanbanPhase` | Meaning | Included Statuses |
 | --- | --- | --- | --- |
 | **To Do** | `todo` | Inactive backlog item. | `DRAFT` |
-| **Needs Input** | `needs_input` | Paused; waiting for user action, approval, or error recovery. | Interview Q&A, all approvals, PR review, and `BLOCKED_ERROR`. |
+| **Needs Input** | `needs_input` | Paused; waiting for user action, approval, or error recovery. | Interview Q&A, all approvals, PR review, `BLOCKED_ERROR`, and any in-progress status with a pending AI question. |
 | **In Progress** | `in_progress` | Active; LoopTroop is running background calculations, councils, or coding sessions. | Scanning, deliberating, voting, refining, preparing, coding, testing, squashing. |
 | **Done** | `done` | Terminal status. | `COMPLETED`, `CANCELED` |
 
 *Note: `BLOCKED_ERROR` maps to `needs_input` rather than a unique board column, because recovery requires manual retry, session continuation, or cancellation.*
+
+Board location derives from status **plus** pending-question state, not from status alone. A ticket whose model has stopped to ask an AI question shows in **Needs Input** with a blue pulse on its status badge, distinct from the red used for errors, because a question is not a failure. Its workflow status does not change; only the column does. Only `in_progress` is redirected this way: a ticket already in Needs Input for an approval stays there, and a `todo` or `done` ticket has no live model to ask. See [Configuration → AI Questions](configuration.md#ai-questions).
 
 ---
 
@@ -310,7 +312,7 @@ The state machine metadata directly drives the React user interface. Developers 
 | `WAITING_MANUAL_QA` | autosave, evidence upload/remove, submit, skip, include/discard drift, `cancel` | There is no manual Save action. Every mutation uses an action id, expected checklist hash, and expected draft revision. Skip bypasses normal result/group validation, snapshots all entered data read-only, takes an optional reason for the round, and creates no drafted improvement/fix work. |
 | `BLOCKED_ERROR` | `retry`, optional retry with extra note, optional edit setup plan, optional `continue`, `cancel` | **Retry with extra note...** appears for a live error from `CODING` or `PREPARING_EXECUTION_ENV` and sits beside **Retry**. Coding starts its existing fresh-bead retry. Setup sends only the note to the preserved session and grants one manual attempt beyond the automatic budget. **Edit setup plan...** appears only for setup and opens a confirmation dialog before rewinding to approval. `continue` appears only when a preserved OpenCode session is still live. Final-test local-only files are resolved automatically and expose no blocked recovery action. |
 | Any other non-terminal status | `cancel` | Cancellation is not limited to gates; the route accepts it from every non-terminal workflow state. |
-| `PREPARING_EXECUTION_ENV` / `CODING` | reply/reject OpenCode questions | OpenCode can request human input mid-session without changing the main ticket status; answering or rejecting the request unblocks that live session in place. |
+| Any status but the interview | answer/skip AI questions, stop the countdown | A model can request human input mid-session without changing the main ticket status; answering or skipping unblocks that live session in place. Skipping takes an optional reason and is recorded in the skip trail. Which statuses can ask is a setting rather than a property of the phase, except for the interview, which generates its own questions and never uses the tool. Each question waits for a configured window and then refuses itself, attributed to `timeout` rather than to a person. Waiting does not consume the step's working time. See [Configuration → AI Questions](configuration.md#ai-questions). |
 
 ### Planning Edit Restarts
 Approved interview and PRD documents can still be edited manually while in planning (before `PRE_FLIGHT_CHECK`). Saving manual changes triggers session cancellation downstream to keep artifacts consistent:

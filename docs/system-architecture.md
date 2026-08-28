@@ -177,6 +177,10 @@ Snapshot restore is equally defensive. `server/machines/persistence.ts` reconcil
 
 Prompt acquisition is bounded by timeout and abort signals. OpenCode `create`, `list`, `getSession`, and message-read calls are guarded so an OpenCode restart cannot indefinitely block the workflow runner.
 
+Because sessions survive a restart, so do the questions attached to them. On startup, LoopTroop asks OpenCode what is still outstanding for each project with active sessions. A request whose session reconnected is put back on a fresh full countdown, since the old deadline belonged to a process that is gone; one whose session did not come back is refused under a `system` actor, because nothing will ever answer it. Both outcomes are counted in the startup report.
+
+Those phase timeouts exist to catch a stuck model, and a model blocked on a question is not stuck: it is waiting on a person. While any question is pending, `server/workflow/workBudget.ts` holds every clock on the ticket still and credits the elapsed wall time back when the question resolves. The ledger is keyed by ticket rather than by session because there is no single clock to key — PRD drafting runs two prompts in two sessions under one deadline, and the council drafter and voter own their own race timers. Consumers subscribe to the budget and re-arm from `remainingMs()` when it changes, so a `setTimeout` cannot fire in the middle of a wait.
+
 ## 9. Module Map
 
 ### Frontend
@@ -250,6 +254,7 @@ Prompt acquisition is bounded by timeout and abort signals. OpenCode `create`, `
 | Session ownership and reconnect | `server/opencode/sessionManager.ts` |
 | Prompt runner and phase bridge | `server/workflow/runOpenCodePrompt.ts` |
 | Question handling and blocked-error mapping | `server/routes/ticketHandlers/openCodeQuestionHandlers.ts`, `server/opencode/blockedErrorDiagnostics.ts` |
+| AI question windows and work budgets | `shared/aiQuestions.ts`, `server/workflow/questionWindows.ts`, `server/workflow/workBudget.ts`, `server/workflow/aiQuestionSettings.ts`, `server/opencode/toolPolicy.ts` |
 
 ### CLI and daemon
 
