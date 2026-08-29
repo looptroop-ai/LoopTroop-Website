@@ -83,7 +83,7 @@ search: false
     * Add a future UI surface to show `planning_context`, pinned files, demoted files, ignored files, and "why selected" explanations.
     * Add a legacy migration alias so existing prompts/components that still request `relevant_files` receive `planning_context` until all phases are updated.
 *   **Optimize components:** Update each component to latest stable and optimize each component of the app, after creation, using ref.tools mcp that can read latest version of docs plus exa mcp that can search the internet and skill for each component.
-*   **Other council members:** Implement other AI council members into the flow - at least at final test creation. If TDD is implemented, the test should be created before execution has started.
+*   **Council involvement in final-test creation:** Extend the existing council flow into final-test creation. If TDD is implemented, the test should be created before execution has started.
 *   **WYSIWYG editor:** A human-friendly editor for markdown files.
 *   **Comments section:** Per phase users can add comments and discuss changes, without affecting the agent's behavior.
 *   **Extra safety:** Secrets and sensitive data should not be added to any file in the `.looptroop` folder.
@@ -289,8 +289,8 @@ search: false
 *   **Ticket-Scoped Phase Flags (locked at start):** Extend the ticket start contract with one `phase_flags` object for optional planning/verification behavior.
     *   Include critique, repository research, external research, options synthesis, spikes allowed, manual QA waiver policy, and related budgets.
     *   Persist effective flags in ticket runtime state and approval artifacts.
-    *   Treat flags as immutable after `START`, like locked model and coverage settings.
-    *   Defaults: critique optional, repository brief auto for scoped/full profiles, external brief optional, options synthesis auto on ambiguity, manual QA required.
+    *   Treat flags as immutable after `START`.
+    *   Defaults: critique optional, repository brief auto for scoped/full profiles, external brief optional, options synthesis auto on ambiguity.
     *   Mid-run flag changes require a new planning run or explicit restart, not silent mutation of the active run.
     *   Show effective flags in ticket creation/start UI, phase headers, and diagnostic receipts.
     *   Migrate `execution_profile` into `phase_flags.execution_profile` when this contract lands.
@@ -314,7 +314,6 @@ search: false
     *   Delivery failures must never block execution, but every failed action is logged with `channel`, `error_code`, `attempt`, and `next_retry_at`.
     *   `Doctor` must validate escalation route configuration and required contact settings, with actionable remediation text.
 *   **Beads Adoption Strategy (complexity-first, optional CLI):**
-    *   **Phase A (default / MVP):** LoopTroop-native Beads artifact contract (`issues.jsonl`) only. No required `bd` installation and no Beads daemon dependency.
     *   **Phase B (optional compatibility mode):** Enable official Beads CLI integration only when `beads_mode = compatibility` is explicitly enabled per project.
     *   **Phase-B entry criteria:** measurable need for Beads ecosystem interoperability, no unresolved schema gaps, and stable MVP execution metrics.
     *   When Phase B is enabled: pin `bd` version, validate availability in pre-flight, run `bd doctor` as gate, and run Beads cleanup hooks before finalization.
@@ -441,7 +440,6 @@ search: false
         *   required inputs: active bead spec, dependency snapshot, target files, bead tests/commands, AST map slice;
         *   enrichment inputs (when available): `CONVENTIONS.md`, `TESTING.md`, `INTEGRATIONS.md`, `CONCERNS.md` from ticket codebase-map artifacts;
         *   retry inputs: previous attempt notes for the same bead only (never cross-ticket memory).
-    *   Add a dedicated pure context assembler `buildMinimalContext(phase, ticketState)` and require every model call path to use it before `sdk.session.prompt(...)`.
     *   Enforce phase-locked context allowlists (hard contract, no extras):
         *   interview phases: codebase map + ticket details + rolling interview summary + last `10` Q/A pairs + skip metadata (`skipped_question_ids`, `skipped_topics`, `skip_counts`); full transcript stays in interview artifacts for coverage/final checks.
         *   PRD/Beads council phases: codebase map + interview/PRD summary snippets only (never full planning files by default);
@@ -1146,7 +1144,7 @@ search: false
         *   add regression tests for idempotence, false positives, and performance overhead.
     *   Add diagnostics export bundle for failed runs (logs + runtime state snapshot + preflight + conflict reports) and auto-generate an investigation template at `docs/investigations/<ticket-or-issue-id>.md` with sections: `symptoms`, `root_cause`, `affected_files`, `fix`, `prevention_checks`.
     *   On resume, remove orphan temp progress files older than configured threshold and emit explicit recovery actions when runtime state is corrupted.
-*   **Human-in-the-Loop (HITL) Controls with async provider contract + deterministic resume:** Allow user intervention at any time with explicit actions: `continue`, `follow_up`, `save_and_exit`, `quit_without_save`, `pause`, `stop`, `cancel_loop`, `skip_bead`, `recreate_beads`, `cancel_ticket`, `abort_council_phase`.
+*   **Human-in-the-Loop (HITL) Controls with async provider contract + deterministic resume:** Allow user intervention at any time with explicit actions: `follow_up`, `save_and_exit`, `quit_without_save`, `pause`, `stop`, `cancel_loop`, `skip_bead`, `recreate_beads`, `cancel_ticket`, `abort_council_phase`.
     *   Expose a visible `Cancel` control in every ticket phase view (`planning`, `preflight`, `coding`, `final_test`, `blocked`) with consistent confirmation semantics.
     *   Add deterministic `pause_at_checkpoint` behavior (separate from immediate `stop`):
         *   user pause intent is persisted as a run flag (`pause_requested=true`) instead of hard-interrupting mid-command;
@@ -1246,15 +1244,12 @@ search: false
 *   **PR Workflow (deterministic + failure-safe):** option to create a PR when creating a ticket.
     *   Create/push ticket branch only after execution + review gates pass.
     *   Exclude operational/generated files from commit by default (`PROMPT.md`, screenshots, temporary review artifacts), unless ticket explicitly allowlists them.
-    *   If `git push` or GitHub auth fails, keep local branch/worktree intact and emit exact remediation steps; do not lose runtime state.
-    *   If git operations fail mid-sequence (`add`, `commit`, `push`), persist a `git-recovery` receipt with staged files, unstaged files, HEAD SHA, and next-safe actions.
     *   Expose guided recovery actions for partial git failures: `retry_commit`, `retry_push`, `open_terminal`, `skip_push_once` (with audit receipt).
     *   Add deferred push queue for remote outages/auth flaps:
         *   persist pending push jobs with `ticket_id`, `branch`, `commit_range`, `next_retry_at`, and `retry_count`;
         *   continue execution with local commits while background retries run with bounded exponential backoff;
         *   if queue age/count exceeds threshold, route to `NEEDS_INPUT` with explicit recovery actions.
     *   Keep push failures non-blocking by default; accumulate and surface outstanding push failures prominently at the next `WAITING_*` or manual verification checkpoint.
-    *   Persist PR metadata in ticket artifacts (`branch`, `commit_sha`, `pr_url`, `created_at`, `status`).
     *   Research stack PRs on GitHub.
 *   **Different paths (explicit execution contracts):** At the beginning of a ticket, users can pick their plan:
     *   Add deterministic path recommendation before selection:
@@ -1415,7 +1410,7 @@ search: false
         *   Support modes: `report_only` and `fix_selected`; never overwrite existing files without explicit user confirmation.
         *   Remediation templates can propose `.env.example`, pre-commit hooks, linter/formatter baseline, runtime version pin files, and command docs when missing.
     *   **Proactive Suggestions:** AI provides prioritized suggestions after the audit with rationale, expected impact, and confidence.
-*   **Different board views:** Board, spreadsheet, list, gantt.
+*   **Different board views:** Spreadsheet, list, gantt.
 *   **PRD Export (human-friendly + deterministic template resolution):** Add an export action that transforms the approved PRD into a non-technical report format for sharing and review.
     *   Output is format-agnostic (one or more human-friendly formats), always generated from the same PRD source data.
     *   Add template resolution order: `ticket override` -> `project template` -> `global template` -> `built-in default`.
@@ -2228,13 +2223,13 @@ search: false
     *   Persist reflection outcomes (`applied`, `not_applied`, `regressed`) so harvest/review phases can measure whether the correction helped.
 *   **Global rankings:** Maestro has a global ranking for people who run the longest sessions, with badges and different levels of achievements. E.g., the best level is for those who run for 10 years (which can be achieved faster by running parallel sessions). Rankings are also done by cost. Users should be able to opt into these rankings and see their position in a leaderboard. [I1](https://runmaestro.ai/)
 *   **Actual data research:** Integrate with last 30 days, which will research a specific topic on Twitter and Reddit in the last month to give accurate data. [I1](https://github.com/mvanhorn/last30days-skill)
-*   **OpenCode v2 Persistent Session Continuation (true resume across restarts):** When OpenCode v2 reaches stable, make the bead "Continue" action a real session continuation instead of a fresh iteration restart.
+*   **OpenCode v2 Persistent Session Continuation (true resume across restarts):** When OpenCode v2 reaches stable, persist enough OpenCode session state that `Continue` can survive full restarts and resume the exact in-progress session state instead of depending only on the currently recoverable live session.
     *   Persist full OpenCode session state (conversation history, tool-call context, in-progress work) so that a "Continue" resumes the exact session where it left off.
     *   Session continuity must survive PC restarts, app restarts, and backend restarts — the session is picked up from where it remained without restarting the current iteration.
     *   Resuming a persisted session must not consume bead iteration budget; only genuinely new attempts count as iterations.
     *   If the persisted session is corrupted or unrecoverable, fall back to a fresh iteration with explicit `session_unrecoverable` diagnostics and preserve all prior iteration notes/evidence.
     *   Gate behind OpenCode v2 stable release; do not attempt on earlier versions where session persistence APIs are unavailable or unstable.
-*   **Skip Reason Policy (optional project requirement + aggregate reporting):** Every user action that skips something already takes an optional reason. What has not shipped is enforcement — a project choosing to require one on some or all skip surfaces, and reporting on the skips that have none.
+*   **Skip Reason Policy (optional project requirement + aggregate reporting):** Add optional project-level enforcement so some or all skip surfaces can require a reason, and report on the skips that have none.
     *   Deferred rather than dropped. Enforcement is only worth building once somebody wants to enforce it, and nobody does today. Until this item is picked up the reason stays optional everywhere and never blocks an action.
     *   AI questions are a skip surface now, and they are the one surface a requirement cannot cover on its own. A question the wait ran out on is refused under the `timeout` actor with nobody present, and a restart that cannot re-attach a request refuses it under `system`. Any enforcement design has to say what a required reason means for those two actors before it can claim to cover every surface.
     *   A `doctor` check was considered and rejected. `doctor` reports on installation and environment health; a ticket's skip hygiene is neither, and folding one into the other would make a broken install and an unexplained skip read as the same kind of problem.
