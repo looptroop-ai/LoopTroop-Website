@@ -407,7 +407,9 @@ If the project has no `opencode.json` of its own, LoopTroop creates one holding 
 
 If the project ships its own `opencode.json`, the cap is merged into it. Everything else in the file — MCP servers, providers, permissions, other agents — stays in force for the whole run, and the file is put back as it was when coding finishes. How it is tracked in git is left alone. If LoopTroop is killed outright before it can put the file back, it does so at the next start.
 
-A file LoopTroop cannot merge into is left exactly as it is, and the run continues with no step cap: unreadable JSON, a top level that is not a JSON object, an `agent` section shaped some other way, or a symlink. The ticket log says which it was. The same holds if the file changes while the run is going — that change is yours, so it is reported rather than overwritten.
+The cap never reaches your git history. For as long as it is applied, `opencode.json` is kept out of the commits LoopTroop makes for each bead and listed among that commit's skipped files — restoring the file afterwards would put the worktree right, but it could not take back a commit. The worktree resets LoopTroop performs when a bead is retried leave the file alone as well, and the cap goes back on afterwards, so it applies for every attempt rather than quietly lapsing after the first.
+
+A file LoopTroop cannot merge into is left exactly as it is, and the run continues with no step cap: unreadable JSON, a top level that is not a JSON object, an `agent` section shaped some other way, or a symlink. The ticket log says which it was. The same holds if the file changes while the run is going — that change is yours, so it is reported rather than overwritten, and your version from before the run is kept in the ticket directory until you deal with it. While it is waiting there, a later run will not apply a cap either, rather than write over that copy.
 
 **Trade-offs:**
 
