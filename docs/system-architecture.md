@@ -130,7 +130,7 @@ Recovery is a first-class architectural concern.
 | Browser reload, close, or reconnect gap | REST state remains canonical; the browser keeps the last SSE event id, restores best-effort log cache detail, replays buffered live events, and then refetches tickets, artifacts, bead state, interview state, and matching server logs |
 | Frontend crash or tab close | Interview drafts, approval drafts, and browser-cached logs are persisted locally and flushed on unload with best-effort keepalive behavior |
 | Concurrent/stale autosave | Server serializes each ticket/scope and compare-and-set rejects revision conflicts with the latest state; Manual QA keeps its five-second debounce/unload keepalive and derives its last-save age/exact timestamp from acknowledged saves |
-| Crash during atomic write or append | Startup promotes orphan `.tmp` files, repairs trailing corrupt JSONL lines when safe, and rebuilds runtime projections |
+| Crash during atomic write or append | Startup finishes an interrupted write only when it recognises the temp file and the content reads back as what it claims to be, and never over a file that already exists; it repairs trailing corrupt JSONL lines when safe, restores a project `opencode.json` an interrupted coding run had capped, and rebuilds runtime projections |
 | Invalid model output | Retry with repair or explicit re-prompt, depending on phase |
 | Bead execution deadline | Append a Failed Iteration Note, reset worktree, abandon the session, and retry in fresh context |
 | OpenCode reconnect gap | Validate the exact project-local owned session against the remote session; preserve all centrally classified blocked-error continuations and all temporarily unverifiable records, and abandon only confirmed-missing or stale ownership |
@@ -426,7 +426,7 @@ On startup, LoopTroop restores durable state through `server/startup.ts` and `se
 
 1. Initialize the app/project databases and create runtime indexes.
 2. Classify the startup storage state and capture runtime diagnostics such as WSL mounted-drive warnings.
-3. Recover ticket runtime artifacts by promoting orphan `.tmp` files, repairing trailing JSONL corruption where safe, and rebuilding `.ticket/runtime/state.yaml` projections.
+3. Recover ticket runtime artifacts by finishing interrupted writes it can identify and vouch for, restoring any `opencode.json` left capped by an interrupted coding run, repairing trailing JSONL corruption where safe, and rebuilding `.ticket/runtime/state.yaml` projections.
 4. Start the WAL checkpoint timer and probe OpenCode health.
 5. Hydrate XState actors for non-terminal tickets from attached project databases.
 6. Validate and reconnect active OpenCode sessions using project-local ticket identity. Eligible blocked-error continuations are matched through their unresolved occurrence, previous phase, and exact diagnostic session id; transiently unverifiable records remain active, while confirmed-missing or stale records are marked abandoned.
@@ -458,10 +458,10 @@ The IO layer provides crash-safe file operations and recovery used by the workfl
 
 | Module | Purpose | Key Export |
 | --- | --- | --- |
-| `atomicWrite.ts` | Crash-safe file writes | `safeAtomicWrite(filePath, content)` — writes to a `.tmp` file, calls `fsync`, renames to the target path, then best-effort fsyncs the parent directory. Prevents partial overwrites on system failure. |
+| `atomicWrite.ts` | Crash-safe file writes | `safeAtomicWrite(filePath, content, options)` — writes to a `.tmp` file, calls `fsync`, renames to the target path, then best-effort fsyncs the parent directory. Prevents partial overwrites on system failure. `options.mode` sets POSIX permissions on the temp file before the rename, so a restricted file is never briefly readable by everyone. It also publishes the temp naming rule (`makeAtomicTmpPath` / `parseAtomicTmpPath`) that `recovery.ts` reads back. |
 | `atomicAppend.ts` | Crash-safe line appends | `safeAtomicAppend(filePath, line)` — opens with the `a+` flag, checks trailing newline, adds a `\n` prefix when needed, then calls `fsync`. Used for durable JSONL log appends. |
 | `jsonl.ts` | JSON Lines I/O | `readJsonl<T>()`, `writeJsonl<T>()`, `appendJsonl<T>()` — type-safe JSONL read/write/append with graceful malformed-line skipping and newline integrity. |
-| `recovery.ts` | Crash recovery | `recoverOrphanTmpFiles(folder)` — recursively promotes `.tmp` files to their target paths after a crash; `fixTrailingLineCorruption(filePath)` — validates and truncates trailing corrupt JSONL lines (scans backward in 8KB chunks, stays under 4MB scan limit). |
+| `recovery.ts` | Crash recovery | `recoverOrphanTmpFiles(folder)` — recursively finishes interrupted writes: it recognises a temp file only by the naming rule `atomicWrite.ts` publishes, promotes it only after the content reads back as what its target claims to be (non-empty, parseable for JSON and YAML), never over a target that already exists (`link` then `unlink`, so an existing file makes it fail rather than replace), and removes the ones it refuses. Temp files from the earlier naming scheme cannot be traced to a target and are reported with their date, not promoted. `fixTrailingLineCorruption(filePath)` — validates and truncates trailing corrupt JSONL lines (scans backward in 8KB chunks, stays under 4MB scan limit). |
 
 These utilities form the durability backbone: atomic writes protect mutable state files (YAML and JSON artifacts), atomic appends protect append-only logs, and recovery handles the edge case where a process stops mid-write.
 

@@ -397,11 +397,17 @@ Maximum number of steps OpenCode is allowed to perform per session. When the lim
 
 **Steps vs messages:** Each step is one full round-trip — the model reads the full context, decides which tools to call, and receives their results. Each step generates approximately two messages in the execution log (one assistant message with tool calls, one with tool results). So `messages=25` in the log corresponds roughly to 12–13 steps.
 
-**What 0 means:** No `opencode.json` is written to the worktree. OpenCode runs with no step cap and the model stops whenever it decides naturally. This is the default behavior. When a session ends without producing a text response (the model stopped mid-step), LoopTroop will automatically start a new session and show a visible notification in the **ALL** tab.
+**What 0 means:** LoopTroop does not touch `opencode.json` at all. OpenCode runs with no step cap and the model stops whenever it decides naturally. This is the default behavior. When a session ends without producing a text response (the model stopped mid-step), LoopTroop will automatically start a new session and show a visible notification in the **ALL** tab.
 
 **When to set a value:** If you observe sessions running for a very large number of messages and then silently restarting, setting a cap (e.g. `20`) ensures OpenCode wraps up and summarizes at a predictable point. A session that hits the configured limit produces a summary response, so the restart is cleaner than a natural mid-step stop.
 
-**Implementation detail:** When `opencodeSteps > 0`, LoopTroop writes `opencode.json` at the root of the ticket worktree before coding starts and deletes it when coding finishes (including on error). The file is automatically excluded from git via the worktree-local git exclude, so it never appears in commits or `git status`.
+**Implementation detail:** When `opencodeSteps > 0`, LoopTroop sets the cap in `opencode.json` at the root of the ticket worktree before coding starts, and undoes that when coding finishes, including on error.
+
+If the project has no `opencode.json` of its own, LoopTroop creates one holding just the step cap, excludes it through the worktree-local git exclude so it never appears in commits or `git status`, and deletes it afterwards.
+
+If the project ships its own `opencode.json`, the cap is merged into it. Everything else in the file — MCP servers, providers, permissions, other agents — stays in force for the whole run, and the file is put back as it was when coding finishes. How it is tracked in git is left alone. If LoopTroop is killed outright before it can put the file back, it does so at the next start.
+
+A file LoopTroop cannot merge into is left exactly as it is, and the run continues with no step cap: unreadable JSON, a top level that is not a JSON object, an `agent` section shaped some other way, or a symlink. The ticket log says which it was. The same holds if the file changes while the run is going — that change is yours, so it is reported rather than overwritten.
 
 **Trade-offs:**
 
