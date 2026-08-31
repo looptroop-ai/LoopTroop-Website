@@ -48,7 +48,7 @@ Models that receive a conversation history sometimes echo the `[assistant]` / `[
 
 **Trigger:** Lines starting with `[assistant/…]`, `[user]`, `[system]`, `[sys]`, `[tool]`, `[model]`, `[error]` (with optional sub-segments like `[assistant/gpt-4o]`).
 
-**Repair:** The prefix is stripped from each line before every parse attempt.
+**Repair:** Prefixes are stripped from each line before every parse attempt. A line can carry more than one — `[assistant][tool] summary: ...` — and all of them are removed, not just the first. Stopping after the first would leave a line still opening with a bracket, which YAML reads as a list.
 
 #### Candidate collection from surrounding prose
 
