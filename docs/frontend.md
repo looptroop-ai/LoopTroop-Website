@@ -165,12 +165,12 @@ The timeline is visit-aware rather than solely status-index based. Ticket payloa
 
 | Hook | Current role |
 | --- | --- |
-| `useWorkflowMeta()` | Reads phase/group metadata straight from `shared/workflowMeta.ts` and exposes `{ groups, phases, phaseMap, isLoading }`. It makes no request: both sides derive this from the same shared module, and `isLoading` is always `false`. `/api/workflow/meta` still serves the same data and is what the session probe below asks. |
+| `useWorkflowMeta()` | Reads phase/group metadata straight from `shared/workflowMeta.ts` and exposes `{ groups, phases, phaseMap, isLoading }`. It makes no request; `/api/workflow/meta` still serves the same data. |
 | `useTicketArtifacts(ticketId, opts?)` | Fetches, caches, and merges ticket artifacts for live and archived review surfaces |
-| `useTicketPhaseAttempts(ticketId?, phase?)` | Reads archived phase-attempt history for selectors and review panes. A non-2xx response or a payload that is not a list fails the query rather than resolving to an empty history. |
+| `useTicketPhaseAttempts(ticketId?, phase?)` | Reads archived phase-attempt history for selectors and review panes |
 | `useTicketUIState(ticketId, scope)` / `useSaveTicketUIState()` | Persists per-ticket draft/editor UI state such as interview drafts, approval editors, and error-attention markers |
-| `useTickets(projectId?)` | Ticket list with 10-second auto-refresh while any ticket is non-terminal. Every payload passes through the ticket normalizer before it reaches the cache. |
-| `useTicket(id)` | Individual ticket query with 5-second auto-refresh while active, seeded from cached ticket lists when possible. Normalized at the same boundary. |
+| `useTickets(projectId?)` | Ticket list with 10-second auto-refresh while any ticket is non-terminal |
+| `useTicket(id)` | Individual ticket query with 5-second auto-refresh while active, seeded from cached ticket lists when possible |
 | `useProjects()` | Attached project metadata for the dashboard, kanban cards, ticket forms, and project management modal |
 | `useProfile()` | Singleton profile query against `/api/profile` |
 | `useStartupStatus()` | Startup storage/runtime state for restore notices and WSL warnings |
@@ -178,18 +178,11 @@ The timeline is visit-aware rather than solely status-index based. Ticket payloa
 | `useBackendHealth()` | Global backend-reachability banner with confirmation probes to avoid startup false positives |
 | `useRecoveryAutoReload(source, active)` | Guarded full-page recovery reload after a sustained, continuously attended reconnect/loading episode clears; browser blur and hidden-tab intervals suppress the reload |
 
-### The HTTP And Ticket Boundary
+### Request Failures
 
-Every request the client makes goes through two shared pieces:
+A request that fails is reported, not swallowed. Every error the frontend shows carries the HTTP status and whatever the server said with it, so a banner reads `Failed to cancel ticket (HTTP 409: Ticket is locked)` rather than a generic sentence. A non-2xx response is always a failure: an empty list or empty content means a successful empty result and nothing else, so a surface that has no data to draw says the request failed and offers a retry instead of looking like work that has not happened yet.
 
-- `src/lib/apiPaths.ts` builds `/api/tickets/...`, `/api/projects/...` and `/api/files/...` with each path segment percent-encoded. Ticket ids come from the project's issue tracker, so an id containing `/`, `?` or `:` must not change which route matches.
-- `src/lib/fetchError.ts` is the only reader of a failed response body. `throwIfNotOk(res, summary)` raises an error carrying the status code and whatever the server said (`error`, `message`, `errors[]`, or a string `details`), so a failure reads as `Failed to cancel ticket (HTTP 409: Ticket is locked)` rather than a generic sentence. A response body can be read once, so a caller that needs the body for something else clones before reading.
-
-A non-2xx response always throws. `[]` and `''` mean a successful empty result and nothing else; surfaces that used to draw emptiness on a server error now render the failure and offer a retry.
-
-`src/lib/ticketNormalization.ts` is the single door into the ticket cache. Reads (`useTickets`, `useTicket`) and writes (mutation responses merged back in) both pass through it, so consumers can rely on `runtime`, `availableActions`, `lockedCouncilMembers` and `cleanup` being present and well-formed. `RawTicketResponse` records the wire shape separately from the `Ticket` view model — the wire sends numeric error-occurrence ids, `availableActions` as plain strings, and sometimes no `runtime` at all. Actions the client does not recognize are dropped rather than cast.
-
-`installSessionWatch()` reports a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes `/api/workflow/meta` instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe is armed once per subscription and re-armed only after a stream has successfully opened, so a reconnect loop against a stopped daemon does not ask repeatedly.
+`installSessionWatch()` treats a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes an ordinary API route instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe is armed once per subscription and re-armed after a stream opens, so a reconnect loop against a stopped daemon does not ask repeatedly.
 
 ### Live Updates
 
