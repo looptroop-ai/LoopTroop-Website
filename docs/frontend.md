@@ -189,7 +189,7 @@ A non-2xx response always throws. `[]` and `''` mean a successful empty result a
 
 `src/lib/ticketNormalization.ts` is the single door into the ticket cache. Reads (`useTickets`, `useTicket`) and writes (mutation responses merged back in) both pass through it, so consumers can rely on `runtime`, `availableActions`, `lockedCouncilMembers` and `cleanup` being present and well-formed. `RawTicketResponse` records the wire shape separately from the `Ticket` view model — the wire sends numeric error-occurrence ids, `availableActions` as plain strings, and sometimes no `runtime` at all. Actions the client does not recognize are dropped rather than cast.
 
-`installSessionWatch()` reports a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first failure of a stream connection probes `/api/workflow/meta` instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not.
+`installSessionWatch()` reports a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes `/api/workflow/meta` instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe is armed once per subscription and re-armed only after a stream has successfully opened, so a reconnect loop against a stopped daemon does not ask repeatedly.
 
 ### Live Updates
 
