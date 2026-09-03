@@ -607,7 +607,9 @@ Current batch-answer payload:
 
 `skipReasons` is keyed by question ID and is optional. Each entry must belong to a question the submission will actually skip; a reason attached to a question the user answered returns `400` naming the offending IDs, because it would otherwise record an explanation for a decision nobody made.
 
-`selectedOptions` is checked against the question it answers. An option ID the question does not offer, more than one option on a single-choice question, or any selection at all on a free-text question returns `400` listing what was wrong. Repeated IDs are collapsed rather than rejected. Without this a selection was stored exactly as sent, so a single-choice question could keep several answers and an ID naming no option was later shown to the model as if it were one. `POST /api/tickets/:id/skip` additionally accepts `bulkSkipReason`, a single reason applied only to questions that action skipped and left unexplained. It never overwrites a per-question reason and never reaches an answer submitted in an earlier batch.
+`POST /api/tickets/:id/skip` additionally accepts `bulkSkipReason`, a single reason applied only to questions that action skipped and left unexplained. It never overwrites a per-question reason and never reaches an answer submitted in an earlier batch.
+
+`selectedOptions` is checked against the question it answers. An option ID the question does not offer, more than one option on a single-choice question, or any selection at all on a free-text question returns `400` listing what was wrong. Repeated IDs are collapsed rather than rejected.
 
 Possible `answer-batch` response shapes:
 
