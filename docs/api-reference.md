@@ -611,7 +611,7 @@ Current batch-answer payload:
 
 `selectedOptions` is checked against the question it answers. An option ID the question does not offer, more than one option on a single-choice question, or any selection at all on a free-text question returns `400` listing what was wrong. Repeated IDs are collapsed rather than rejected.
 
-A ticket processes one answer batch at a time. A submission that arrives while one is still in flight returns `409` and changes nothing. This holds for every batch, not only the ones that need a model: a coverage batch or a mock-mode batch is answered synchronously and used to bypass the check entirely, which let it clear the in-flight batch's bookkeeping on its way past.
+A ticket processes one answer batch at a time. A submission that arrives while one is still in flight returns `409` and changes nothing. This holds for every batch, not only the ones that need a model: a coverage batch or a mock-mode batch is answered synchronously and used to bypass the check entirely, which let it clear the in-flight batch's bookkeeping on its way past. The claim is recorded in the project database rather than in daemon memory, so two daemons opened on one project cannot both accept the same submission and a restart mid-batch does not forget it. It carries its own expiry, derived from the batch's timeout, so a daemon that stops while holding one leaves the ticket answerable again rather than permanently refusing.
 
 Possible `answer-batch` response shapes:
 
