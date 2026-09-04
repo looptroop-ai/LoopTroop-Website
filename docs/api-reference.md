@@ -611,6 +611,8 @@ Current batch-answer payload:
 
 `selectedOptions` is checked against the question it answers. An option ID the question does not offer, more than one option on a single-choice question, or any selection at all on a free-text question returns `400` listing what was wrong. Repeated IDs are collapsed rather than rejected.
 
+A ticket processes one answer batch at a time. A submission that arrives while one is still in flight returns `409` and changes nothing. This holds for every batch, not only the ones that need a model: a coverage batch or a mock-mode batch is answered synchronously and used to bypass the check entirely, which let it clear the in-flight batch's bookkeeping on its way past.
+
 Possible `answer-batch` response shapes:
 
 `202 { "accepted": true }` means the user answers were accepted and asynchronous AI processing is continuing in the background. A non-complete batch response keeps the ticket in `WAITING_INTERVIEW_ANSWERS` with another batch to answer. When `isComplete` is `true`, the backend dispatches interview completion and the workflow advances to coverage.

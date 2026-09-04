@@ -745,6 +745,8 @@ When a project is created without an explicit API/CLI choice, LoopTroop copies t
 
 Execution setup shows the locked project policy and detected hooks as read-only, backend-authoritative fields. You may add, edit, reorder, or remove validation commands. Raw-YAML or structured edits that try to change `git_hooks.policy` are replaced with the locked project policy when the plan is parsed or saved. An unknown hook never causes LoopTroop to invent an ecosystem-specific command. Removing all validation commands is allowed and the approval receipt records that exact decision.
 
+Check and Require run their commands under a snapshot of the worktree and the Git index, and put both back whatever the commands did — a hook that writes files or stages them leaves nothing behind. If the snapshot cannot be taken, validation is refused rather than run unprotected: Require reports it as a blocking error and Check as a warning, and the commands do not run at all. If the restore itself fails, that is reported alongside whatever validation found, and blocks under either choice, because the next step would otherwise start from hook output nobody asked for.
+
 This policy affects only LoopTroop's internal Git operations. It does not alter the repository's hook configuration for your own Git commands. The `?` beside each control opens this section.
 
 ---

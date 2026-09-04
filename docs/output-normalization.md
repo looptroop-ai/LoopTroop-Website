@@ -715,6 +715,8 @@ Alias collisions fail instead of choosing one value. Repairs may restore YAML st
 
 PRD criterion refs are validated against the frozen approved PRD after parsing. The canonical form is `<epic-id>/<story-id>/AC-<1-based-index>`, with a required `full | partial` level. `notApplicablePrdRefs` is a unique list of `{ ref, reason }`; reasons must be nonempty, and a ref cannot appear both there and on an item. After validation, coverage is deterministic code: any valid full reference means covered, partial-only means partially covered, an explicit reasoned exclusion means `not_applicable`, and all remaining refs are uncovered. Gaps remain advisory and no second model response is requested.
 
+Manual QA generation records its repair trail the way every other artifact-processing path does, and the checklist view shows it. A checklist that validated on the first response shows nothing; one that was repaired or retried carries the same processing notice a repaired PRD or bead set carries, listing the attempts and what each was rejected for. A generation that used up its retries and produced no checklist still shows that trail, because the rejected attempts are what the next move depends on.
+
 Application-owned checklist/results YAML is loaded directly with `js-yaml` and validated against its schema; model-output repair is not applied to canonical files. Shared inline-key repair recognizes a mapping colon only when followed by whitespace or end-of-line, preserving scalar IDs such as `manual-qa-submit:<uuid>` and URLs. During model checklist parsing, a narrow context-aware repair may quote YAML-sensitive hex-color text in known prose fields and records a warning; it never invents lost words.
 
 ### Manual QA Fix-Bead Candidate
