@@ -76,13 +76,13 @@ docker pull looptroopai/looptroop:latest
 
 | Channel | What it needs first |
 | --- | --- |
-| **curl / irm** | Node 24.15.0+, npm 11.12.1+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
-| **npm** | Node 24.15.0+, npm 11.12.1+, git, `gh` |
+| **curl / irm** | Node 24.18.1+, npm 12.0.2+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
+| **npm** | Node 24.18.1+, npm 12.0.2+, git, `gh` |
 | **Homebrew** | Nothing else — it pulls in `node@24` and `gh`, and takes git from the OS |
 | **Scoop** | Nothing else — it depends on `nodejs-lts`, `git` and `gh` |
-| **bun** | bun *and* Node 24.15.0+ (the launcher is a Node program), git, `gh` |
-| **pnpm** | pnpm *and* Node 24.15.0+, git, `gh`. pnpm will not resolve a tag to a version published in the last 24 hours |
-| **Yarn** | Yarn **Classic** *and* Node 24.15.0+, git, `gh`. Yarn 2 removed global installs, so modern Yarn cannot install a CLI at all |
+| **bun** | bun *and* Node 24.18.1+ (the launcher is a Node program), git, `gh` |
+| **pnpm** | pnpm *and* Node 24.18.1+, git, `gh`. pnpm will not resolve a tag to a version published in the last 24 hours |
+| **Yarn** | Yarn **Classic** *and* Node 24.18.1+, git, `gh`. Yarn 2 removed global installs, so modern Yarn cannot install a CLI at all |
 | **Docker** | Only Docker — Node, git and `gh` are in the image, but it needs an OpenCode server it can reach |
 
 [Installation](installation.md) covers every channel in full: upgrading,
