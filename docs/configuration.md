@@ -73,11 +73,15 @@ Resolved elsewhere, and **not** through that chain:
 
 LoopTroop resolves `git`, `gh`, `opencode`, `npm` and the platform openers to a
 file before it runs them, rather than letting the first matching directory on
-`PATH` decide. The rule is not "system directories only" — a tool installed by
-nvm, Homebrew, Nix, scoop, `~/.local/bin` or a project's own `node_modules/.bin`
-is fine. What is refused is a directory anyone on the machine can write to.
-Windows has no usable permission bits, so there the rule is a location one: a
-system directory or somewhere under your own user profile.
+`PATH` decide, and the current directory never counts. The rule is not "system
+directories only": a tool installed by nvm, Homebrew, Nix, scoop, `~/.local/bin`,
+a CI runner's tool cache or a project's own `node_modules/.bin` is fine.
+
+On macOS and Linux, what is refused is a tool whose directory, or the real file
+behind it if it is a link, belongs to somebody other than you or root.
+Permission bits are not checked. Windows reports neither ownership nor
+permissions in a form LoopTroop can read, so there it only applies `PATHEXT` and
+searches the Windows system directories first, the way Windows itself does.
 
 If a tool of yours lives somewhere else on purpose, name its directory:
 
@@ -90,10 +94,13 @@ Those directories are searched **before** `PATH`, and they do not have to be on
 not otherwise find. Use the list separator your platform uses: `:` on macOS and
 Linux, `;` on Windows.
 
-A tool LoopTroop will not run is reported the same way one that is not installed
-is: `doctor` says it is unavailable and gives the reason, and the step that
-needed it degrades exactly as it would without the tool. Nothing becomes a hard
-failure because of this.
+Naming a directory also vouches for it, so a toolchain that belongs to a service
+account is accepted once it is listed.
+
+A tool LoopTroop will not run degrades the same way a missing one does: the step
+that needed it carries on as it would without the tool, and nothing becomes a
+hard failure. `doctor` tells the two apart. It reports a refused tool as refused,
+with the reason, and suggests the variable rather than a reinstall.
 
 ### Runtime markers
 
