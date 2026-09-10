@@ -67,6 +67,33 @@ Resolved elsewhere, and **not** through that chain:
 | `LOOPTROOP_ALLOW_REMOTE_API` | Permits a non-loopback bind. Requires a token as well. |
 | `LOOPTROOP_BACKEND_HOST` | The bind address, once the above allows one. |
 | `LOOPTROOP_API_TOKEN` | Authorises the wider bind. **Not** the token the API accepts — see [API Reference](api-reference.md). |
+| `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS` | Extra directories to look in for `git`, `gh`, `opencode` and the rest, ahead of `PATH`. See below. |
+
+### Where LoopTroop looks for its tools
+
+LoopTroop resolves `git`, `gh`, `opencode`, `npm` and the platform openers to a
+file before it runs them, rather than letting the first matching directory on
+`PATH` decide. The rule is not "system directories only" — a tool installed by
+nvm, Homebrew, Nix, scoop, `~/.local/bin` or a project's own `node_modules/.bin`
+is fine. What is refused is a directory anyone on the machine can write to.
+Windows has no usable permission bits, so there the rule is a location one: a
+system directory or somewhere under your own user profile.
+
+If a tool of yours lives somewhere else on purpose, name its directory:
+
+```bash
+export LOOPTROOP_TRUSTED_EXECUTABLE_DIRS=/opt/tools:/srv/toolchain
+```
+
+Those directories are searched **before** `PATH`, and they do not have to be on
+`PATH` at all — naming a directory is how you point LoopTroop at a tool it would
+not otherwise find. Use the list separator your platform uses: `:` on macOS and
+Linux, `;` on Windows.
+
+A tool LoopTroop will not run is reported the same way one that is not installed
+is: `doctor` says it is unavailable and gives the reason, and the step that
+needed it degrades exactly as it would without the tool. Nothing becomes a hard
+failure because of this.
 
 ### Runtime markers
 
