@@ -78,7 +78,7 @@ directories only": a tool installed by nvm, Homebrew, Nix, scoop, `~/.local/bin`
 a CI runner's tool cache or a project's own `node_modules/.bin` is fine.
 
 On macOS and Linux, what is refused is a tool whose directory, the real file
-behind it if it is a link, or any directory above them belongs to somebody
+behind it if it is a link, or any directory above either belongs to somebody
 other than you, root, or whoever owns the Node binary running LoopTroop. That
 last one is what lets `sudo` use your own toolchain: whoever can replace the Node
 running LoopTroop already controls everything it does. Permission bits are not
@@ -86,18 +86,39 @@ checked. Windows reports neither ownership nor permissions in a form LoopTroop
 can read, so there it only applies `PATHEXT` and searches the Windows system
 directories first, the way Windows itself does.
 
-If a tool of yours lives somewhere else on purpose, name its directory:
+On Windows, a command script such as `npm.cmd` or an npm-installed
+`opencode.cmd` runs through `cmd.exe`. LoopTroop finds `cmd.exe` the same way it
+finds everything else, and escapes every argument so the tool receives it as
+written: a space, `&` or `%PATH%` in an argument stays text.
+
+If a tool of yours lives somewhere else on purpose, name its directory. On macOS
+and Linux:
 
 ```bash
 export LOOPTROOP_TRUSTED_EXECUTABLE_DIRS=/opt/tools:/srv/toolchain
 ```
 
+On Windows, in PowerShell:
+
+```powershell
+$env:LOOPTROOP_TRUSTED_EXECUTABLE_DIRS = 'C:\Tools;D:\toolchain\bin'
+```
+
+or in Command Prompt:
+
+```bat
+set LOOPTROOP_TRUSTED_EXECUTABLE_DIRS=C:\Tools;D:\toolchain\bin
+```
+
+Both last for the current window. Set it in System Properties → Environment
+Variables to keep it.
+
 Those directories are searched **before** `PATH`, and they do not have to be on
 `PATH` at all — naming a directory is how you point LoopTroop at a tool it would
 not otherwise find. The list adds places to look; it does not stop LoopTroop
 looking anywhere else. It is read from LoopTroop's own environment, so a command
-a plan runs cannot set it for itself. Use the list separator your platform uses: `:` on macOS and
-Linux, `;` on Windows.
+a plan runs cannot set it for itself. Use the list separator your platform
+uses: `:` on macOS and Linux, `;` on Windows.
 
 Naming a directory also vouches for it, so a toolchain that belongs to a service
 account is accepted once it is listed.
