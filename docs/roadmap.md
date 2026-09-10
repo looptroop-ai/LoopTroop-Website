@@ -1341,6 +1341,24 @@ search: false
         * The two branches are reached from the single Re-analyze button (diagnosis first, then choose a branch), so the user always gets the diagnosis before committing to either a correction or a note.
     * Both new actions coexist with the existing Retry, Retry with extra note, and Cancel actions; they are additional escalation options for the user, never automatic, and the user stays in control of which recovery path to take.
     * Keep these actions as a coherent escalation ladder for the user: Retry (same model, same spec) -> Retry with extra note (same model, same spec, more guidance) -> Retry with another model (different model, same spec) -> Re-analyze (diagnose, then either correct the spec or feed the diagnosis back as a retry note).
+*   **Add-ons (per-project and global selection of popular AI skills and add-ons):** Add an add-ons catalog allowing users to enable popular AI skills, rule sets, and capability packages either globally across all projects or tailored per project.
+    *   **Curated catalog:** Provide a built-in selection of widely used AI skills and instructions ready to enable without manual file creation:
+        *   `humanizer`: removes common AI writing patterns, staged phrasing, and filler from generated ticket summaries, documentation, and pull request descriptions.
+        *   `rtk`: guides coding phases with modern Redux Toolkit patterns, state management idioms, and API conventions.
+        *   `superpowers`: supplies agent capability suites such as systematic debugging, planning rigor, web research, and shell command validation.
+        *   Community and custom add-ons: allow users to add custom skills and prompt packages by URL or local path.
+    *   **Dual-scope selection:**
+        *   Global add-ons: configured in global app settings and enabled by default across every attached repository.
+        *   Per-project overrides: configured in project settings, allowing projects to toggle individual add-ons on or off, add repository-specific skills, or adjust add-on parameters.
+        *   Project settings take precedence over global settings when an add-on is defined in both places.
+    *   **Phase-targeted application:**
+        *   Allow each add-on to specify or restrict which workflow phases and roles it applies to (such as planning council, coding beads, or PR creation) so models receive only the instructions relevant to their immediate task.
+    *   **Persistence and versioning:**
+        *   Store global selections in app configuration (`~/.config/looptroop/addons.json`).
+        *   Store project selections in `.looptroop/addons.yaml` within the repository root so project teams can track their add-on configurations in version control.
+    *   **Runtime injection and auditability:**
+        *   Resolve the active add-on set at run start and pass the corresponding instructions, rules, or tool definitions into the phase's OpenCode session.
+        *   List active add-ons in the ticket overview and execution logs so users can see which skills influenced any given phase.
 
 ## Medium Priority
 
