@@ -77,11 +77,14 @@ file before it runs them, rather than letting the first matching directory on
 directories only": a tool installed by nvm, Homebrew, Nix, scoop, `~/.local/bin`,
 a CI runner's tool cache or a project's own `node_modules/.bin` is fine.
 
-On macOS and Linux, what is refused is a tool whose directory, or the real file
-behind it if it is a link, belongs to somebody other than you or root.
-Permission bits are not checked. Windows reports neither ownership nor
-permissions in a form LoopTroop can read, so there it only applies `PATHEXT` and
-searches the Windows system directories first, the way Windows itself does.
+On macOS and Linux, what is refused is a tool whose directory, the real file
+behind it if it is a link, or any directory above them belongs to somebody
+other than you, root, or whoever owns the Node binary running LoopTroop. That
+last one is what lets `sudo` use your own toolchain: whoever can replace the Node
+running LoopTroop already controls everything it does. Permission bits are not
+checked. Windows reports neither ownership nor permissions in a form LoopTroop
+can read, so there it only applies `PATHEXT` and searches the Windows system
+directories first, the way Windows itself does.
 
 If a tool of yours lives somewhere else on purpose, name its directory:
 
@@ -91,7 +94,9 @@ export LOOPTROOP_TRUSTED_EXECUTABLE_DIRS=/opt/tools:/srv/toolchain
 
 Those directories are searched **before** `PATH`, and they do not have to be on
 `PATH` at all — naming a directory is how you point LoopTroop at a tool it would
-not otherwise find. Use the list separator your platform uses: `:` on macOS and
+not otherwise find. The list adds places to look; it does not stop LoopTroop
+looking anywhere else. It is read from LoopTroop's own environment, so a command
+a plan runs cannot set it for itself. Use the list separator your platform uses: `:` on macOS and
 Linux, `;` on Windows.
 
 Naming a directory also vouches for it, so a toolchain that belongs to a service
