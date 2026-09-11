@@ -89,7 +89,10 @@ directories first, the way Windows itself does.
 On Windows, a command script such as `npm.cmd` or an npm-installed
 `opencode.cmd` runs through `cmd.exe`. LoopTroop finds `cmd.exe` the same way it
 finds everything else, and escapes every argument so the tool receives it as
-written: a space, `&` or `%PATH%` in an argument stays text.
+written: a space, `&` or `%PATH%` in an argument stays text. The few arguments
+`cmd.exe` would change whatever the escaping, such as `%PATH:a=b%`, are refused
+with the reason rather than passed on changed. Tools installed from the
+Microsoft Store or App Installer, like `winget`, are found too.
 
 If a tool of yours lives somewhere else on purpose, name its directory. On macOS
 and Linux:
