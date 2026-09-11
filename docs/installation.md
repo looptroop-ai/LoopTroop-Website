@@ -173,6 +173,10 @@ with nothing.
 > LoopTroop. On a machine with no Node at all, download the archive from the
 > releases page and unpack it yourself.
 
+If the installer reports a leftover `.install.lock.claim`, wait and retry.
+Remove that recovery file only after confirming no installer is running. Use
+the path printed in the error; a custom install prefix changes its location.
+
 ### Platforms with no executable
 
 | Platform | Why | Use instead |
