@@ -48,7 +48,7 @@ const gettingStarted = (await readFile('site/docs/getting-started.html', 'utf8')
 // Checking only npm would let the curl default disappear silently; checking
 // only curl would let the tab group lose every other channel.
 const installCommands = {
-  'the one-line installer': 'curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install',
+  'the one-line installer': 'curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install',
   npm: 'npm install -g looptroop',
 }
 

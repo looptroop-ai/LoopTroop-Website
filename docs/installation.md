@@ -6,12 +6,12 @@ a channel, start it, open it.
 ::: code-group
 
 ```bash [macOS, Linux, WSL]
-curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
+curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
 ```powershell [Windows PowerShell]
-irm https://www.looptroop.ovh/install.ps1 | iex
+$script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
 looptroop open
 ```
 
@@ -28,12 +28,16 @@ the service without a browser.
 > not install it, and it refuses to start with no OpenCode to reach. See
 > [Getting Started](getting-started.md).
 
+The PowerShell command needs `curl.exe`, included in current Windows 10 and
+Windows 11. If it is unavailable, use the npm channel below. It downloads the
+complete script over HTTPS and stops if the download fails.
+
 ## Channels
 
 | | Install | Upgrade | |
 | --- | --- | --- | --- |
-| **Installer script** (macOS, Linux, WSL) | `curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
-| **Installer script** (Windows) | `irm https://www.looptroop.ovh/install.ps1 \| iex` | run it again | ✅ |
+| **Installer script** (macOS, Linux, WSL) | `curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
+| **Installer script** (Windows) | [PowerShell command above](#installation) | run it again | ✅ |
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
 | **pnpm** (everywhere) | `pnpm add -g looptroop` | `pnpm add -g looptroop@latest` | ✅ |
@@ -139,11 +143,11 @@ The installer will place one for you, into `~/.looptroop` unless you say
 otherwise:
 
 ```bash
-curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
+curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 ```
 
 ```powershell
-& ([scriptblock]::Create((irm https://www.looptroop.ovh/install.ps1))) -Binary
+$script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n"))) -Binary
 ```
 
 Everything the installer accepts, in either mode:

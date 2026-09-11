@@ -36,11 +36,11 @@ Pick one. Each tab says what it needs beyond the command itself.
 ::: code-group
 
 ```bash [curl]
-curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
+curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
 ```
 
-```powershell [irm]
-irm https://www.looptroop.ovh/install.ps1 | iex
+```powershell [PowerShell]
+$script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
 ```
 
 ```bash [npm]
@@ -74,9 +74,12 @@ docker pull looptroopai/looptroop:latest
 
 :::
 
+Requires `curl.exe` (included in current Windows 10/11). See the
+[npm alternative](installation.md#channels) if it is unavailable.
+
 | Channel | What it needs first |
 | --- | --- |
-| **curl / irm** | Node 24.18.1+, npm 12.0.2+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
+| **curl / PowerShell** | Node 24.18.1+, npm 12.0.2+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
 | **npm** | Node 24.18.1+, npm 12.0.2+, git, `gh` |
 | **Homebrew** | Nothing else — it pulls in `node@24` and `gh`, and takes git from the OS |
 | **Scoop** | Nothing else — it depends on `nodejs-lts`, `git` and `gh` |

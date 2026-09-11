@@ -26,12 +26,12 @@ if it is not already running and opens a signed-in browser on it.
 ::: code-group
 
 ```bash [curl]
-curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
+curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
-```powershell [irm]
-irm https://www.looptroop.ovh/install.ps1 | iex
+```powershell [PowerShell]
+$script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
 looptroop open
 ```
 
@@ -71,6 +71,9 @@ docker pull looptroopai/looptroop:latest
 ```
 
 :::
+
+Requires `curl.exe` (included in current Windows 10/11). See the
+[npm alternative](installation.md#channels) if it is unavailable.
 
 [Getting Started](getting-started.md) walks through the first run, and
 [Installation](installation.md) covers every channel, what each one requires,
