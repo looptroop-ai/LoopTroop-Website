@@ -71,65 +71,26 @@ Resolved elsewhere, and **not** through that chain:
 
 ### Where LoopTroop looks for its tools
 
-LoopTroop resolves `git`, `gh`, `opencode`, `npm` and the platform openers to a
-file before it runs them, rather than letting the first matching directory on
-`PATH` decide, and the current directory never counts. The rule is not "system
-directories only": a tool installed by nvm, Homebrew, Nix, scoop, `~/.local/bin`,
-a CI runner's tool cache or a project's own `node_modules/.bin` is fine.
+LoopTroop picks the file it runs for `git`, `gh`, `opencode`, `npm` and the other
+tools it starts, instead of letting `PATH` decide, and it never runs one from the
+current directory. Tools installed by nvm, Homebrew, Nix, scoop, a CI tool cache
+or a project's `node_modules/.bin` all work.
 
-On macOS and Linux, what is refused is a tool whose directory, the real file
-behind it if it is a link, or any directory above either belongs to somebody
-other than you, root, or whoever owns the Node binary running LoopTroop. That
-last one is what lets `sudo` use your own toolchain: whoever can replace the Node
-running LoopTroop already controls everything it does. Permission bits are not
-checked. Windows reports neither ownership nor permissions in a form LoopTroop
-can read, so there it only applies `PATHEXT` and searches the Windows system
-directories first, the way Windows itself does.
+On macOS and Linux it refuses a tool when the tool's directory, the real file
+behind a link, or any directory above them belongs to someone other than you,
+root, or the owner of the Node running LoopTroop. A refused tool is treated like
+a missing one, and `doctor` says it was refused and why.
 
-On Windows, a command script such as `npm.cmd` or an npm-installed
-`opencode.cmd` runs through `cmd.exe`. LoopTroop finds `cmd.exe` the same way it
-finds everything else, and escapes every argument so the tool receives it as
-written: a space, `&` or `%PATH%` in an argument stays text. The few arguments
-`cmd.exe` would change whatever the escaping, such as `%PATH:a=b%`, are refused
-with the reason rather than passed on changed. Tools installed from the
-Microsoft Store or App Installer, like `winget`, are found too.
-
-If a tool of yours lives somewhere else on purpose, name its directory. On macOS
-and Linux:
+If a tool lives somewhere else on purpose, for example a toolchain owned by a
+service account, name its directory:
 
 ```bash
 export LOOPTROOP_TRUSTED_EXECUTABLE_DIRS=/opt/tools:/srv/toolchain
 ```
 
-On Windows, in PowerShell:
-
-```powershell
-$env:LOOPTROOP_TRUSTED_EXECUTABLE_DIRS = 'C:\Tools;D:\toolchain\bin'
-```
-
-or in Command Prompt:
-
-```bat
-set LOOPTROOP_TRUSTED_EXECUTABLE_DIRS=C:\Tools;D:\toolchain\bin
-```
-
-Both last for the current window. Set it in System Properties → Environment
-Variables to keep it.
-
-Those directories are searched **before** `PATH`, and they do not have to be on
-`PATH` at all — naming a directory is how you point LoopTroop at a tool it would
-not otherwise find. The list adds places to look; it does not stop LoopTroop
-looking anywhere else. It is read from LoopTroop's own environment, so a command
-a plan runs cannot set it for itself. Use the list separator your platform
-uses: `:` on macOS and Linux, `;` on Windows.
-
-Naming a directory also vouches for it, so a toolchain that belongs to a service
-account is accepted once it is listed.
-
-A tool LoopTroop will not run degrades the same way a missing one does: the step
-that needed it carries on as it would without the tool, and nothing becomes a
-hard failure. `doctor` tells the two apart. It reports a refused tool as refused,
-with the reason, and suggests the variable rather than a reinstall.
+Those directories are searched before `PATH` and are trusted as they are. They
+do not have to be on `PATH`. Separate them with `:` on macOS and Linux and `;`
+on Windows.
 
 ### Runtime markers
 
