@@ -36,7 +36,7 @@ Pick one. Each tab says what it needs beyond the command itself.
 ::: code-group
 
 ```bash [curl]
-curl -fsSL https://www.looptroop.ovh/install | sh
+curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
 ```
 
 ```powershell [irm]

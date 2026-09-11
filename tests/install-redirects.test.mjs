@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 /**
- * `curl -fsSL https://www.looptroop.ovh/install | sh` is a documented command
+ * `curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh` is a documented command
  * in the LoopTroop README, and these three redirects are the only thing that
  * makes it work. Nothing else on this site would notice if they were removed,
  * renamed, or pointed somewhere that does not exist — the pages would all still

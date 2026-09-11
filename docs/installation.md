@@ -6,7 +6,7 @@ a channel, start it, open it.
 ::: code-group
 
 ```bash [macOS, Linux, WSL]
-curl -fsSL https://www.looptroop.ovh/install | sh
+curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
@@ -32,7 +32,7 @@ the service without a browser.
 
 | | Install | Upgrade | |
 | --- | --- | --- | --- |
-| **Installer script** (macOS, Linux, WSL) | `curl -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
+| **Installer script** (macOS, Linux, WSL) | `curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
 | **Installer script** (Windows) | `irm https://www.looptroop.ovh/install.ps1 \| iex` | run it again | ✅ |
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
@@ -139,7 +139,7 @@ The installer will place one for you, into `~/.looptroop` unless you say
 otherwise:
 
 ```bash
-curl -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
+curl --proto =https --proto-redir =https --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 ```
 
 ```powershell
@@ -173,9 +173,10 @@ with nothing.
 > LoopTroop. On a machine with no Node at all, download the archive from the
 > releases page and unpack it yourself.
 
-If the installer reports a leftover `.install.lock.claim`, wait and retry.
-Remove that recovery file only after confirming no installer is running. Use
-the path printed in the error; a custom install prefix changes its location.
+If the installer reports `.install.lock` or `.install.lock.claim`, wait and
+retry. A process ID can be reused after a crash, so an old lock may need manual
+cleanup even when its original installer has stopped. Remove only the named
+file after confirming no installer is running; a custom prefix changes its path.
 
 ### Platforms with no executable
 
