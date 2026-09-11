@@ -72,7 +72,7 @@ docker pull looptroopai/looptroop:latest
 
 :::
 
-Requires `curl.exe` (included in current Windows 10/11). See the
+The PowerShell command requires `curl.exe` (included in current Windows 10/11). See the
 [npm alternative](installation.md#channels) if it is unavailable.
 
 [Getting Started](getting-started.md) walks through the first run, and
