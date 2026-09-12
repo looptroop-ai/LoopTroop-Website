@@ -239,6 +239,9 @@ If the user chooses the non-merge finish path (`close_unmerged` in the workflow 
 
 If the PR is merged manually on GitHub while `WAITING_PR_REVIEW` is open, LoopTroop detects that state, skips a duplicate merge call, verifies the remote base branch, and continues automatically.
 
+> [!NOTE]
+> In development, not yet released: the daemon checks waiting tickets on startup and roughly every 30 seconds after each sweep, even when no UI is open. It only completes PRs already merged on GitHub; the Merge action still initiates a merge. Failed background checks keep the ticket waiting and retry with delays from one to five minutes. Checks resume after a daemon restart. Shutdown stops new checks and waits for the active check before closing storage. Ticket GET requests no longer contact GitHub or complete merges.
+
 ---
 
 ## 6. `CLEANING_ENV`: remove runtime state, keep the evidence
