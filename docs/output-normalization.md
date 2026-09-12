@@ -19,10 +19,11 @@ Normalization is intentionally conservative:
 
 The following changes are under review and are not available in the published CLI yet:
 
-- Removing a duplicate block scalar will continue across blank and comment lines. The duplicate's remaining text will no longer get appended to the first value.
+- Duplicate block-scalar removal will handle blank gaps while preserving external comments and repeated literal lines in retained scalars. Invalid continuation after a dedented comment will stay invalid. Conflicting duplicate values are still under review; this update does not change which value is retained.
 - Invalid one-line values such as `free_text: |some prose` and `free_text: >some prose` will be quoted as literal text, including the leading character. Valid block scalar headers and their content will stay unchanged.
+- Nested-mapping indentation repairs will preserve literal block contents, including explicit indentation indicators and text that resembles mapping keys or comments.
 
-Repeated parsing of the same candidate with the same repair options will reuse a cache bounded by both entry count and byte size. Candidate order and selection will stay the same: the first candidate that passes artifact validation wins. Each call will receive its own parsed result and repair warnings, so changes made while processing one artifact cannot affect another.
+Repeated parsing of the same candidate with the same repair options will reuse a cache bounded by both entry count and byte size. Candidate order and selection will stay the same: the first candidate that passes artifact validation wins. Each call will receive its own parsed result and repair warnings, so changes made while processing one artifact cannot affect another. If a cache key or stored result cannot be read, the parser will run normally, including for deeply nested valid JSON.
 
 ## 1. Retry Classes
 
