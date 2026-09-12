@@ -19,7 +19,7 @@ Normalization is intentionally conservative:
 
 The following changes are under review and are not available in the published CLI yet:
 
-- Duplicate block-scalar removal will handle blank gaps while preserving external comments and repeated literal lines in retained scalars. Invalid continuation after a dedented comment will stay invalid. Conflicting duplicate values are still under review; this update does not change which value is retained.
+- Duplicate-key repair will remove an entry only when its complete contents match. Conflicting block bodies, nested mappings and multiline values will remain invalid for the existing correction/retry flow. Repairs will preserve external comments and repeated literal lines in retained scalars; malformed continuation after a dedented comment will stay invalid.
 - Invalid one-line values such as `free_text: |some prose` and `free_text: >some prose` will be quoted as literal text, including the leading character. Valid block scalar headers and their content will stay unchanged.
 - Nested-mapping indentation repairs will preserve literal block contents, including explicit indentation indicators and text that resembles mapping keys or comments.
 
@@ -243,7 +243,7 @@ The shared YAML candidate parser applies this repair to PRD, Beads, relevant-fil
 
 **Trigger:** The same mapping key appears more than once with exactly the same line text (key + value).
 
-**Repair:** The exact duplicate is dropped. If the duplicate opens a nested block (e.g. a second `options:` with the same list), the entire duplicate block is skipped. Ambiguous duplicates with *different* values are left for js-yaml to report as an error.
+**Repair:** The published parser compares duplicate header lines. Different inline values remain errors, but identical block headers can still hide different bodies. The unreleased change above will require the complete entries to match before removal.
 
 #### 13. Invalid double-quoted escape repair
 
