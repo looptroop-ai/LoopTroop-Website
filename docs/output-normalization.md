@@ -15,6 +15,15 @@ Normalization is intentionally conservative:
 - **Cleanup normalizations** may fill or restore values only when the source is deterministic, such as runtime context, canonical interview metadata, or arithmetic totals.
 - **Anything else fails validation** and stays diagnostic-only rather than being guessed into a saved artifact.
 
+## Upcoming parser changes (unreleased)
+
+The following changes are under review and are not available in the published CLI yet:
+
+- Removing a duplicate block scalar will continue across blank and comment lines. The duplicate's remaining text will no longer get appended to the first value.
+- Invalid one-line values such as `free_text: |some prose` and `free_text: >some prose` will be quoted as literal text, including the leading character. Valid block scalar headers and their content will stay unchanged.
+
+Repeated parsing of the same candidate with the same repair options will reuse a cache bounded by both entry count and byte size. Candidate order and selection will stay the same: the first candidate that passes artifact validation wins. Each call will receive its own parsed result and repair warnings, so changes made while processing one artifact cannot affect another.
+
 ## 1. Retry Classes
 
 LoopTroop uses four distinct retry classes. The names matter because they describe different session and artifact behavior:
