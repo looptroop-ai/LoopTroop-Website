@@ -99,6 +99,7 @@ The project database is the operational store for one attached repository. LoopT
 | --- | --- |
 | `projects` | Project metadata, concrete Advanced choices, and other project-level configuration overrides |
 | `tickets` | Ticket records, workflow status, progress counters, and serialized machine snapshot |
+| `skip_receipt_actions` (unreleased) | One unique ticket/action claim per skip operation; bulk receipts share the claim |
 | `phase_artifacts` | Phase-scoped structured artifacts, reports, approvals, UI companions, and read models |
 | `ticket_phase_attempts` | Archived/active phase-version history for non-implementation phases |
 | `opencode_sessions` | Exact OpenCode session ownership records |
@@ -169,6 +170,12 @@ Operational notes:
 - `workflow_revision` increases on status transitions and lets polling/SSE consumers reject stale state even when the workflow moves backward from Manual QA to Coding
 - `branch_name = '__looptroop_display_only_mock__'` is reserved for board-only mock/demo tickets; these rows are returned for display, projected through the API with `isDisplayOnlyMock: true`, excluded from startup hydration and runnable workflow actions, and expose only Cancel while non-terminal
 - runtime details shown in the UI are enriched from **both** this row and ticket-owned files under `.ticket/**`
+
+### `skip_receipt_actions` (unreleased)
+
+The development schema stores `ticket_id` and `action_id` with a unique index on the pair. The claim and all item receipts are written in one transaction, so a bulk skip can keep one receipt per item while replaying the same action writes nothing. Failed writes roll back the claim. Receipt rollback and cancellation that removes ticket content delete the claim; ticket deletion cascades to it, and project-database startup removes orphaned claims.
+
+The claim table owns action idempotency. The receipts remain the audit trail, including timestamps and reasons. No backfill is provided for older installations during alpha.
 
 ### `phase_artifacts`
 
@@ -443,6 +450,7 @@ LoopTroop creates a small set of runtime-focused indexes rather than a large gen
 ### Project DB indexes
 
 - ticket lookup: `tickets(project_id)`, `tickets(status)`, `tickets(external_id)`
+- skip-action uniqueness (unreleased): `skip_receipt_actions(ticket_id, action_id)`
 - artifact lookup: `phase_artifacts(ticket_id)`, `phase_artifacts(ticket_id, phase, phase_attempt)`
 - phase-attempt lookup: `ticket_phase_attempts(ticket_id, phase, state, attempt_number)` plus a uniqueness index on `(ticket_id, phase, attempt_number)`
 - OpenCode session lookup: `opencode_sessions(session_id)`, `opencode_sessions(ticket_id, phase, state)`, `opencode_sessions(ticket_id, phase, phase_attempt, member_id, bead_id, iteration, step, state)`
