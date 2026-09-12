@@ -17,14 +17,7 @@ Normalization is intentionally conservative:
 
 ## Upcoming parser changes (unreleased)
 
-The following changes are under review and are not available in the published CLI yet:
-
-- Duplicate-key repair will remove an entry only when its complete contents match. Conflicting block bodies, nested mappings and multiline values will remain invalid for the existing correction/retry flow. Repairs will preserve external comments and repeated literal lines in retained scalars; malformed continuation after a dedented comment will stay invalid.
-- Invalid one-line values such as `free_text: |some prose` and `free_text: >some prose` will be quoted as literal text, including the leading character. Valid block scalar headers and their content will stay unchanged.
-- Nested-mapping indentation repairs will preserve literal block contents, including explicit indentation indicators and text that resembles mapping keys or comments.
-- Closed flow values such as `[EPIC-1]` and `{owner: model}` will allow unrelated repairs to continue. Ordinary blank separators will stay outside duplicate entries; repairs will preserve meaningful scalar whitespace and leave malformed continuations untouched.
-
-Repeated parsing of the same candidate with the same repair options will reuse a cache bounded by both entry count and byte size. Candidate order and selection will stay the same: the first candidate that passes artifact validation wins. Each call will receive its own parsed result and repair warnings, so changes made while processing one artifact cannot affect another. If a cache key or stored result cannot be read, the parser will run normally, including for deeply nested valid JSON.
+The next parser update will remove duplicate entries only when their complete contents match. Conflicting values will remain invalid for the existing correction/retry flow, and repairs will preserve literal block content. These changes are not available in the published CLI yet.
 
 ## 1. Retry Classes
 
