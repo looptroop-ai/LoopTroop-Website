@@ -34,7 +34,7 @@ DRAFT
 Any active phase can fail into BLOCKED_ERROR.
 BLOCKED_ERROR -> RETRY -> previousStatus
 BLOCKED_ERROR -> CONTINUE -> previousStatus (eligible preserved OpenCode sessions only)
-Any non-terminal phase -> CANCELED
+Any cancelable non-terminal phase -> CANCELED
 WAITING_PR_REVIEW -> merge or close-unmerged -> CLEANING_ENV
 WAITING_MANUAL_QA -> failed submission -> CODING -> fresh RUNNING_FINAL_TEST -> next QA version
 ```
@@ -104,7 +104,7 @@ The underlying state machine enforces valid state transitions and recovery hooks
 **Recovery semantics:**
 - `RETRY`: Re-enters `previousStatus`; non-implementation phases archive the failed attempt and create a fresh version first, while `CODING` resets the active bead/checkpoint path instead.
 - `CONTINUE`: Appears only when a preserved OpenCode session is still live and eligible; LoopTroop re-enters the interrupted phase and sends exactly `continue please`.
-- `CANCEL`: Available from every non-terminal workflow state and moves the ticket to the terminal canceled state after aborting active work.
+- `CANCEL`: Moves a cancelable ticket to the terminal canceled state after aborting active work. In development (not yet released), final cleanup and tickets with a verified merge checkpoint cannot be canceled.
 
 Manual QA adds a deliberate reverse transition rather than treating a reported product failure as a workflow error. Any explicit Fail—required or optional—first generates and persists a complete validated `fix-beads.yaml` candidate, then creates pending `qa-fix` beads, archives the current final-test/generation/waiting attempts, and returns to `CODING`. Improvements from the same submission are independent Draft tickets with their chosen priority and Manual QA setting. If bead generation, required read-only repository inspection, or validation fails, no child work is created and the ticket enters recoverable `BLOCKED_ERROR`; Retry resumes the exact submission action. After successful fixes, LoopTroop creates a fresh final-test attempt and allocates the next checklist version.
 
@@ -146,7 +146,7 @@ The transition model enforces these invariants:
 - **The Interview Loop** can self-loop dynamically during active batching or coverage verification.
 - **Spec & Blueprint Coverage Loops** remain bounded inside their groups, revising automatically until clean or capped.
 - **`BLOCKED_ERROR`** stores `previousStatus` in its context to allow precise, phase-scoped recovery.
-- **Cancellation** is a workflow-wide safety valve for every non-terminal state, even though the most visible decision points remain approvals, blocked errors, and PR review.
+- **Cancellation** is available across active work and human gates. In development (not yet released), it stops being available once final cleanup starts or a verified merge is recorded.
 - **Archived phase attempts** preserve non-implementation retries, regenerations, and planning restarts as read-only history instead of overwriting the last run.
 - **Visited status history + monotonic workflow revisions** preserve Manual QA rounds and reconcile reverse transitions without relying on linear status indexes.
 - **Execution-time human input** can happen without a status change when OpenCode asks a question during runtime setup or coding.
@@ -308,10 +308,11 @@ The state machine metadata directly drives the React user interface. Developers 
 | `WAITING_INTERVIEW_ANSWERS` | batch answer, edit answer, skip question, skip all, `cancel` | Interview input is batch-oriented; `skip all` writes a synthetic clean coverage result and jumps straight to interview approval. Every skip takes an optional reason, recorded on the answer and in the ticket's append-only skip trail. |
 | Approval gates | `approve`, `cancel` | Interview, PRD, beads, and setup-plan approvals require `expectedContentSha256`; stale approvals return `409` instead of advancing. |
 | `WAITING_EXECUTION_SETUP_APPROVAL` / `PREPARING_EXECUTION_ENV` | edit, regenerate, approve/rewind | Approval-phase regeneration enters `GENERATING_EXECUTION_SETUP_PLAN` in a fresh version. During runtime setup, manual editing stops setup and rewinds directly to approval with the current plan; regeneration also archives the setup-plan/runtime attempts, preserves the tool cache, and enters the drafting status before approval is required again. |
-| `WAITING_PR_REVIEW` | `merge`, `close_unmerged`, `cancel` | Review resolution decides whether the ticket exits with a merged PR or a closed unmerged branch. |
+| `WAITING_PR_REVIEW` | `merge`, `close_unmerged`, `cancel` | In development, a verified merge checkpoint rejects close/cancel and resumes completion. Review resolution decides whether the ticket exits with a merged PR or a closed unmerged branch. |
 | `WAITING_MANUAL_QA` | autosave, evidence upload/remove, submit, skip, include/discard drift, `cancel` | There is no manual Save action. Every mutation uses an action id, expected checklist hash, and expected draft revision. Skip bypasses normal result/group validation, snapshots all entered data read-only, takes an optional reason for the round, and creates no drafted improvement/fix work. |
 | `BLOCKED_ERROR` | `retry`, optional retry with extra note, optional edit setup plan, optional `continue`, `cancel` | **Retry with extra note...** appears for a live error from `CODING` or `PREPARING_EXECUTION_ENV` and sits beside **Retry**. Coding starts its existing fresh-bead retry. Setup sends only the note to the preserved session and grants one manual attempt beyond the automatic budget. **Edit setup plan...** appears only for setup and opens a confirmation dialog before rewinding to approval. `continue` appears only when a preserved OpenCode session is still live. Final-test local-only files are resolved automatically and expose no blocked recovery action. |
-| Any other non-terminal status | `cancel` | Cancellation is not limited to gates; the route accepts it from every non-terminal workflow state. |
+| `CLEANING_ENV` (unreleased) | none | The finish decision is recorded. Restarting the daemon retries interrupted cleanup. |
+| Other cancelable non-terminal statuses | `cancel` | Cancellation is not limited to gates. |
 | Any status but the interview | answer/skip AI questions, stop the countdown | A model can request human input mid-session without changing the main ticket status; answering or skipping unblocks that live session in place. Skipping takes an optional reason and is recorded in the skip trail. Which statuses can ask is a setting rather than a property of the phase, except for the interview, which generates its own questions and never uses the tool. Each question waits for a configured window and then refuses itself, attributed to `timeout` rather than to a person. Waiting does not consume the step's working time. See [Configuration → AI Questions](configuration.md#ai-questions). |
 
 ### Planning Edit Restarts
