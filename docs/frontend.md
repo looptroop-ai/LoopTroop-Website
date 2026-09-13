@@ -276,9 +276,9 @@ Council-style live workspace phases keep their current-action card dense: compac
 
 In Full Log, **Go to top** is an explicit whole-lifecycle navigation action: it loads every remaining older cursor page, suppresses ordinary prepend anchoring for that action, and then targets the first virtualized or normal row. **Back to bottom** targets the last virtualized row or the viewport's maximum scroll position, repeats the target after layout settles, and re-enables live tail following.
 
-PR21 (unreleased) keeps model-attributed system milestones in restored AI and model tabs, including matching totals and complete-history exports. Model tabs come from all recorded models in the selected phase and attempt, or the whole ticket in Full Log, so filtering or paging cannot hide another model. The catalog survives closing and reopening a log view. Changing ticket or phase attempt resets selection to ALL; an unavailable initial model falls back after discovery or a failed request. Display, history, metrics, and export use the same selected tab. Copy is unavailable during the initial history load or when a view has no recorded or live rows. An empty export response leaves the clipboard unchanged without reporting a new copy outcome. Changing scope or filter cancels an unfinished export.
+PR21 (unreleased) keeps model-attributed system milestones in restored AI and model tabs, including matching totals and complete-history exports. Model tabs come from all recorded models in the selected phase and attempt, or the whole ticket in Full Log, so filtering or paging cannot hide another model. The catalog survives closing and reopening a log view. Changing ticket or phase attempt resets selection to ALL; an unavailable initial model falls back after discovery or a failed request. Display, history, metrics, and export use the same selected tab.
 
-PR21 (unreleased) also fixes history refresh after older pages have been loaded. Phase logs, Full Log, and bead logs refresh from the newest page, updating totals and the model catalog, then sequentially fetch older pages using the fresh cursors. Refresh covers the previously loaded page count, stopping earlier if history ends. New log entries can move page boundaries, so the exact oldest displayed row may change. The shared history hook stores pages newest first and reverses their order only when merging entries, allowing newer finalized content to replace older appends.
+PR21 (unreleased) also fixes history refresh after older pages have been loaded. Phase logs, Full Log, and bead logs refresh from the newest page, updating totals and the model catalog, then sequentially fetch older pages using the fresh cursors. Refresh covers the previously loaded page count, stopping earlier if history ends. New log entries can move page boundaries, so the exact oldest displayed row may change.
 
 The entry count in phase and Full Log toolbars is the complete matching server total, not merely the currently loaded page. Its existing hover card keeps the log color legend and adds loaded/remaining entry progress plus the complete logical text-line count. Logical lines are stored non-empty content lines separated by newline characters; viewport wrapping does not change the count. Live rows can briefly make the loaded count newer than the projection total, so the UI never displays a total smaller than the entries already visible and settles to the exact server count on the normal log invalidation refresh.
 
@@ -348,8 +348,6 @@ keeps this data fresh on window focus while the backend owns the shared
 15-minute network/cache policy.
 
 ### Model Selection
-
-PR21 (unreleased) gives the shared model picker an accessible search combobox. Tab moves between search and controls; arrow keys move through available model choices and Enter selects one. Escape preserves the saved choice and returns focus to the picker button. Home and End keep their normal text-editing behavior. Each picker announces its main/council role and current choice. Provider-collapse controls sit above the results, outside the grouped listbox. Search, free-model filtering, and provider collapsing remain available. Empty search results are announced. An empty list explains when all providers are collapsed, and keyboard navigation keeps the highlighted option below sticky provider headings.
 
 | Field | Purpose |
 | --- | --- |
@@ -469,8 +467,6 @@ Project-name prefix suggestions are generated from all attached projects, not on
 When a search has no matches, the board shows an explicit empty search-results state with a clear action while keeping the dashboard search control available. Clearing the search restores the normal unfiltered board; it does not change ticket status placement, column grouping, auto-refresh behavior, or selected-ticket routing.
 
 ## 13. Keyboard Shortcuts
-
-PR21 (unreleased) exposes each execution-setup step's expanded state and controlled content to assistive technology. Copy buttons for ticket details, paths, artifacts, log entries, bead logs, crash details, and sign-in instructions show **Copy failed** if the browser refuses clipboard access. The message stays visible until a retry succeeds or the copy target changes; each failed retry is announced again. Streaming within the same bead-log target or a status update to the same log entry does not clear the message. Log-entry retry buttons stay visible after failure and when focused with the keyboard. Phase and Full Log exports also show a retry message when fetching the complete history fails, and remove any previous success indicator.
 
 `KeyboardShortcuts` (`src/components/shared/KeyboardShortcuts.tsx`) registers the global `?` help overlay. Dashboard search adds its own `/` focus shortcut, and `Escape` is shared across the overlay, dashboard search, ticket dashboard, and modal wrappers. The overlay lists only the three shortcuts the app actually binds.
 
