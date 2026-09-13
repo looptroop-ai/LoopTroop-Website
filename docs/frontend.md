@@ -276,6 +276,8 @@ Council-style live workspace phases keep their current-action card dense: compac
 
 In Full Log, **Go to top** is an explicit whole-lifecycle navigation action: it loads every remaining older cursor page, suppresses ordinary prepend anchoring for that action, and then targets the first virtualized or normal row. **Back to bottom** targets the last virtualized row or the viewport's maximum scroll position, repeats the target after layout settles, and re-enables live tail following.
 
+PR21 (unreleased) keeps model-attributed system milestones in restored AI and model tabs, including matching totals and complete-history exports. Model tabs come from all recorded models in the selected phase and attempt, or the whole ticket in Full Log, so filtering or paging cannot hide another model. An unavailable selected tab falls back to ALL and resets the history and export filters.
+
 The entry count in phase and Full Log toolbars is the complete matching server total, not merely the currently loaded page. Its existing hover card keeps the log color legend and adds loaded/remaining entry progress plus the complete logical text-line count. Logical lines are stored non-empty content lines separated by newline characters; viewport wrapping does not change the count. Live rows can briefly make the loaded count newer than the projection total, so the UI never displays a total smaller than the entries already visible and settles to the exact server count on the normal log invalidation refresh.
 
 The browser opens the ticket stream through the same-origin `/api/stream` route, matching normal API fetches and avoiding dev-environment host/CORS drift. In development, that path lets Vite inject backend auth without exposing the token to client code. In an installed build, the browser sends its session cookie. The API does not accept `apiToken` or any other credential in the query string. Live OpenCode event translation, streaming upserts, coalescing, finalization, durable JSONL rules, and SSE cadence are unchanged by paginated restoration.
@@ -344,6 +346,8 @@ keeps this data fresh on window focus while the backend owns the shared
 15-minute network/cache policy.
 
 ### Model Selection
+
+PR21 (unreleased) gives the shared model picker an accessible search combobox. Arrow keys move through available model choices and Enter selects one; Escape returns focus to the picker button. Provider-collapse controls sit above the results, outside the grouped listbox. Search, free-model filtering, and provider collapsing remain available.
 
 | Field | Purpose |
 | --- | --- |
@@ -463,6 +467,8 @@ Project-name prefix suggestions are generated from all attached projects, not on
 When a search has no matches, the board shows an explicit empty search-results state with a clear action while keeping the dashboard search control available. Clearing the search restores the normal unfiltered board; it does not change ticket status placement, column grouping, auto-refresh behavior, or selected-ticket routing.
 
 ## 13. Keyboard Shortcuts
+
+PR21 (unreleased) exposes each execution-setup step's expanded state to assistive technology. Copy buttons for ticket details, paths, artifacts, log entries, bead logs, and sign-in instructions show **Copy failed** if the browser refuses clipboard access. The message stays visible until a retry succeeds. Phase and Full Log exports retain their existing failure feedback.
 
 `KeyboardShortcuts` (`src/components/shared/KeyboardShortcuts.tsx`) registers the global `?` help overlay. Dashboard search adds its own `/` focus shortcut, and `Escape` is shared across the overlay, dashboard search, ticket dashboard, and modal wrappers. The overlay lists only the three shortcuts the app actually binds.
 
