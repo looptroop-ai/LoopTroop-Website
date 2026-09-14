@@ -56,6 +56,7 @@ A bead is the smallest unit LoopTroop will schedule for coding. It carries enoug
 | `createdAt` | `string` | ISO timestamp set when beads are approved |
 | `updatedAt` | `string` | ISO timestamp |
 | `completedAt` | `string` | Completion timestamp |
+| `qaOrigin` | `ManualQaBeadOrigin \| null` | Typed Manual QA provenance for QA-fix beads; absent or `null` for ordinary planned beads |
 | `startedAt` | `string` | First-start timestamp, preserved across retries |
 | `beadStartCommit` | `string \| null` | Git snapshot used for reset/retry |
 
@@ -63,7 +64,7 @@ A bead is the smallest unit LoopTroop will schedule for coding. It carries enoug
 
 - **Planning fields** (`prdRefs`, `description`, `acceptanceCriteria`, `tests`, `testCommands`, `testCommandReason`, `targetFiles`) keep each coding session narrow without inventing an automated command where none is appropriate.
 - **Graph fields** (`priority`, `dependencies`) let the scheduler choose work deterministically instead of letting the model decide its own sequence.
-- **Recovery fields** (`status`, `iteration`, the three typed note histories, `startedAt`, attempt-level `updatedAt`, and `beadStartCommit`) make retries durable across resets, backend restarts, and blocked-error recovery without mixing distinct failure sources.
+- **Recovery fields** (`status`, `iteration`, the three typed note histories, `startedAt`, attempt-level `updatedAt`, `completedAt`, `qaOrigin`, and `beadStartCommit`) make retries durable across resets, backend restarts, blocked-error recovery, and Manual QA follow-up work without mixing distinct failure sources.
 
 ### Example Bead
 
@@ -125,8 +126,35 @@ The editable bead plan for a ticket is stored as JSONL under:
 
 - **`flow`** defaults to the ticket base branch when not provided.
 - The format is line-oriented JSONL, but the runtime reads it as a bead array.
-- `GET /api/tickets/:id/beads` returns the current plan and exposes the exact plan hash in `X-Content-Sha256`.
+- `GET /api/tickets/:id/beads` returns every row that parsed successfully, exposes the exact on-disk hash in `X-Content-Sha256`, and still succeeds when other lines are damaged.
+- `GET /api/tickets/:id/beads/raw` returns the exact stored JSONL text plus parsed rows and line diagnostics for repair-oriented editors.
 - `PUT /api/tickets/:id/beads` rewrites the entire file atomically, but only while the ticket is in `WAITING_BEADS_APPROVAL`.
+
+### Partial Reads, Raw Reads, And Guarded Saves
+
+Bead reads are intentionally repair-friendly rather than all-or-nothing.
+
+- A malformed line is a JSONL line that did not parse as JSON.
+- An unrepresentable line is valid JSON that the structured bead editor cannot round-trip as a bead row.
+- `GET /api/tickets/:id/beads` returns the rows that parsed and reports the bad line numbers through `X-Malformed-Line-Count`, `X-Malformed-Lines`, `X-Unrepresentable-Line-Count`, and `X-Unrepresentable-Lines`.
+- The `...-Count` headers are exact. The `...-Lines` headers contain file line numbers, count blank lines, and are capped to the first 50 entries so a badly damaged tracker does not overflow response headers.
+
+The raw read exposes the full repair payload:
+
+```json
+{
+  "content": "{\"id\":\"B-1\"}\n{\"id\": \"B-2\", \n",
+  "items": [{ "id": "B-1" }],
+  "malformedLines": [2],
+  "unrepresentableLines": []
+}
+```
+
+`content` is the exact JSONL as stored. `items` contains only the rows that parsed. This matters because rebuilding the file from `items` alone would silently delete damaged or unrepresentable lines instead of letting a person repair them in place.
+
+Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/beads` requires `X-Content-Sha256` on edits to an existing plan, returns `428` when the header is missing, and returns `409` when the hash is stale. A first write to a missing tracker needs no hash because there is nothing to overwrite. The optional `X-Edit-Surface` request header records whether the save came from the JSONL tab (`jsonl`) or the structured editor (`structured`, including the default when the header is missing or unrecognized).
+
+For compatibility, the write route accepts `dependencies.blockedBy` as well as `dependencies.blocked_by`, but the stored JSONL is canonicalized to `blocked_by`.
 
 ### What Saving A Beads Edit Really Does
 
@@ -144,6 +172,7 @@ That invalidation is important. If the execution blueprint changes, any previous
 `WAITING_BEADS_APPROVAL` is the last human gate before execution-band work begins.
 
 - Approval is hash-guarded against the exact reviewed content.
+- `POST /api/tickets/:id/approve-beads` returns `422` when the saved tracker is damaged or when the plan cannot be approved as written, such as a bead that leaves `testCommands` empty without the required visible `testCommandReason`.
 - If unresolved coverage gaps remain, `Fix gaps with AI` runs one fresh semantic-blueprint revision and coverage check; when the blueprint changes, expansion reruns so the approval plan and content hash are refreshed.
 - The approved bead set becomes the authoritative execution plan consumed by pre-flight and coding.
 - After approval, the coding agent does **not** receive the full plan every time. It receives the active bead plus narrow runtime context for that bead iteration.
@@ -458,8 +487,10 @@ Beads and execution are highly artifact-driven. The most important pieces are:
 | Artifact / API | Meaning |
 | --- | --- |
 | `.ticket/beads/<flow>/.beads/issues.jsonl` | Canonical persisted bead plan |
-| `GET /api/tickets/:id/beads` | Returns the plan and `X-Content-Sha256` |
-| `PUT /api/tickets/:id/beads` | Rewrites the plan during `WAITING_BEADS_APPROVAL` |
+| `GET /api/tickets/:id/beads` | Returns parsed rows plus `X-Content-Sha256` and malformed/unrepresentable line headers when needed |
+| `GET /api/tickets/:id/beads/raw` | Returns `{ content, items, malformedLines, unrepresentableLines }` for raw repair views |
+| `PUT /api/tickets/:id/beads` | Rewrites the plan during `WAITING_BEADS_APPROVAL`; existing plans require `X-Content-Sha256` |
+| `POST /api/tickets/:id/approve-beads` | Approves the reviewed plan or returns `422` when the tracker needs repair |
 | `POST /api/tickets/:id/coverage/fix-gaps` | Runs one approval-screen extra fix for unresolved beads coverage gaps when called with `{ "domain": "beads" }` |
 | `GET /api/tickets/:id/beads/:beadId/diff` | Returns the captured diff for a completed bead when available |
 | `approval_receipt` for beads | Hash-guarded proof that the reviewed bead plan was approved |

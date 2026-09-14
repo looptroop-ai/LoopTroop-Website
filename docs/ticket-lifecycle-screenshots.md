@@ -517,7 +517,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 - Track progress with the bead completion counter and ETA range in the workspace header. The displayed time is the remaining time for the current iteration. If it expires, LoopTroop starts a fresh iteration with the bead details and a note about the failure. The project configuration sets the timeout and retry budget; the defaults are 20 minutes and five iterations.
 - View live execution logs, visible agent responses, file modification events, and command outputs for the active bead
 - Inspect each bead's status (pending, in progress, done, or error) and code-only diff.
-- Watch automatic Ralph recovery after a failure. It appends a structured note, resets the worktree, increments the iteration, and retries within the configured budget.
+- Watch automatic Ralph-style bead recovery after a failed iteration. It appends a structured note, abandons the degraded session, resets the worktree, increments the iteration, and retries within the configured budget.
 - Review Error (reason) if a bead exhausts its retry budget or local commit finalization fails.
 
 ::: details Screenshot
@@ -532,7 +532,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 
 ::: details Screenshot
 ![Ralph recovery example](media/ticket-lifecycle/25-ralph-loop-example.png)
-*Example of a Ralph recovery loop from another ticket. The second iteration succeeds after receiving the appended note.*
+*Example of a Ralph-style retry loop from another ticket. The second iteration succeeds after receiving the appended note.*
 :::
 
 ::: details Screenshot
@@ -658,12 +658,12 @@ There is no new screenshot for this status yet; this guide intentionally documen
 
 ::: details Screenshot
 ![Error (reason)](media/ticket-lifecycle/35-blocked-error.png)
-*Recovery screen that preserves the previous phase, diagnostics, and eligible continuation options.*
+*Recovery screen that preserves diagnostics, remembers the failed phase, and shows only the continuation options that currently apply.*
 :::
 
 **What you can do:**
 - Read plain-language root cause explanation, recommended actions, and technical error details under collapsed section
-- Click **Retry** to archive the active attempt and re-enter the failed phase, or reset the failed bead during Implementing.
+- Click **Retry** to follow the failed phase's normal retry path: archive and rerun a non-coding phase attempt, or reset the failed bead during Implementing.
 - Click **Retry with extra note...** to append guidance to User Retry Notes during Implementing, or send a prompt to the preserved setup session during Preparing Workspace Runtime.
 - Click **Continue** to resume an addressable OpenCode session after transient provider, network, or rate-limit interruptions without archiving phase attempts
 - Click **Edit setup plan...** (when setup failed) to rewind to setup approval

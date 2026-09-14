@@ -99,7 +99,7 @@ All built-in prompts in this section are exported from `server/prompts/index.ts`
 | --- | --- | --- | --- | --- | --- |
 | `PROM20` | `DRAFTING_BEADS` draft sub-step | Fresh council draft / `read_only` | `relevant_files`, `ticket_details`, `prd` | Drafts the semantic bead blueprint from the approved PRD, using focused inspection only when repository evidence is needed. | [Full content here](#full-prompt-prom20) |
 | `PROM21` | `COUNCIL_VOTING_BEADS` | Fresh council vote / `disabled` | `relevant_files`, `ticket_details`, `prd`, `drafts` | Scores bead blueprints with the strict `draft_scores` YAML schema. | [Full content here](#full-prompt-prom21) |
-| `PROM22` | `REFINING_BEADS` | Fresh refinement / `read_only` | `relevant_files`, `ticket_details`, `prd`, `drafts`, `votes` | Refines the winning semantic bead blueprint using selected alternative-draft improvements and focused inspection when repository evidence is needed. | [Full content here](#full-prompt-prom22) |
+| `PROM22` | `REFINING_BEADS` | Fresh refinement / `read_only` | `relevant_files`, `ticket_details`, `prd`, `drafts` | Refines the winning semantic bead blueprint using selected alternative-draft improvements and focused inspection when repository evidence is needed. | [Full content here](#full-prompt-prom22) |
 | `PROM23` | `VERIFYING_BEADS_COVERAGE` | Fresh coverage audit / `read_only` | `prd`, `beads` | Checks whether the bead blueprint fully covers the PRD and inspects the repository only when required to confirm a repository-specific claim. | [Full content here](#full-prompt-prom23) |
 | `PROM24` | `VERIFYING_BEADS_COVERAGE` revision sub-step and beads approval extra fix | Fresh revision / `read_only` | `prd`, `beads`, `coverage_gaps`, optional previous extra-fix history | Revises the bead blueprint to address specific coverage gaps, using focused inspection only when repository evidence is needed. | [Full content here](#full-prompt-prom24) |
 | `PROM25` | `EXPANDING_BEADS` | Fresh / `read_only` | `relevant_files`, `ticket_details`, `prd`, `beads_draft` | Expands the semantic blueprint into execution-ready bead records, using focused inspection only when supplied context cannot confirm an execution detail. | [Full content here](#full-prompt-prom25) |
@@ -1247,8 +1247,6 @@ No other top-level keys. No prose before or after the YAML. Also include a top-l
 [prd provided at runtime]
 ### drafts
 [drafts provided at runtime]
-### votes
-[votes provided at runtime]
 ````
 :::
 

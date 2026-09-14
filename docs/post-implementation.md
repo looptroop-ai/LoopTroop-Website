@@ -226,12 +226,17 @@ Once the draft PR exists, automation pauses. The UI surfaces the reviewer-facing
 
 ### 5.1 Merge path
 
-If the user chooses merge, LoopTroop marks the PR ready when needed, merges it on GitHub, verifies the merge on the remote base branch, and then records a `merge_report`. The local checkout is left untouched. Remote branch deletion after a successful merge is best-effort and any warning is preserved in the report.
+If the user chooses merge, LoopTroop marks the PR ready when needed, merges it
+on GitHub, verifies the merge on the remote base branch, and then records a
+`merge_report`. Verification requires the PR head to match the approved
+candidate and the remote base to contain GitHub's recorded landed commit. The
+local checkout is left untouched. Remote branch deletion after a successful
+merge is best-effort and any warning is preserved in the report.
 
-The Merge button uses GitHub merge commits, so the repository must allow that method. For squash-only or rebase-only repositories, merge in GitHub; development support for detecting those merges is described below.
-
-> [!NOTE]
-> In development, not yet released: verification requires the PR head to match the approved candidate and the remote base to contain GitHub’s recorded landed commit. This supports external squash/rebase merges without accepting unapproved head changes.
+The Merge button uses GitHub merge commits, so the repository must allow that
+method. For squash-only or rebase-only repositories, merge in GitHub; LoopTroop
+detects those landed merges as described below without accepting unapproved head
+changes.
 
 ### 5.2 Finish-without-merge path
 
@@ -242,10 +247,13 @@ If the user chooses the non-merge finish path (`close_unmerged` in the workflow 
 
 ### 5.3 External merge detection
 
-If the PR is merged manually on GitHub while `WAITING_PR_REVIEW` is open, LoopTroop detects that state, skips a duplicate merge call, verifies the remote base branch, and continues automatically.
-
-> [!NOTE]
-> In development, not yet released: the daemon detects merges made on GitHub without an open UI and resumes checking after restart. Failed checks leave the ticket waiting and retry automatically. A verified merge resumes completion without merging again; Cancel and Finish Without Merge cannot replace that recorded outcome. Cleanup cannot be canceled. Repeating Merge during cleanup or after completion returns the recorded success.
+If the PR is merged manually on GitHub while `WAITING_PR_REVIEW` is open,
+LoopTroop detects that state, skips a duplicate merge call, verifies the remote
+base branch, and continues automatically. The daemon keeps polling even without
+an open UI and resumes that check after restart. Failed checks leave the ticket
+waiting and retry automatically. Once a merge is verified, Cancel and Finish
+Without Merge cannot replace that recorded outcome. Repeating Merge during
+cleanup or after completion returns the recorded success.
 
 ---
 
@@ -281,6 +289,12 @@ Ticket artifacts such as `final_test_report`, `integration_report`, `pull_reques
 ### 6.3 Cleanup warnings are visible, not fatal
 
 Cleanup writes a `cleanup_report` with `status: clean` or `status: warning`. A warning means some transient path could not be removed, but the ticket still completes successfully and the warning stays visible for later housekeeping.
+
+### 6.4 Cleanup resume behavior
+
+Cleanup cannot be canceled. If the daemon restarts while `CLEANING_ENV` is in
+progress, the saved ticket state causes cleanup to resume on the next start
+instead of reopening review or re-running merge work.
 
 ---
 

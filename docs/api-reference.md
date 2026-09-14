@@ -64,6 +64,8 @@ port scope of their own.
 | Content hashes | Human-reviewed artifacts expose lowercase SHA-256 hashes so approval requests can prove which bytes were reviewed |
 | Action responses | Most workflow action routes return `message`, `ticketId`, `status`, `state`, and the latest `ticket` snapshot |
 
+Because the public ticket ref contains a colon, callers should URL-encode it whenever it appears in a path or query component. For example, use `/api/tickets/1%3AAUTH-12`, `/api/files/1%3AAUTH-12/logs`, and `/api/stream?ticketId=1%3AAUTH-12`.
+
 > [!IMPORTANT]
 > **The paragraph below is the development stack only.** An installed daemon
 > uses the credentials in [Reaching An Installed Daemon](#reaching-an-installed-daemon)
@@ -90,10 +92,17 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | `GET` | `/api/health/update` | Current/latest release, detected install channel, ordered update steps, and complete latest GitHub release metadata |
 | `POST` | `/api/health/startup/restore-notice/dismiss` | Dismiss startup restore notice |
 | `GET` | `/api/models` | Models from configured providers; pass `scope=all` to request the full catalog |
+| `POST` | `/api/models/refresh` | Refresh the provider catalog now and return the current connected-model view |
 | `GET` | `/api/workflow/meta` | Current workflow groups and phases |
 | `GET` | `/api/stream?ticketId=<id>` | Ticket-scoped SSE stream using the composite ticket ref; validates the ticket and enforces stream caps |
 
-`/api/stream` also accepts a `lastEventId` query parameter. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible. The stream route rejects the 7th concurrent client for the same ticket and rejects new streams once the global total reaches 100 active clients.
+`POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but always refreshes the provider catalog first and returns the connected-model view rather than the optional `scope=all` catalog.
+
+`/api/stream` accepts an optional replay cursor from either the `Last-Event-ID` header or the `lastEventId` query parameter; the header wins when both are present. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible.
+
+Unsafe cursor values fail the request before the stream opens: control characters or values longer than 128 characters return `400` with `{ "error": "Invalid lastEventId" }`. A bounded but invalid cursor instead opens the stream and emits `replay_gap` with `reason: "invalid_cursor"`. A well-formed cursor that is no longer available in the replay buffer emits `replay_gap` with `reason: "cursor_unavailable"`. In both replay-gap cases the event is sent with an empty SSE `id:` so the browser resets its native last-event-id state. The frontend also clears its durable per-ticket stored cursor, refetches ticket/list/artifact/interview/bead/skip/log state from REST, and reconnects without `lastEventId` after reloads or later transport failures.
+
+The stream route rejects the 7th concurrent client for the same ticket and rejects new streams once the global total reaches 100 active clients.
 
 After a completed assistant turn is recorded, an `ai_metrics` event carries only `ticketId`, `phase`, `phaseAttempt`, `modelId`, and `updatedAt`. It invalidates an already-open AI/model details query; token and cost values remain in the authenticated REST response rather than the SSE replay buffer.
 
@@ -190,6 +199,38 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `ignoreMode` | `repo`, `local`, `skip` | Future-project folder-ignore default; `local` is the built-in default |
 | `toolInputMaxChars`, `toolErrorMaxChars` | `500` to `50000` | Applied to OpenCode tool transcript truncation |
 | `toolOutputMaxChars` | `1000` to `100000` | Higher lower bound because tool output is usually larger |
+
+## Authentication And Daemon Control
+
+These routes are part of the full daemon surface, but some are mounted only when the host enables session credentials or shutdown control.
+
+| Method | Route | Notes |
+| --- | --- | --- |
+| `POST` | `/api/auth/exchange` | Exchange a one-time bootstrap nonce for the browser session cookie; unauthenticated by design |
+| `POST` | `/api/auth/bootstrap` | Mint a one-time bootstrap nonce for `looptroop open`; available only when session auth is enabled |
+| `POST` | `/api/auth/bootstrap/status` | Check whether a minted bootstrap nonce is still outstanding; available only when session auth is enabled |
+| `POST` | `/api/daemon/shutdown` | Ask the daemon to stop after the response is flushed; mounted only when the host exposes a shutdown hook |
+
+`POST /api/auth/exchange` expects `{ "nonce": "..." }`. Invalid or expired nonces return `401`. On success, the response sets the HttpOnly session cookie and returns `{ "ok": true }`.
+
+`POST /api/auth/bootstrap` returns `{ "nonce": "..." }`. `POST /api/auth/bootstrap/status` expects `{ "nonce": "..." }` and returns `{ "pending": true|false }`.
+
+`POST /api/daemon/shutdown` is authenticated like the rest of the mounted API, returns `{ "ok": true }` with HTTP `202`, and sets `Connection: close` so the daemon can retire the socket after acknowledging the request.
+
+## Prompt Customization Routes
+
+Prompt IDs can name either editable prompt templates or editable global rule blocks.
+
+| Method | Route | Notes |
+| --- | --- | --- |
+| `GET` | `/api/prompts` | List editable prompt groups, prompt IDs, modification flags, template directory, and load warnings |
+| `GET` | `/api/prompts/:id` | Read one editable prompt or global rule, including current and default source |
+| `PUT` | `/api/prompts/:id` | Save one prompt or global rule from `{ "source": "..." }` |
+| `POST` | `/api/prompts/:id/preview` | Render a preview using the supplied `{ "source": "..." }` or the currently saved source when omitted |
+| `POST` | `/api/prompts/:id/revert` | Revert one prompt or global rule to its bundled default |
+| `POST` | `/api/prompts/reset-all` | Revert every editable prompt and global rule to defaults |
+
+Unknown prompt IDs return `404`. Save requests require a non-empty `source` string. Preview returns `400` when the supplied text cannot be parsed as a valid prompt or rule block. Revert returns the current defaulted source for the selected ID, and reset-all returns `{ "reset": true, "templatesDir": "..." }`.
 
 ## Project Routes
 
@@ -375,7 +416,7 @@ The two counts disagree on purpose: a council of three models asking two things 
 
 Before Start, ticket responses expose the stored Manual QA choice and its effective fields. Git-hook fields remain read-only workflow data: `effectiveGitHookPolicy` reflects the saved project choice, and Start snapshots it into `lockedGitHookPolicy` with a project source so later project edits do not alter that run. A legacy project whose saved policy is missing may still report `profile` as the fallback source until it is restored or resaved.
 
-All ticket route params shown as `:id` or `:ticketId` use the composite public ticket ref, such as `1:AUTH-12`. The browser URL uses only the external ticket id (`/ticket/AUTH-12`), but API callers should send the composite ref returned by ticket list/detail payloads.
+All ticket route params shown as `:id` or `:ticketId` use the composite public ticket ref, such as `1:AUTH-12`. The browser URL uses only the external ticket id (`/ticket/AUTH-12`), but API callers should send the composite ref returned by ticket list/detail payloads and URL-encode it when constructing request paths or query strings.
 
 Ticket list/detail payloads also include `isDisplayOnlyMock`, a boolean UI hint for board-only mock/demo tickets. These tickets keep their raw `externalId` for routing and storage, but clients can use the flag to add display-only markers without parsing reserved branch names. Non-terminal mock/demo tickets expose only the `cancel` action; runnable workflow actions remain hidden and rejected.
 
@@ -512,6 +553,8 @@ Malformed or missing hashes return `400`. If the current server artifact no long
 
 Successful approvals write durable `approval_receipt` phase artifacts. Approval snapshots and receipts include `content_sha256`; interview and PRD receipts also include `stored_content_sha256` when approval stamping changes the persisted YAML.
 
+`POST /api/tickets/:id/approve-beads` also uses `422` for plans that need repair rather than a generic server error. That includes damaged bead JSONL (the response names the failing line) and syntactically valid saved plans that still fail approval-time validation, such as a bead with empty `testCommands` and no required `testCommandReason`.
+
 `POST /api/tickets/:id/coverage/fix-gaps` accepts `{ "domain": "prd" }` only while the ticket is in `WAITING_PRD_APPROVAL`, or `{ "domain": "beads" }` only while the ticket is in `WAITING_BEADS_APPROVAL`. The server reloads the latest coverage artifact and source artifacts before prompting, ignores stale browser gap text, runs exactly one fresh targeted fix attempt followed by one fresh coverage check, and returns the updated result. Concurrent fix attempts for the same ticket/domain return `409`, and approval routes also return `409` while a matching fix is in progress. If no gaps remain, the route returns a no-op success.
 
 Most action routes in this section respond with the latest machine snapshot so callers can refresh local state without making an immediate follow-up read:
@@ -545,7 +588,7 @@ For execution setup, the request requires the preserved `PREPARING_EXECUTION_ENV
 
 `POST /api/tickets/:id/edit-execution-setup-plan` is available only for the live `BLOCKED_ERROR` whose `previousStatus` is `PREPARING_EXECUTION_ENV`. The UI opens a confirmation dialog before calling it. Once confirmed, the route archives the failed runtime attempt, preserves it in phase history, and returns the ticket to `WAITING_EXECUTION_SETUP_APPROVAL` with the current plan available for editing or regeneration. Other phases and historical error occurrences return `409`.
 
-Bead API/read-model payloads expose three independent append-only arrays: `failedIterationNotes`, `userRetryNotes`, and `finalizationFailureNotes`. Each entry contains `timestamp`, `iteration`, `content`, and optional `errorCode`. Runtime bead overlays also expose the original `startedAt` and the current attempt's `updatedAt`, which is the live countdown anchor. LoopTroop strips ANSI terminal sequences from machine-generated failed-iteration and finalization content; user retry content is preserved exactly.
+Bead API/read-model payloads expose three independent append-only arrays: `failedIterationNotes`, `userRetryNotes`, and `finalizationFailureNotes`. Each entry contains `timestamp`, `iteration`, `content`, and optional `errorCode`. Runtime bead overlays also expose `startedAt`, `updatedAt`, `completedAt`, and typed nullable `qaOrigin` on Manual-QA-created fix beads. `updatedAt` is the live countdown anchor. LoopTroop strips ANSI terminal sequences from machine-generated failed-iteration and finalization content; user retry content is preserved exactly.
 
 Final-test file effects no longer expose include/discard recovery endpoints. The audit preserves explicit candidate intent and tracked or staged changes, keeps recognized untracked generated/cache/setup-local outputs on disk as local-only, and retries classification once for unknown untracked files. Files that remain undeclared are excluded with a warning so unattended delivery can continue; unresolved tracked changes remain candidates for the later PR audit.
 
@@ -877,7 +920,7 @@ The manifest route accepts the same filters and returns `{ "artifacts": [...] }`
 
 The projected log route accepts `scope=phase|lifecycle`, `view=overview|system|command|ai|error|debug`, optional `phase`, `phaseAttempt`, and `modelId`, `limit=1..500`, and an opaque `before` cursor. When `limit` is omitted, it defaults to 20 so ticket and status views can paint the latest activity quickly; the frontend then requests older cursor pages in batches of up to 250 as the user scrolls upward. Overview excludes command-classified rows before applying the page limit because commands have their own view and are not rendered in ALL. The newest-page response returns chronological `entries`, `olderCursor`, `hasOlder`, cursor-independent `totalEntries`, and `totalTextLines` for the complete matching filter; older cursor pages omit the unchanged totals to avoid repeating the aggregate work. Empty content contributes zero text lines; non-empty content contributes one plus its newline count. These totals are aggregated in SQLite and do not load historical entry bodies into the application or browser. The AI channel includes model-scoped error rows so provider recovery information is also visible beside that model; the same durable event remains available from the ERROR view. Projection catch-up reads unindexed JSONL suffixes cooperatively and deduplicates concurrent catch-up requests; it does not change the live SSE or durable log-writing paths.
 
-PR21 (unreleased) adds `modelIds` to the newest-page response: sorted distinct model IDs across the requested ticket, phase, attempt, and bead scope, independent of `view`, `modelId`, and the page limit. Older pages omit this metadata with the totals. AI history includes attributed system milestones and matches source-only model identity when no explicit model ID exists. Missing audience and kind fields are inferred before indexing with the same rules used by raw log reads, so plain model output remains in ALL counts, pages, and exports. Sparse OpenCode session rows retain their session kind for activity detection. Explicit source, audience, and kind fields take precedence. AI history also recovers entries saved only in the AI file when the normal-file append was interrupted, deduplicating mirrored copies before pagination, counts, and exports. Repeated anonymous appends remain distinct; canonical updates use the latest surviving revision. AI history sorts by timestamp with a stable logical-entry tie-breaker; other views retain file order. Cursors remain opaque and must be reused with the same scope and filter.
+The newest-page response includes `modelIds`: sorted distinct model IDs across the requested ticket, phase, attempt, and bead scope, independent of `view`, `modelId`, and the page limit. Older pages omit this metadata with the totals. AI history includes attributed system milestones and matches source-only model identity when no explicit model ID exists. Missing audience and kind fields are inferred before indexing with the same rules used by raw log reads, so plain model output remains in ALL counts, pages, and exports. Sparse OpenCode session rows retain their session kind for activity detection. Explicit source, audience, and kind fields take precedence. AI history also recovers entries saved only in the AI file when the normal-file append was interrupted, deduplicating mirrored copies before pagination, counts, and exports. Repeated anonymous appends remain distinct; canonical updates use the latest surviving revision. AI history sorts by timestamp with a stable logical-entry tie-breaker; other views retain file order. Cursors remain opaque and must be reused with the same scope and filter.
 
 `GET /api/tickets/:id/ai-details` accepts `scope=phase|lifecycle` and an optional `modelId`. Phase scope requires `phase`; `phaseAttempt` selects an archived attempt or defaults to the active attempt using the same resolver as phase logs. Lifecycle scope ignores phase boundaries. The response contains completed turn/session counts, nullable cost and token aggregates, nullable total/average/longest duration, per-metric reporting coverage, and `updatedAt`. A nullable aggregate means OpenCode did not report that metric; it is not equivalent to zero.
 
@@ -1005,7 +1048,7 @@ These routes are intentionally narrow.
 | `PUT` | `/api/files/:ticketId/:file` | Only `interview` or `prd`; delegates to the dedicated interview/PRD save handlers rather than exposing a generic file write route |
 | `POST` | `/api/files/open-path` | Reveal a file or folder in the user's native file explorer; file paths open their containing folder |
 
-Log routes accept optional `status`, `phase`, and `phaseAttempt` filters. The same filters apply to the default normal log channel, `channel=debug`, and `channel=ai`. The `channel=all` endpoint merges and deduplicates entries from all channels server-side, then sorts by timestamp; phase/status filters still apply to LoopTroop log entries but OpenCode native log entries (which have no ticket phase) are always included. Matching completed log entries are returned from the durable log files without an entry-count cap; streaming partial upserts are folded so the UI receives the latest completed or current streaming row for each stable entry. Live `log` and `state_change` SSE payloads carry the resolved `phaseAttempt` used for the durable JSONL row so active multi-attempt phase views can keep streaming while filtering to the selected attempt.
+Log routes accept optional `status`, `phase`, and `phaseAttempt` filters. The same filters apply to the default normal log channel, `channel=debug`, and `channel=ai`. The `channel=all` endpoint merges and deduplicates entries from all channels server-side, then sorts by timestamp. OpenCode native server rows are included only for the ticket's known session IDs, and once included they go through the same normalization and `status`/`phase`/`phaseAttempt` filters as the file-backed rows. Matching completed log entries are returned from the durable log files without an entry-count cap; streaming partial upserts are folded so the UI receives the latest completed or current streaming row for each stable entry. Live `log` and `state_change` SSE payloads carry the resolved `phaseAttempt` used for the durable JSONL row so active multi-attempt phase views can keep streaming while filtering to the selected attempt.
 
 When `GET /api/files/:ticketId/:file` cannot find the requested artifact file, it returns:
 
@@ -1024,7 +1067,11 @@ When `GET /api/files/:ticketId/:file` cannot find the requested artifact file, i
 }
 ```
 
-On success it returns `{ "success": true }`. LoopTroop resolves file paths to their containing directory before opening the native explorer, and the implementation supports Windows, macOS, Linux, and WSL.
+Path validation is strict. The supplied path must be absolute, must already exist, and after canonical real-path resolution must remain inside either an attached project root or the LoopTroop application configuration directory. Authorization is containment-based, not string-prefix-based, so symlink aliases and alternate spellings are resolved before the route decides whether the path is allowed.
+
+LoopTroop resolves file targets to their containing directory before launch. It then re-checks the resolved target and refuses it with HTTP `400` if it disappeared, became a symlink, escaped containment, or otherwise changed between validation and launch. Invalid request bodies and refused paths therefore return `400` JSON errors rather than partial success. Unexpected opener failures return `500` with `{ "error": "Failed to open path", "details": "..." }`.
+
+Before launch, LoopTroop resolves the platform opener through its trusted executable resolver rather than blindly running the first checkout-controlled `PATH` hit. On WSL it uses trusted `wslpath` plus `powershell.exe` with `explorer.exe` fallback; on Windows it uses `explorer.exe`; on macOS `open`; on Linux `xdg-open`.
 
 There is no generic filesystem browser or arbitrary file read route under `/api/files`.
 
@@ -1033,19 +1080,43 @@ There is no generic filesystem browser or arbitrary file read route under `/api/
 | Method | Route | Notes |
 | --- | --- | --- |
 | `GET` | `/api/tickets/:id/beads` | Read bead plan; accepts optional safe relative `?flow=` |
+| `GET` | `/api/tickets/:id/beads/raw` | Read the exact stored JSONL plus parsed items and line diagnostics; accepts optional safe relative `?flow=` |
 | `PUT` | `/api/tickets/:id/beads` | Replace bead plan only while the ticket is in `WAITING_BEADS_APPROVAL`; accepts optional safe relative `?flow=` |
 | `GET` | `/api/tickets/:id/beads/:beadId/diff` | Read diff artifact for a bead |
 
-The `flow` value must be a safe relative branch/flow name. Absolute paths, backslashes, `.` segments, and `..` traversal segments are rejected. When `flow` is omitted, the route falls back to the ticket's base branch. Bead reads and writes expose the canonical plan hash through the `X-Content-Sha256` response header; even an empty plan returns `[]` with the hash of the empty content. Manual bead edits write `user_edit_receipt:beads` and invalidate the execution setup plan. `GET /api/tickets/:id/beads/:beadId/diff` returns `{ "diff": "", "captured": false }` when no diff artifact exists yet.
+The `flow` value must be a safe relative branch/flow name. Absolute paths, backslashes, `.` segments, and `..` traversal segments are rejected. When `flow` is omitted, the route falls back to the ticket's base branch.
+
+Both read routes expose the canonical on-disk plan hash through `X-Content-Sha256`, even when the tracker is empty or damaged. `GET /api/tickets/:id/beads` returns every row that parsed successfully, not an all-or-nothing failure, and can therefore succeed even when other JSONL lines are malformed or cannot be represented as editable bead objects. The route reports those file-line diagnostics through:
+
+- `X-Malformed-Line-Count` / `X-Malformed-Lines` for lines that did not parse as JSON
+- `X-Unrepresentable-Line-Count` / `X-Unrepresentable-Lines` for lines that parsed as JSON but are not representable bead rows
+
+The `...-Count` headers are exact. The `...-Lines` headers list file line numbers, counting blank lines, and are capped to the first 50 numbers so a badly damaged tracker does not overflow response headers.
+
+`GET /api/tickets/:id/beads/raw` returns the repair-oriented payload below. `content` is the exact stored JSONL bytes, while `items` contains only the rows that parsed:
+
+```json
+{
+  "content": "{\"id\":\"B-1\"}\n{\"id\": \"B-2\", \n",
+  "items": [{ "id": "B-1" }],
+  "malformedLines": [2],
+  "unrepresentableLines": []
+}
+```
+
+`PUT /api/tickets/:id/beads` rewrites the tracker atomically only while the ticket is in `WAITING_BEADS_APPROVAL`. On the first write to a missing tracker no concurrency hash is required. When a tracker already exists, the request must include `X-Content-Sha256` from the read it was built on; missing it returns `428`, and a stale hash returns `409` with both the expected and current hashes. Manual saves write `user_edit_receipt:beads`, record `X-Edit-Surface` as `jsonl` only when the client sent exactly that value, and otherwise record the legacy `structured` surface. The write API accepts `dependencies.blockedBy` for compatibility but stores the canonical `dependencies.blocked_by` form on disk. `GET /api/tickets/:id/beads/:beadId/diff` returns `{ "diff": "", "captured": false }` when no diff artifact exists yet.
 
 ## SSE Events
 
 The stream endpoint emits two categories of events:
 
-**Stream lifecycle events** — sent directly by the stream handler on connection and periodically, not through the broadcaster:
+**Stream control events** — sent directly by the stream handler, not through the broadcaster:
 
-- `connected` — emitted once when the SSE connection is established
-- `heartbeat` — emitted every 30 seconds to keep the connection alive
+| Event type | When emitted | Key payload fields |
+| --- | --- | --- |
+| `connected` | The SSE connection is established | `ticketId`, `clientId`, `timestamp` |
+| `heartbeat` | Every 30 seconds while the connection stays open | `timestamp` |
+| `replay_gap` | The requested replay cursor cannot be used | `ticketId`, `reason` (`invalid_cursor` or `cursor_unavailable`); sent with an empty SSE `id:` to reset cursor state |
 
 **Typed ticket events** — broadcast through `server/sse/broadcaster.ts` and defined in `server/sse/eventTypes.ts`:
 
@@ -1055,8 +1126,8 @@ The stream endpoint emits two categories of events:
 | `log` | A new execution log entry is written | flat `LogEvent` fields: `ticketId`, `type`, `content`, `kind`, `op`, `phase`, `entryId`, … (no `logEntry` wrapper) |
 | `bead_complete` | A single bead finishes execution | `ticketId`, `beadId`, `title`, `completed`, `total` |
 | `needs_input` | A pending question or interview batch needs the user | `ticketId`, `type`, plus a shape that varies by source (interview batch: `batch`; OpenCode question: `requestId`, `questions`, `answers`, `tool`, …) |
-
 | `artifact_change` | A phase artifact is created or updated | `ticketId`, `phase`, `artifactType`, `artifact` |
+| `ai_metrics` | Completed assistant-turn metrics were recorded | `ticketId`, `phase`, `phaseAttempt`, `modelId`, `updatedAt` |
 
 `needs_input` carries three OpenCode question shapes, told apart by `type`:
 
@@ -1068,7 +1139,7 @@ The stream endpoint emits two categories of events:
 
 `timer` uses the shape shown under [OpenCode Question Routes](#opencode-question-routes). `requests` lists every request still outstanding on that countdown, each with its `sessionId`, `requestId`, `memberId`, `questions`, `questionCount`, and `timerKey`. Both are additive; the fields the browser already read are unchanged.
 
-> The `SSEEventType` union in `server/sse/eventTypes.ts` also declares `progress` and `app_error`, but no broadcaster call site emits them today. They are reserved type slots, not live events — runtime errors surface as `log` entries (`kind: 'error'`) instead.
+The compatibility event-name contract still includes `progress` and `app_error`, and frontend hooks understand them, but this page documents only the events the current backend emits.
 
 SSE replay is an optimization, not the only recovery path. After a reconnect with a remembered event id, the frontend also invalidates the ticket, list, artifacts, interview, setup-plan, bead, and server-log queries so missed events outside the replay buffer are reconciled from durable storage.
 
@@ -1076,7 +1147,7 @@ Example `state_change` event payload:
 
 ```json
 {
-  "ticketId": "AUTH-12",
+  "ticketId": "1:AUTH-12",
   "from": "DRAFTING_PRD",
   "to": "WAITING_PRD_APPROVAL",
   "phaseAttempt": 1,
@@ -1089,7 +1160,7 @@ Example `bead_complete` event payload:
 
 ```json
 {
-  "ticketId": "AUTH-12",
+  "ticketId": "1:AUTH-12",
   "beadId": "session-store-foundation",
   "title": "Session store foundation",
   "completed": 3,
@@ -1101,7 +1172,7 @@ Example `log` event payload (flat `LogEvent`, no wrapper):
 
 ```json
 {
-  "ticketId": "AUTH-12",
+  "ticketId": "1:AUTH-12",
   "type": "session",
   "kind": "session",
   "op": "append",
@@ -1115,12 +1186,12 @@ Example `artifact_change` event payload:
 
 ```json
 {
-  "ticketId": "AUTH-12",
+  "ticketId": "1:AUTH-12",
   "phase": "CODING",
   "artifactType": "bead_diff:api-refresh-endpoint",
   "artifact": {
     "id": 84,
-    "ticketId": "AUTH-12",
+    "ticketId": "1:AUTH-12",
     "phase": "CODING",
     "phaseAttempt": 1,
     "artifactType": "bead_diff:api-refresh-endpoint",

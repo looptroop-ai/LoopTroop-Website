@@ -42,23 +42,24 @@ LoopTroop operates as a layered local system:
 
 LoopTroop deliberately splits state across several storage layers. Each layer owns a different class of truth.
 
-| Storage location | Canonical contents | Notes |
+| Storage location | Primary contents | Notes |
 | --- | --- | --- |
 | `~/.config/looptroop/app.sqlite` by default | Singleton profile, attached projects, app meta such as startup restore-notice dismissal | Configurable via `LOOPTROOP_CONFIG_DIR` or `LOOPTROOP_APP_DB_PATH` |
 | `<project>/.looptroop/db.sqlite` | Tickets, runtime metadata, OpenCode session ownership, `phase_artifacts`, `ticket_phase_attempts`, status history, error occurrences | This is the project-local operational database |
 | `<project>/.looptroop/worktrees/<ticket>/` | The isolated ticket worktree used for planning artifacts, runtime files, and code changes | Startup blocks if `.looptroop` is tracked by Git so stale runtime data cannot be checked out into new worktrees; `.ticket/**` stays local LoopTroop state and is excluded from bead commits and PR diffs |
 | `.ticket/relevant-files.yaml` | Relevant-file scan output used by later planning phases | Replaces older `codebase-map.yaml` terminology |
-| `.ticket/interview.yaml` and `.ticket/prd.yaml` | Editable review artifacts for the approved planning stages | These are user-facing canonical documents |
-| `.ticket/beads/<flow>/.beads/issues.jsonl` | The current bead plan for a given flow or base branch | Stored as JSONL, rewritten atomically on updates |
+| `.ticket/interview.yaml` and `.ticket/prd.yaml` | Editable review artifacts for the approved planning stages | These are the user-facing planning documents |
+| `.ticket/beads/<baseBranch>/.beads/issues.jsonl` | The current bead plan for one ticket/base-branch flow | Stored as JSONL, rewritten atomically on updates |
 | `.ticket/runtime/execution-log.jsonl`, `.debug.jsonl`, `.ai.jsonl` | Durable workflow, debug, and AI-detail log channels | Live rows arrive through SSE; reload/history reads use the cooperative SQLite projection and paginated `/api/tickets/:id/logs` route |
 | `.ticket/runtime/state.yaml` | Derived runtime projection for the active non-terminal ticket | Rebuilt from ticket state on startup; convenient to inspect, but not the only source of truth |
 | `.ticket/runtime/execution-setup-profile.json` | Concrete execution environment profile produced after approved setup runs | Separate from the reviewable execution setup plan artifact |
+| `.ticket/opencode-steps-restore.json` | Recovery sidecar for temporarily capped `opencode.json` | Lets startup restore the exact pre-run bytes only when the run-owned `opencode.json` is still unchanged |
 | `.ticket/runtime/execution-setup/**`, especially `tool-cache/` | Ticket-owned temp roots, wrapper outputs, execution-only toolchains, and reusable caches | Preserved across setup-plan rewinds when safe so retries do not throw away valid tool caches |
 | `.ticket/manual-qa/**` | Versioned checklists/results/coverage, evidence binaries, generation/operation receipts, clean baselines, and workspace-drift decisions | Preserved during cleanup and excluded from bead commits, candidate diffs, and PRs |
-| `phase_artifacts` table | Structured snapshots used by the API and UI | Holds artifact content, phase, attempt number, timestamps, approval receipts, edit receipts, cleanup/integration reports, and content hashes. Lightweight manifest/content endpoints are available for targeted consumers; the historical phase review keeps its established curated artifact-card presentation. |
+| `phase_artifacts` table | Structured snapshots, receipts, and UI read models used by the API and UI | Holds artifact content, phase, attempt number, timestamps, approval receipts, edit receipts, cleanup/integration reports, and content hashes. Lightweight manifest/content endpoints are available for targeted consumers; the historical phase review keeps its established curated artifact-card presentation. |
 
 > Note
-> SQLite and the filesystem are complementary, not redundant. The database is optimized for querying, ownership, and workflow bookkeeping; `.ticket/**` keeps artifacts inspectable, editable, and recoverable without polluting the target repository branch.
+> SQLite and the filesystem are complementary, not redundant. The database is optimized for querying, ownership, and workflow bookkeeping; `.ticket/**` keeps user-facing docs, durable logs, and ticket-owned recovery/runtime files inspectable without polluting the target repository branch. Some `.ticket/**` files are canonical documents, while others are derived projections or recovery sidecars.
 
 ### Durable State Beats Conversational Memory
 
@@ -96,7 +97,7 @@ Planning is intentionally artifact-driven.
 
 The planning phases are not one long conversation. Each stage assembles a new context window from durable artifacts and runs in its own session scope.
 
-Councils are a reusable subsystem, not bespoke logic embedded in each phase. `server/council/pipeline.ts` handles the common draft -> quorum -> vote -> refine shape, while each phase provides its own context and normalization rules.
+Councils are a reusable subsystem, not bespoke logic embedded in each phase. The shared council modules in `server/council/drafter.ts`, `quorum.ts`, `voter.ts`, and `refiner.ts` handle the common draft -> quorum -> vote -> refine shape, while each phase provides its own context and normalization rules.
 
 Structured output is a hard boundary. `server/structuredOutput/*` and `server/phases/parserTaggedStructuredOutput.ts` normalize, validate, and optionally repair model output before anything becomes canonical artifact content. Rejected or uncorrectable responses are preserved as diagnostics and raw attempts so downstream phases never consume malformed text as if it were approved state.
 
@@ -127,7 +128,7 @@ Recovery is a first-class architectural concern.
 
 | Failure type | Recovery strategy |
 | --- | --- |
-| Browser reload, close, or reconnect gap | REST state remains canonical; the browser keeps the last SSE event id, restores best-effort log cache detail, replays buffered live events, and then refetches tickets, artifacts, bead state, interview state, and matching server logs |
+| Browser reload, close, or reconnect gap | REST state remains canonical; the browser keeps the last SSE event id, restores best-effort log cache detail, replays buffered live events, and on an SSE `replay_gap` clears the saved cursor and refetches tickets, artifacts, bead state, interview state, Manual QA/AI-detail views, and matching server logs |
 | Frontend crash or tab close | Interview drafts, approval drafts, and browser-cached logs are persisted locally and flushed on unload with best-effort keepalive behavior |
 | Concurrent/stale autosave | Server serializes each ticket/scope and compare-and-set rejects revision conflicts with the latest state; Manual QA keeps its five-second debounce/unload keepalive and derives its last-save age/exact timestamp from acknowledged saves |
 | Crash during atomic write or append | Startup finishes an interrupted write only when it recognises the temp file and the content parses as the format it claims — exactly for JSON, and for YAML only as far as the format allows, since half a block mapping is still a valid document — and never over a file that already exists; it repairs trailing corrupt JSONL lines when safe, restores a project `opencode.json` an interrupted coding run had capped, and rebuilds runtime projections |
@@ -213,13 +214,13 @@ Those phase timeouts exist to catch a stuck model, and a model blocked on a ques
 | Workflow runner and phase dispatch | `server/workflow/runner.ts`, `server/workflow/phases/*` |
 | Planning phases | `server/phases/interview/*`, `server/phases/prd/*`, `server/phases/beads/*`, `server/phases/executionSetupPlan/*` |
 | Execution and delivery phases | `server/phases/preflight/*`, `server/phases/executionSetup/*`, `server/phases/execution/*`, `server/phases/finalTest/*`, `server/phases/manualQa/*`, `server/phases/integration/*`, `server/phases/cleanup/*` |
-| Ticket initialization and relevant-file preparation | `server/ticket/create.ts`, `server/ticket/initialize.ts`, `server/ticket/relevantFiles.ts`, `server/ticket/metadata.ts` |
+| Ticket creation, initialization, and relevant-file preparation | `server/routes/ticketHandlers/crudHandlers.ts`, `server/storage/tickets.ts`, `server/ticket/initialize.ts`, `server/ticket/relevantFiles.ts`, `server/ticket/metadata.ts` |
 
 ### Council And Structured Output
 
 | Area | Modules |
 | --- | --- |
-| Reusable council pipeline | `server/council/pipeline.ts`, `drafter.ts`, `voter.ts`, `refiner.ts`, `quorum.ts` |
+| Reusable council pipeline | `server/council/drafter.ts`, `quorum.ts`, `voter.ts`, `refiner.ts`, `types.ts` |
 | Prompt template layer | `server/prompts/index.ts` (per-phase prompt templates), `server/prompts/globalRules.ts` (`GENERAL_GLOBAL_RULES`, `GENERAL_SAME_SESSION_RULES`, `GENERAL_CONVERSATIONAL_RULES`) |
 | User prompt overrides | `server/prompts/templateStore.ts` (YAML files under the app config dir), `server/prompts/templateFile.ts` (serialize/parse/validate), `shared/promptCatalog.ts` (phase grouping), `server/routes/prompts.ts` (editor API) |
 | Structured-output schemas and normalizers | `server/structuredOutput/*` |
@@ -241,7 +242,7 @@ Those phase timeouts exist to catch a stuck model, and a model blocked on a ques
 | Area | Modules |
 | --- | --- |
 | SSE replay and fan-out | `server/sse/broadcaster.ts`, `server/routes/stream.ts` |
-| Execution log ingestion and dedupe | `server/log/executionLog.ts`, `readDedupe.ts`, `commandLogger.ts` |
+| Execution log ingestion, projection, and dedupe | `server/log/executionLog.ts`, `projection.ts`, `view.ts`, `readDedupe.ts`, `commandLogger.ts` |
 | Startup bootstrap and restore state | `server/startup.ts`, `server/startupState.ts`, `server/runtime.ts` |
 | Crash-safe IO and recovery | `server/io/atomicWrite.ts`, `atomicAppend.ts`, `jsonl.ts`, `recovery.ts` |
 
@@ -348,7 +349,7 @@ flowchart LR
         AppDB[App DB<br/>profile + attached projects + app meta]
         ProjectDB[Project DB<br/>tickets / attempts / artifacts / sessions]
         Worktree[Ticket worktree<br/>&lt;repo&gt;/.looptroop/worktrees/&lt;ticket&gt;]
-        TicketFiles[.ticket artifacts<br/>relevant-files / interview / PRD / beads]
+        TicketFiles[.ticket artifacts<br/>relevant-files / interview / PRD / beads / opencode-steps-restore]
         RuntimeFiles[.ticket/runtime<br/>logs / state.yaml / setup profile / tool-cache]
     end
 
@@ -426,7 +427,7 @@ On startup, LoopTroop restores durable state through `server/startup.ts` and `se
 
 1. Initialize the app/project databases and create runtime indexes.
 2. Classify the startup storage state and capture runtime diagnostics such as WSL mounted-drive warnings.
-3. Recover ticket runtime artifacts by finishing interrupted writes it can identify and vouch for, restoring any `opencode.json` left capped by an interrupted coding run, repairing trailing JSONL corruption where safe, and rebuilding `.ticket/runtime/state.yaml` projections.
+3. Recover ticket runtime artifacts by finishing interrupted writes it can identify and vouch for, using `.ticket/opencode-steps-restore.json` to restore any run-owned `opencode.json` left capped by an interrupted coding run, repairing trailing JSONL corruption where safe, and rebuilding `.ticket/runtime/state.yaml` projections.
 4. Start the WAL checkpoint timer and probe OpenCode health.
 5. Hydrate XState actors for non-terminal tickets from attached project databases.
 6. Validate and reconnect active OpenCode sessions using project-local ticket identity. Eligible blocked-error continuations are matched through their unresolved occurrence, previous phase, and exact diagnostic session id; transiently unverifiable records remain active, while confirmed-missing or stale records are marked abandoned.
@@ -461,7 +462,7 @@ The IO layer provides crash-safe file operations and recovery used by the workfl
 | `atomicWrite.ts` | Crash-safe file writes | `safeAtomicWrite(filePath, content, options)` — writes to a `.tmp` file, calls `fsync`, renames to the target path, then best-effort fsyncs the parent directory. Prevents partial overwrites on system failure. `options.mode` sets POSIX permissions on the temp file before the rename, so a restricted file is never briefly readable by everyone. It also publishes the temp naming rule (`makeAtomicTmpPath` / `parseAtomicTmpPath`) that `recovery.ts` reads back. |
 | `atomicAppend.ts` | Crash-safe line appends | `safeAtomicAppend(filePath, line)` — opens with the `a+` flag, checks trailing newline, adds a `\n` prefix when needed, then calls `fsync`. Used for durable JSONL log appends. |
 | `jsonl.ts` | JSON Lines I/O | `readJsonl<T>()`, `writeJsonl<T>()`, `appendJsonl<T>()` — type-safe JSONL read/write/append with graceful malformed-line skipping and newline integrity. |
-| `recovery.ts` | Crash recovery | `recoverOrphanTmpFiles(folder)` — recursively finishes interrupted writes: it recognises a temp file only by the naming rule `atomicWrite.ts` publishes, promotes it only after the content reads back as what its target claims to be (non-empty, and a parseable document for JSON and YAML; `.jsonl` is exempt because a torn last line is repaired below), never over a target that already exists (`link` then `unlink`, so an existing name makes it fail rather than replace; where the filesystem has no `link`, `copyFile` with `COPYFILE_EXCL`), and removes the ones it proves wrong. A temp it cannot read at all — too large to check at startup — is reported and left in place rather than promoted or deleted. Temp files from either earlier naming scheme cannot be traced to a target and are reported with their date, not promoted. `fixTrailingLineCorruption(filePath)` — validates and truncates trailing corrupt JSONL lines (scans backward in 8KB chunks, stays under 4MB scan limit). |
+| `recovery.ts` | Crash recovery | `recoverOrphanTmpFiles(folder)` — recursively finishes interrupted writes: it recognises a temp file only by the naming rule `atomicWrite.ts` publishes, promotes it only after the content reads back as what its target claims to be (non-empty JSON, a non-empty YAML document, or JSONL whose torn last line can be repaired below), never over a target that already exists, and removes the ones it proves wrong. Promotion first tries a hard-link publish so an occupied target path fails closed; when hard links are unavailable it opens the target with exclusive create, copies only the already validated bytes, `fsync`s, and removes an incomplete target if the copy fails. A temp it cannot read at all is reported and left in place rather than promoted or deleted. Temp files from either earlier naming scheme cannot be traced to a target and are reported with their date, not promoted. `fixTrailingLineCorruption(filePath)` — validates and truncates trailing corrupt JSONL lines (scans backward in 8KB chunks, stays under 4MB scan limit). |
 
 These utilities form the durability backbone: atomic writes protect mutable state files (YAML and JSON artifacts), atomic appends protect append-only logs, and recovery handles the edge case where a process stops mid-write.
 

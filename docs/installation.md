@@ -30,7 +30,11 @@ the service without a browser.
 
 The PowerShell command needs `curl.exe`, included in current Windows 10 and
 Windows 11. If it is unavailable, use the npm channel below. It downloads the
-complete script over HTTPS and stops if the download fails.
+complete script over HTTPS before invoking it, so a failed or truncated
+transfer never runs as though it were the full installer. Both one-line
+installers refuse insecure URLs and HTTPS→HTTP redirects, and the temporary
+working directory is cleaned up on exit, including Ctrl-C or termination while
+the installer is running.
 
 ## Channels
 
@@ -158,7 +162,13 @@ Everything the installer accepts, in either mode:
 | `--version X.Y.Z` | `-Version X.Y.Z` | Install an exact version rather than the newest release |
 | `--prefix DIR` | `-Prefix DIR` | Choose where the executable goes, instead of `~/.looptroop`. Applies only with `--binary` — an npm install goes wherever npm's global prefix points, which you change with `npm config set prefix` |
 | `--tarball PATH` | `-Tarball PATH` | Install a tarball you already have, skipping the download |
-| `--dry-run` | — | Report what it would do and change nothing. POSIX only; `install.ps1` has no equivalent |
+| `--dry-run` | `-DryRun` | Report what it would do and change nothing |
+| `--help` | `-Help` | Show the installer usage text and exit |
+
+That is the complete flag set. `--binary` / `-Binary` and `--tarball` /
+`-Tarball` are mutually exclusive: one installs the standalone executable, the
+other installs an npm tarball. `--prefix` / `-Prefix` only applies with
+`--binary` / `-Binary`.
 
 `LOOPTROOP_INSTALL_DIR` sets the same location as `--prefix`, for when you would
 rather not repeat the flag on every upgrade.

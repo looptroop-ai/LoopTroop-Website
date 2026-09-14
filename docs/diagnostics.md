@@ -23,27 +23,36 @@ looptroop doctor
 looptroop doctor --json
 ```
 
-It checks the machine rather than a ticket, in fifteen checks: the LoopTroop
-version; Node against the floor this release requires; npm; `git` and `gh`, plus
-whether `gh` is authenticated; the configuration directory; which channel this
-copy came from and how to upgrade it; the database schema; why the last start
-failed, if it did; whether the project's git ignores are in place; the OpenCode
-CLI and whether OpenCode is reachable; whether the port is free; and whether a
-daemon is already running. Each failing check prints what to do about it.
+It checks the machine rather than a ticket. In a normal CLI run that means a
+leading `version` update check plus machine checks named `node`, `npm`, `git`,
+`gh`, `gh auth`, `config dir`, `install`, `schema`, `last start`,
+`project ignores`, `opencode cli`, `opencode`, `port`, and `daemon`. Each
+failing check prints what to do about it. The current floor is **Node 24.18.1
+or newer and npm 12.0.2 or newer**.
 
 **Versions are shown against the newest published one** — `v26.7.0 (latest
-v27.1.0)` — for LoopTroop, Node, npm and the OpenCode CLI. When you already have
-the newest, no `(latest …)` is printed, so the only versions that draw the eye
-are the ones you could do something about. The LoopTroop version is emphasised,
-because it is the one this machine can act on directly. Those lookups are cached
-for fifteen minutes, failures included, and never delay the local checks: offline,
-you get versions without a `latest` beside them.
+v27.1.0)` — for LoopTroop, Node, npm and the OpenCode CLI. When the latest
+lookup is unavailable, the report says `latest unknown` instead of stalling the
+rest of Doctor. The LoopTroop version is emphasized when it is behind, because
+it is the one this machine can act on directly. These lookups are cached for
+fifteen minutes, failures included, and never delay the local checks.
 
-**Three marks, and the difference matters.** `✓` is fine. `✗` means *not
-installed* — the thing is absent from this machine. `!` means installed but
-unhappy, such as a `gh` that is present and not signed in. Missing and degraded
-are different problems with different fixes, so they read differently at a
-glance.
+**Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
+`✗` is a failing check. For tool probes, the message underneath tells you which
+kind of problem it is:
+
+- **missing** — `not found on PATH`
+- **refused** — the tool exists, but LoopTroop will not trust that directory or
+  real path
+- **timed out** — ``<tool> --version`` or a similar probe did not answer within
+  its deadline
+- **degraded** — the tool answered, but something around it is still wrong, such
+  as `gh auth` not being signed in
+
+A refused tool is not the same as a missing one. If the directory is genuinely
+operator-controlled, add that **absolute** directory to
+`LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`; otherwise move or reinstall the tool into a
+location owned by you, root, or the Node runtime owner.
 
 `git` is required and `gh` is not: a missing `git` fails the run, a missing `gh`
 only warns, because `gh` is needed for the pull-request step at the end of a
@@ -55,20 +64,33 @@ describes what is there, the severity decides the exit code.
 > in a script, and it means a fresh machine with no OpenCode configured yet
 > reports a failure by design rather than by fault.
 
-`--json` emits `{ ok, update, checks }` on stdout and nothing else, so it can be
-piped into a parser. `update` contains the current/latest versions, availability,
-install channel, ordered upgrade commands, and the latest release's version, name,
-URL and publication date. The release body is left out here — it is prose, often
+`--json` emits JSON on stdout and nothing else, so it can be piped into a
+parser. The stable contract is:
+
+- top-level `ok`
+- optional top-level `update`
+- `checks[]`, keyed by stable `name`
+
+Script against `checks[].name` and any structured fields such as `install` or
+`schema`; treat `detail`, `label`, `note`, `remedy`, and check ordering as
+human-oriented text. The ordinary CLI attempts to include a leading `version`
+check and an `update` summary, but release discovery can be unavailable without
+making the machine checks disappear.
+
+`update` contains current/latest versions, update availability, install channel,
+ordered upgrade commands, and the latest release's version, name, URL, and
+publication date. The release body is left out here — it is prose, often
 several kilobytes of it; `GET /api/health/update` returns it in full for the
 interface to render.
 
 ### The install check
 
-The last check is not about whether LoopTroop runs — it is about which copy this
-is:
+The install-method check is not about whether LoopTroop runs — it is about which
+copy this is:
 
-```
-✓ install         npm (upgrade: npm install -g looptroop@latest)
+```text
+✓ install method  npm
+  ↳ upgrade: npm install -g looptroop@latest
 ```
 
 It names the channel this copy was installed from and the exact command that
@@ -86,7 +108,7 @@ is generic rather than confidently wrong.
 Doctor always shows the current and latest known versions. Release discovery uses
 the latest published stable GitHub release, with a 15-minute cache shared by the
 CLI and interface. When GitHub cannot be reached, the last known release is kept;
-with no cached answer, Doctor prints `latest unavailable`. Other human-readable
+with no cached answer, Doctor prints `latest unknown`. Other human-readable
 commands stay silent unless a newer version is known.
 
 ### The interface says "Signed out"

@@ -59,7 +59,15 @@ LoopTroop reduces obvious bias by:
 - recording per-model vote artifacts
 - resolving the winner from structured scores and ranking output
 
+Each vote uses five rubric categories. Every category is scored as an integer
+from **0 to 20**, and `total_score` must be an integer from **0 to 100** that
+exactly equals their sum.
+
 The goal is not consensus chat. The goal is competitive evaluation under the same rubric.
+
+Only drafts that actually received scores can win. When scored drafts tie, the
+main implementer wins the tie outright; otherwise LoopTroop falls back to the
+configured council order as the deterministic tie-breaker.
 
 **One exception to "the drafts are identical in kind."** If a member stopped to ask you something and you answered, that member drafted against instructions the others never saw — and the voters have not seen them either. Left unmarked, the draft that actually followed your steering reads as the one that disagrees with everybody else, so the most informed draft is the one most likely to lose. Such a draft carries a note saying its author was given an answer during drafting and that it should not be marked down merely for differing. The note names no model, so anonymity holds.
 
@@ -82,6 +90,10 @@ The council does not end at "winner picked." LoopTroop then checks whether the a
 | Interview | Generate targeted follow-up questions when gaps remain |
 | PRD | Revise the PRD until coverage is acceptable or the pass budget is exhausted |
 | Beads | Revise the bead plan until coverage is clean or capped (`VERIFYING_BEADS_COVERAGE`), then expand into execution-ready beads in a separate `EXPANDING_BEADS` pass |
+
+For interview coverage, **clean** means no unresolved gaps and no follow-up
+questions. A `0%` follow-up budget means none are generated even if gaps remain;
+those gaps stay visible and the ticket advances to approval.
 
 This is why the council is better understood as a planning discipline than as a single phase.
 

@@ -15,10 +15,6 @@ Normalization is intentionally conservative:
 - **Cleanup normalizations** may fill or restore values only when the source is deterministic, such as runtime context, canonical interview metadata, or arithmetic totals.
 - **Anything else fails validation** and stays diagnostic-only rather than being guessed into a saved artifact.
 
-## Upcoming parser changes (unreleased)
-
-The next parser update will remove duplicate entries only when their complete contents match. Conflicting values will remain invalid for the existing correction/retry flow, and repairs will preserve literal block content. These changes are not available in the published CLI yet.
-
 ## 1. Retry Classes
 
 LoopTroop uses four distinct retry classes. The names matter because they describe different session and artifact behavior:
@@ -235,9 +231,14 @@ The shared YAML candidate parser applies this repair to PRD, Beads, relevant-fil
 
 #### 12. Duplicate key removal
 
-**Trigger:** The same mapping key appears more than once with exactly the same line text (key + value).
+**Trigger:** The same mapping key appears more than once with exactly the same
+complete entry.
 
-**Repair:** The published parser compares duplicate header lines. Different inline values remain errors, but identical block headers can still hide different bodies. The unreleased change above will require the complete entries to match before removal.
+**Repair:** LoopTroop removes a duplicate only when the **entire entry**
+matches — including nested mappings, lists, multiline scalar bodies, and kept
+trailing blank lines. Conflicting duplicates remain invalid for the normal
+validation/retry flow, and malformed boundaries are left untouched rather than
+guessing where an entry ends.
 
 #### 13. Invalid double-quoted escape repair
 

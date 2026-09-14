@@ -92,6 +92,18 @@ Those directories are searched before `PATH` and are trusted as they are. They
 do not have to be on `PATH`. Separate them with `:` on macOS and Linux and `;`
 on Windows.
 
+Entries must be **absolute directories**. Empty or relative entries such as
+`.`, `tools`, or a trailing path separator segment are discarded rather than
+resolved against the current directory.
+
+This trust policy comes from the **daemon's own environment**, not from
+`command.env`, child processes, or a model-generated command. A child command
+cannot widen trust by setting its own `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`.
+
+For the npm install and upgrade path, the current runtime floor is **Node
+24.18.1 or newer and npm 12.0.2 or newer**. The launcher, Doctor, install
+scripts, and package channels enforce the same floor.
+
 ### Runtime markers
 
 `LOOPTROOP_CONTAINER` is set by the container image to record how LoopTroop was
@@ -105,6 +117,25 @@ describe your installation incorrectly.
 > configuration file. A wider bind takes two environment variables *and* a token,
 > so it is always a deliberate act. See
 > [Running in a container](installation.md#running-in-a-container).
+
+### What "loopback" means here
+
+LoopTroop treats these as loopback:
+
+- `localhost`
+- any strict dotted IPv4 address in `127.0.0.0/8`, with **four octets** and
+  **no leading zeros**
+- `::1`
+- IPv4-mapped IPv6 loopback forms whose mapped IPv4 address is inside `127/8`
+
+It does **not** treat `127.attacker.example`, malformed dotted quads such as
+`127.0.0.01`, URL-shaped strings, or non-loopback mapped addresses as local.
+
+> [!NOTE]
+> Managed and adopted OpenCode health checks refuse HTTP redirects, and managed
+> OpenCode startup validates the configured host before spawning `opencode
+> serve`. That keeps readiness probes from being redirected somewhere else and
+> keeps malformed host values from becoming process-launch surprises.
 
 ## Scope And Inheritance
 
@@ -653,6 +684,9 @@ Coverage settings control the self-checking loops that run after drafting. LoopT
 Limits how many additional coverage follow-up questions the `VERIFYING_INTERVIEW_COVERAGE` pass can add relative to the original compiled interview size.
 
 **Example:** With `Max Interview Questions = 50` and `Coverage Follow-Up Budget = 20 %`, the follow-up pass can add at most 10 extra questions (20 % of 50).
+
+**0% means 0 questions.** When this setting is zero, interview coverage may
+still record gaps, but it must not generate follow-up questions.
 
 **What it controls:**
 

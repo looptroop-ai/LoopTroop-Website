@@ -1083,8 +1083,8 @@ search: false
     *   Reconnect replay must be lossless within retention window: server replays all missed events before switching the client to live stream.
     *   Add SSE liveness contract:
         *   emit heartbeat events at fixed interval (default `10s`) with monotonic `stream_seq`;
-        *   keep bounded replay buffer by time + size caps (plus optional hot in-memory ring buffer of latest `1000` events); when cursor is too old, emit `replay_gap` with earliest available `event_id`/`log_id`;
-        *   on `replay_gap`, client first falls back to paginated logs API for deterministic backfill; if gap still cannot be replayed from retained logs, server emits `full_refresh` and client refetches ticket state/artifacts via REST before resuming live stream.
+        *   keep improving the bounded replay buffer beyond today's shipped `replay_gap` contract, for example by tuning time/size caps or adding an optional hot in-memory ring buffer of the latest `1000` events to extend the retention window;
+        *   if future reconnect work adds paginated-log backfill or any control event beyond today's `replay_gap` flow, document that as a new explicit contract first. Today there is no live `full_refresh` SSE event; browser recovery after `replay_gap` is the durable REST refetch path.
     *   Add optional SSE payload compression for large stream events (`gzip`/`br` from `Accept-Encoding`) with size threshold + CPU guard; heartbeats stay uncompressed.
     *   Add frontend live-log memory contract (ring buffer):
         *   keep only last `N` live log lines/events in browser memory (default `500`, configurable with hard cap),

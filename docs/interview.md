@@ -142,9 +142,14 @@ Coverage may use the same focused read-only inspection to confirm technical fact
 
 If real gaps remain and the follow-up budget allows it, coverage generates targeted follow-up questions and sends the ticket back to `WAITING_INTERVIEW_ANSWERS`.
 
-If coverage is clean, the interview moves to approval.
+If coverage is clean, the interview moves to approval. A clean result means
+there are no unresolved gaps left to record and no follow-up questions left to
+ask.
 
-If the follow-up budget is exhausted, the interview still moves to approval, but the remaining gaps stay visible in the resulting artifacts instead of being hidden.
+If the follow-up budget is exhausted — including the deliberate `0%` case — the
+interview still moves to approval, but the remaining gaps stay visible in the
+resulting artifacts instead of being hidden. In that case coverage can still
+report `status: gaps`, but it must leave `follow_up_questions` empty.
 
 If the user chooses **skip all**, LoopTroop:
 

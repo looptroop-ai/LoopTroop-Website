@@ -5,7 +5,7 @@
 
 The PRD is the ticket's implementation contract. It turns approved interview intent into a durable, reviewable spec that later phases can decompose, verify, and trace back to what the user actually meant.
 
-The core PRD document shape lives in `src/lib/prdDocument.ts`. Drafting and council orchestration live in `server/workflow/phases/prdPhase.ts`, coverage/versioning in `server/workflow/phases/verificationPhase.ts`, and approval/edit handling in `server/phases/prd/document.ts` plus `server/routes/ticketHandlers/approvalHandlers.ts`.
+The canonical PRD document shape lives in `shared/prdDocument.ts`. Frontend parsing and approval-outline helpers live in `src/lib/prdDocument.ts`, while drafting and council orchestration live in `server/workflow/phases/prdPhase.ts`, coverage/versioning in `server/workflow/phases/verificationPhase.ts`, and approval/edit handling in `server/phases/prd/document.ts` plus `server/routes/ticketHandlers/approvalHandlers.ts`.
 
 For the state-machine view, see [Ticket Flow - PRD](/ticket-flow#prd-loop).
 

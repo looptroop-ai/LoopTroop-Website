@@ -74,7 +74,10 @@ docker pull looptroopai/looptroop:latest
 
 :::
 
-The PowerShell command requires `curl.exe` (included in current Windows 10/11). See the
+The PowerShell command requires `curl.exe` (included in current Windows 10/11).
+It downloads the whole script before invoking it, so a failed or truncated
+transfer does not start the installer. Both one-line installers refuse insecure
+URLs or redirects. See the
 [npm alternative](installation.md#channels) if it is unavailable.
 
 | Channel | What it needs first |

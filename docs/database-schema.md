@@ -1,13 +1,13 @@
 # Database Schema
 
 > [!IMPORTANT]
-> **TL;DR** — LoopTroop persists durable state in two SQLite databases plus ticket-owned files: one app DB for global settings and attached-project identity, one per-project DB for workflow records, and `.ticket/**` files for canonical planning docs, logs, and runtime metadata.
+> **TL;DR** — LoopTroop persists durable state in two SQLite databases plus ticket-owned files: one app DB for global settings and attached-project identity, one per-project DB for workflow records, and `.ticket/**` files for review documents, logs, and runtime/recovery metadata.
 
 LoopTroop does **not** treat model transcripts as source of truth. Durable workflow state is split deliberately:
 
 - the **app DB** stores global configuration and the attached-project registry
 - each attached repository has a **project DB** for tickets, attempts, artifacts, session ownership, and error history
-- the ticket worktree filesystem stores **canonical documents, logs, and per-ticket metadata** that do not belong in relational tables
+- the ticket worktree filesystem stores **user-facing documents, durable logs, and ticket-owned runtime/recovery files** that do not belong in relational tables
 
 ## 1. Storage Layout At A Glance
 
@@ -100,6 +100,9 @@ The project database is the operational store for one attached repository. LoopT
 | `projects` | Project metadata, concrete Advanced choices, and other project-level configuration overrides |
 | `tickets` | Ticket records, workflow status, progress counters, and serialized machine snapshot |
 | `phase_artifacts` | Phase-scoped structured artifacts, reports, approvals, UI companions, and read models |
+| `manual_qa_operations` | Durable Manual QA submit/skip operation journals |
+| `manual_qa_improvement_tickets` | Deterministic mapping from one Improvement origin to one child Draft ticket |
+| `interview_batch_claims` | One active interview-answer batch claim per ticket |
 | `ticket_phase_attempts` | Archived/active phase-version history for non-implementation phases |
 | `opencode_sessions` | Exact OpenCode session ownership records |
 | `ticket_status_history` | Append-only status transition log |
@@ -173,7 +176,7 @@ Operational notes:
 ### `phase_artifacts`
 
 > [!NOTE]
-> In development, not yet released: a partial unique index prevents two `skip_receipt:*` artifacts on one ticket from carrying the same `receipt_id`. Bulk items still share an `action_id`; the batch is transactional and replayed receipts are ignored. Receipt rollback, cancellation-content cleanup and ticket deletion use the existing artifact cleanup. No separate action-claim table or previous-install backfill is needed. Other artifact types and non-JSON content are outside the receipt key.
+> A partial unique index prevents two `skip_receipt:*` artifacts on one ticket from carrying the same `receipt_id`. Bulk items still share an `action_id`; the batch is transactional and replayed receipts are ignored. Receipt rollback, cancellation-content cleanup, and ticket deletion use the existing artifact cleanup. No separate action-claim table is needed. Other artifact types and non-JSON content are outside the receipt key.
 
 This table stores structured workflow artifacts and related UI/read-model payloads.
 
@@ -216,6 +219,8 @@ Columns:
 
 `(ticket_id, action_id)` has a unique index. A retry with the same identity resumes the existing state; it cannot create a second operation for that ticket/action pair or silently change the guarded checklist/draft.
 
+Deleting the source ticket cascades this journal. Project-wide **Clear tickets** also deletes the table explicitly as part of its whole-project reset path, so partially staged Manual QA operations do not survive a deliberate ticket wipe.
+
 ### `manual_qa_improvement_tickets`
 
 This table maps one deterministic Manual QA Improvement origin to exactly one Draft child ticket.
@@ -229,6 +234,25 @@ Columns:
 - `created_at`
 
 `origin_id` is unique. The mapping is created in the same SQLite transaction as the Draft child ticket, so a restart after database creation but before filesystem provenance/evidence writes finds the same child and repairs the missing receipts instead of creating a duplicate.
+
+The only SQL foreign key here is the destination child ticket. The parent submission is linked by `action_id`, not by a separate foreign key, and the parent source ticket is tracked in the operation payload/receipts rather than on this row. Deleting the child ticket cascades the mapping; startup orphan cleanup removes any leftover row whose destination ticket no longer exists, and project-wide **Clear tickets** deletes the table explicitly before resetting `tickets`.
+
+### `interview_batch_claims`
+
+This table is the one durable lock that says an interview answer batch is being processed right now.
+
+Columns:
+
+- `ticket_id` — primary key and ticket foreign key with cascade deletion
+- `token` — claim identity, used to distinguish one acquisition from a later replacement
+- `claimed_at`
+- `expires_at`
+
+Operational notes:
+
+- `ticket_id` being the primary key means there can be only one live claim row per ticket
+- `token` identifies the holder, so a stale process cannot release a claim that expired and was reacquired by someone else
+- `expires_at` makes crash recovery self-healing: a dead process can leave the row behind, but once the expiry passes the ticket can be claimed again without manual cleanup
 
 ### `ticket_phase_attempts`
 
@@ -408,10 +432,11 @@ SQLite is not the whole system. Some ticket state is intentionally filesystem-ba
 | Path | Role | Source-of-truth note |
 | --- | --- | --- |
 | `.ticket/relevant-files.yaml` | Canonical relevant-files document | Filesystem artifact |
-| `.ticket/interview.yaml` | Final interview document | Filesystem artifact |
-| `.ticket/prd.yaml` | Final PRD document | Filesystem artifact |
+| `.ticket/interview.yaml` | Current reviewable interview document | Filesystem artifact |
+| `.ticket/prd.yaml` | Current reviewable PRD document | Filesystem artifact |
 | `.ticket/beads/<baseBranch>/.beads/issues.jsonl` | Bead plan and bead runtime status/history | Filesystem artifact |
 | `.ticket/meta/ticket.meta.json` | Ticket metadata such as base branch and locked model selection | Filesystem artifact |
+| `.ticket/opencode-steps-restore.json` | Recovery sidecar for temporarily capped `opencode.json` | Operational filesystem artifact |
 | `.ticket/runtime/execution-log.jsonl` | Main execution log | Filesystem log |
 | `.ticket/runtime/execution-log.debug.jsonl` | Folded forensic/debug log | Filesystem log |
 | `.ticket/runtime/execution-log.ai.jsonl` | AI-detail log channel | Filesystem log |
@@ -432,8 +457,8 @@ Manual QA also writes immutable draft snapshots, skip receipts, submission-opera
 The important split is:
 
 - the **database** stores indexed workflow records and ownership relationships
-- the **filesystem** stores canonical ticket docs, append-only logs, and per-ticket metadata
-- some filesystem files, especially `runtime/state.yaml`, are **derived read models** rebuilt from authoritative DB/file state
+- the **filesystem** stores review documents, append-only logs, and ticket-owned runtime/recovery files
+- some filesystem files, especially `runtime/state.yaml` and `opencode-steps-restore.json`, are operational projections or sidecars rather than primary review documents
 
 ## 7. Indexes And Runtime Behavior
 
@@ -446,7 +471,7 @@ LoopTroop creates a small set of runtime-focused indexes rather than a large gen
 ### Project DB indexes
 
 - ticket lookup: `tickets(project_id)`, `tickets(status)`, `tickets(external_id)`
-- skip-receipt uniqueness (unreleased): a partial expression index on `phase_artifacts(ticket_id, receipt_id from content)` for `skip_receipt:*` rows
+- skip-receipt uniqueness: a partial expression index on `phase_artifacts(ticket_id, receipt_id from content)` for `skip_receipt:*` rows
 - artifact lookup: `phase_artifacts(ticket_id)`, `phase_artifacts(ticket_id, phase, phase_attempt)`
 - phase-attempt lookup: `ticket_phase_attempts(ticket_id, phase, state, attempt_number)` plus a uniqueness index on `(ticket_id, phase, attempt_number)`
 - OpenCode session lookup: `opencode_sessions(session_id)`, `opencode_sessions(ticket_id, phase, state)`, `opencode_sessions(ticket_id, phase, phase_attempt, member_id, bead_id, iteration, step, state)`

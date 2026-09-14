@@ -7,8 +7,8 @@
  *
  * The commands and options in `docs/cli.md` are not transcribed by hand. They
  * are the `USAGE` string from `server/cli/cli.ts` in the application repository,
- * read at a pinned release tag over HTTPS — a public repo, so no token — and
- * substituted into the fenced block below the marker.
+ * read at a pinned immutable Git ref over HTTPS — a public repo, so no token —
+ * and substituted into the fenced block below the marker.
  *
  * `--check` is the point. A generator nobody remembers to run is a hand
  * transcription with extra steps: the page drifts and the build stays green. It
@@ -20,76 +20,103 @@
  */
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 /**
- * The release the documentation describes — a tag, never a branch.
+ * The application revision the documentation describes — an immutable ref, never
+ * a moving branch name.
  *
- * The published docs describe the version people can install, so this moves when
- * a release ships, not when `main` changes. Bumping it is part of the release
- * checklist; running this script without `--check` is the other part.
+ * When the website needs to track latest behavior before the next release tag,
+ * pinning the exact commit is safer than following `main`: the documentation can
+ * move forward deliberately, but never silently.
  */
-const CLI_SOURCE_REF = 'v0.5.9'
+export const CLI_SOURCE_REF = 'b96f5448251cbe88cd845cd5f262adda02701413'
 
-const SOURCE_URL = `https://raw.githubusercontent.com/looptroop-ai/LoopTroop/${CLI_SOURCE_REF}/server/cli/cli.ts`
 const PAGE = path.join(process.cwd(), 'docs', 'cli.md')
 const MARKER = '<!-- generated from server/cli/cli.ts; run npm run sync:cli -->'
+const GENERATED_BLOCK_PATTERN = new RegExp(
+  `${MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n\\n\`\`\`text\\n[\\s\\S]*?\\n\`\`\``,
+)
 
-const check = process.argv.includes('--check')
+export function sourceUrl(relativePath) {
+  return `https://raw.githubusercontent.com/looptroop-ai/LoopTroop/${CLI_SOURCE_REF}/${relativePath}`
+}
 
 function fail(message) {
-  process.stderr.write(`FAIL: ${message}\n`)
-  process.exit(1)
+  throw new Error(message)
 }
 
 /**
  * The `USAGE` template literal, with or without `export` — releases before the
  * page existed did not export it, and pinning to one of those must still work.
  */
-async function readUsage() {
+export async function fetchSourceText(relativePath) {
   let source
   try {
-    const response = await fetch(SOURCE_URL)
-    if (!response.ok) fail(`${SOURCE_URL} answered ${response.status}.`)
+    const url = sourceUrl(relativePath)
+    const response = await fetch(url)
+    if (!response.ok) fail(`${url} answered ${response.status}.`)
     source = await response.text()
   } catch (error) {
-    fail(`Could not read ${SOURCE_URL}: ${error instanceof Error ? error.message : String(error)}`)
+    fail(`Could not read ${sourceUrl(relativePath)}: ${error instanceof Error ? error.message : String(error)}`)
   }
+  return source
+}
 
-  const match = source.match(/(?:export )?const USAGE = `([\s\S]*?)`\n/)
+export function extractUsage(cliSource) {
+  const match = cliSource.match(/(?:export )?const USAGE = `([\s\S]*?)`\n/)
   if (match === null) fail(`No USAGE template literal in cli.ts at ${CLI_SOURCE_REF}.`)
   // Backticks are the only thing a template literal escapes that a fenced code
   // block does not, so unescaping them is the whole conversion.
   return match[1].replace(/\\`/g, '`').trimEnd()
 }
 
-const usage = await readUsage()
-
-let page
-try {
-  page = await readFile(PAGE, 'utf8')
-} catch {
-  fail(`${PAGE} does not exist.`)
+export async function readUsage() {
+  return extractUsage(await fetchSourceText('server/cli/cli.ts'))
 }
 
-if (!page.includes(MARKER)) fail(`${PAGE} is missing the generated-block marker.`)
+export function rewriteCliPage(page, usage) {
+  if (!page.includes(MARKER)) fail(`${PAGE} is missing the generated-block marker.`)
 
-const block = `${MARKER}\n\n\`\`\`text\n${usage}\n\`\`\``
-const rewritten = page.replace(
-  new RegExp(`${MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n\\n\`\`\`text\\n[\\s\\S]*?\\n\`\`\``),
-  () => block,
-)
-
-if (rewritten === page) {
-  process.stdout.write(`PASS: docs/cli.md matches cli.ts at ${CLI_SOURCE_REF}.\n`)
-  process.exit(0)
+  const block = `${MARKER}\n\n\`\`\`text\n${usage}\n\`\`\``
+  return page.replace(GENERATED_BLOCK_PATTERN, () => block)
 }
 
-if (check) {
-  fail(
-    `docs/cli.md has drifted from cli.ts at ${CLI_SOURCE_REF}.\n`
-    + '       Run `npm run sync:cli` and commit the result.',
-  )
+export async function syncCliReference({ check = false } = {}) {
+  const usage = await readUsage()
+
+  let page
+  try {
+    page = await readFile(PAGE, 'utf8')
+  } catch {
+    fail(`${PAGE} does not exist.`)
+  }
+
+  const rewritten = rewriteCliPage(page, usage)
+
+  if (rewritten === page) return `PASS: docs/cli.md matches cli.ts at ${CLI_SOURCE_REF}.`
+
+  if (check) {
+    fail(
+      `docs/cli.md has drifted from cli.ts at ${CLI_SOURCE_REF}.\n`
+      + '       Run `npm run sync:cli` and commit the result.',
+    )
+  }
+
+  await writeFile(PAGE, rewritten)
+  return `Rewrote docs/cli.md from cli.ts at ${CLI_SOURCE_REF}.`
 }
 
-await writeFile(PAGE, rewritten)
-process.stdout.write(`Rewrote docs/cli.md from cli.ts at ${CLI_SOURCE_REF}.\n`)
+async function main() {
+  try {
+    const message = await syncCliReference({ check: process.argv.includes('--check') })
+    process.stdout.write(`${message}\n`)
+  } catch (error) {
+    process.stderr.write(`FAIL: ${error instanceof Error ? error.message : String(error)}\n`)
+    process.exit(1)
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main()
+}
