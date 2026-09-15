@@ -168,7 +168,7 @@ function fallbackInstallCatalog() {
       {
         id: 'installer-sh',
         live: true,
-        documentedInstall: 'curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh',
+        documentedInstall: 'curl -fsSL https://www.looptroop.ovh/install | sh',
       },
       {
         id: 'npm',

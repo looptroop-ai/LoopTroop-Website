@@ -6,7 +6,7 @@ a channel, start it, open it.
 ::: code-group
 
 ```bash [macOS, Linux, WSL]
-curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
+curl -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
@@ -40,7 +40,7 @@ the installer is running.
 
 | | Install | Upgrade | |
 | --- | --- | --- | --- |
-| **Installer script** (macOS, Linux, WSL) | `curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
+| **Installer script** (macOS, Linux, WSL) | `curl -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
 | **Installer script** (Windows) | [PowerShell command above](#installation) | run it again | ✅ |
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
@@ -147,7 +147,7 @@ The installer will place one for you, into `~/.looptroop` unless you say
 otherwise:
 
 ```bash
-curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
+curl -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 ```
 
 ```powershell
