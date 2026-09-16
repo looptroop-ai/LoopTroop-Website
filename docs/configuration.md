@@ -86,8 +86,9 @@ LoopTroop automatically trusts OpenCode in its canonical install directory
 `OPENCODE_DIR`). Official OpenCode release archives are built on CI runners with
 UID 1001, so extracting them as root preserves that UID on the binary. LoopTroop
 excuses this ownership for `opencode` when its directory chain belongs to a
-trusted owner and neither the binary nor its directory is writable by group
-or others. Sibling binaries in that directory must still pass normal ownership checks.
+trusted owner, the directory chain is not writable by group or others, and the
+binary either has no write bits or is protected inside a private directory like
+`/root`. Sibling binaries in that directory must still pass normal ownership checks.
 
 If a tool lives somewhere else on purpose, for example a toolchain owned by a
 service account, name its directory:
