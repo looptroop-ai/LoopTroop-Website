@@ -71,11 +71,12 @@ parser. The stable contract is:
 - optional top-level `update`
 - `checks[]`, keyed by stable `name`
 
-Script against `checks[].name` and any structured fields such as `install` or
-`schema`; treat `detail`, `label`, `note`, `remedy`, and check ordering as
-human-oriented text. The ordinary CLI attempts to include a leading `version`
-check and an `update` summary, but release discovery can be unavailable without
-making the machine checks disappear.
+Script against `checks[].name` and structured fields such as
+`checks[].install.channel` and `checks[].install.upgradeCommand`; treat
+`detail`, `label`, `note`, `remedy`, and check ordering as human-oriented text.
+The ordinary CLI attempts to include a leading `version` check and an `update`
+summary, but release discovery can be unavailable without making the machine
+checks disappear.
 
 `update` contains current/latest versions, update availability, install channel,
 ordered upgrade commands, and the latest release's version, name, URL, and

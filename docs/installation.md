@@ -128,9 +128,9 @@ Four different things travel under the same version number, and the difference
 matters when you compare two machines.
 
 **Homebrew, Scoop, Chocolatey and the AUR install a locked bundle.** The
-application plus every dependency, resolved once at build time and archived.
-Everyone on those channels runs the exact versions the release was tested
-against.
+application plus every dependency is resolved once with the release lockfile,
+then archived. Everyone on those channels runs the exact versions the release
+was tested against.
 
 **npm, bun and pnpm resolve version ranges on your machine.** That is how those
 tools are supposed to work, and it means two installations of the same LoopTroop
@@ -271,7 +271,7 @@ so the two cannot disagree.
 Every downloadable asset also carries a **build provenance attestation**: a
 signed statement of which workflow, repository and commit produced those exact
 bytes. That covers the four executables, the npm tarball, the bundle, both
-installer scripts, `release-manifest.json` and `checksums.sha256` — so the
+installer scripts, `release-manifest.json` and `checksums.sha256`, so the
 scripts you pipe into a shell are verifiable, not only the executables you
 unpack.
 
@@ -279,6 +279,16 @@ unpack.
 gh attestation verify looptroop-<version>-linux-x64.tar.gz --repo looptroop-ai/LoopTroop
 gh attestation verify install.sh --repo looptroop-ai/LoopTroop
 ```
+
+Release and container jobs use three npm fetch retries, with retry timeouts
+bounded from 10 to 60 seconds. This protects the build and verification path
+against a brief registry or CDN failure; it does not change the retry defaults
+of npm, bun, pnpm, or Yarn on your machine.
+
+> [!NOTE]
+> **Next release behavior.** The reviewed release asset set adds the matching
+> `package-lock.json`, and its provenance attestation covers that lockfile too.
+> The served `v0.5.9` release predates this addition.
 
 ## Upgrading
 
@@ -447,6 +457,15 @@ docker pull looptroopai/looptroop:latest
 ```bash
 docker pull ghcr.io/looptroop-ai/looptroop:latest
 ```
+
+> [!NOTE]
+> **Next release behavior.** Release images will be built from the released npm
+> tarball and its matching `package-lock.json`. The image will extract the
+> tarball into its runtime prefix, copy that lockfile, and run
+> `npm ci --ignore-scripts --omit=dev`, so the published container uses the
+> release dependency tree. Release CI will record the installed LoopTroop, Node,
+> npm, GitHub CLI, and Debian package versions for each architecture by image
+> digest, then attest the finished multi-architecture GHCR index after assembly.
 
 The same image runs under **Podman**, with one difference that is not a
 substitution: **Podman needs the registry in the name.** Docker assumes Docker
