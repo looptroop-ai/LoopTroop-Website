@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: looptroop-ai/LoopTroop
-          ref: 83ae324348164c6f4d1c5dedaebcba69359d15c9
+          ref: f784f055b45854016c245a2d902d6799b7e8265c
           path: .source/LoopTroop
           persist-credentials: false
           sparse-checkout: |
