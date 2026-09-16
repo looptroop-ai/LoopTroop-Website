@@ -1047,7 +1047,7 @@ Create a Beads breakdown (architecture/task graph) based on the final PRD.
   - contextGuidance — an object with two keys: `patterns` (specific patterns to follow copied from the PRD/Architecture, e.g., "Use the AppError class for exceptions", "Follow the Container/Presenter pattern defined in src/components") and `anti_patterns` (approaches to avoid for this task, e.g., "Do not use alert() for error display").
   - acceptanceCriteria — human-readable definitions of done for this bead.
   - tests — bead-scoped tests (targeted unit/integration tests for this bead only, not the full suite).
-  - testCommands — exact commands to run appropriate bead-scoped checks; may be empty.
+  - testCommands — structured `CommandSpec` records with explicit process or shell fields; may be empty.
   - testCommandReason — required only when testCommands is empty; explains why no appropriate automated command exists.
 4. Context Guidance Contract: Write `contextGuidance` as an object with an explicit `patterns` list and an explicit `anti_patterns` list. Each must contain at least one entry. If the structure risks becoming too long, shorten the prose in those lists instead of dropping later beads.
 5. Dependency Ordering: List beads in dependency order — if bead B depends on bead A, A must appear before B. Do not create circular dependencies or self-references.
@@ -1082,12 +1082,20 @@ beads:
     tests:
       - "Unit test verifies table creation."
     testCommands:
-      - "npm run test -- server/db"
+      - mode: "process"
+        program: "npm"
+        args: ["run", "test", "--", "server/db"]
+        cwd: "."
+        env: {}
 ```
-`testCommands` must always be a YAML list. When it is empty, add `testCommandReason` as a non-empty string; otherwise omit `testCommandReason`.
+`testCommands` must always be a YAML list of structured `CommandSpec` objects.
+Use `mode: "process"` with explicit `program` and `args`, or `mode: "shell"`
+with explicit `shell` and `script`; do not emit a bare command string or ask a
+later phase to guess a shell. When the list is empty, add `testCommandReason`
+as a non-empty string; otherwise omit `testCommandReason`.
 YAML Safety: For any field value or list item that contains dense punctuation, quotes, backslashes, `: `, brackets, braces, shell metacharacters, or other code-like inline syntax, prefer a block scalar (`|-`) and otherwise use a double-quoted YAML string.
 When using double-quoted YAML strings, escape literal backslashes as `\\` (for example `\\|` in regex-like text), or use a block scalar for commands and regex-like text.
-For `testCommands` containing regex backslashes such as `\+`, prefer a block scalar list item (`- |-`) or escape every literal backslash as `\\+`; never put raw `\+` inside a double-quoted YAML string.
+For a structured shell command whose `script` contains regex backslashes such as `\+`, prefer a block scalar for the `script` value (`script: |-`); for process commands, keep each argument as its own `args` list item and escape literal backslashes as `\\+` when needed.
 If you use a block scalar, emit the indicator unquoted on the key line (for example `description: |-`). Never emit quoted block-scalar indicators such as `"|-"`; if unsure, use a one-line double-quoted string instead.
 Never use YAML single-quoted scalars for punctuation-heavy commands, code snippets, regex-like text, or similar machine-oriented strings.
 Write `contextGuidance` as an object with two keys: `patterns` (list of specific patterns to follow) and `anti_patterns` (list of anti-patterns to avoid).
@@ -1227,12 +1235,20 @@ beads:
     tests:
       - "Unit test verifies table creation."
     testCommands:
-      - "npm run test -- server/db"
+      - mode: "process"
+        program: "npm"
+        args: ["run", "test", "--", "server/db"]
+        cwd: "."
+        env: {}
 ```
-`testCommands` must always be a YAML list. When it is empty, add `testCommandReason` as a non-empty string; otherwise omit `testCommandReason`.
+`testCommands` must always be a YAML list of structured `CommandSpec` objects.
+Use `mode: "process"` with explicit `program` and `args`, or `mode: "shell"`
+with explicit `shell` and `script`; do not emit a bare command string or ask a
+later phase to guess a shell. When the list is empty, add `testCommandReason`
+as a non-empty string; otherwise omit `testCommandReason`.
 YAML Safety: For any field value or list item that contains dense punctuation, quotes, backslashes, `: `, brackets, braces, shell metacharacters, or other code-like inline syntax, prefer a block scalar (`|-`) and otherwise use a double-quoted YAML string.
 When using double-quoted YAML strings, escape literal backslashes as `\\` (for example `\\|` in regex-like text), or use a block scalar for commands and regex-like text.
-For `testCommands` containing regex backslashes such as `\+`, prefer a block scalar list item (`- |-`) or escape every literal backslash as `\\+`; never put raw `\+` inside a double-quoted YAML string.
+For a structured shell command whose `script` contains regex backslashes such as `\+`, prefer a block scalar for the `script` value (`script: |-`); for process commands, keep each argument as its own `args` list item and escape literal backslashes as `\\+` when needed.
 If you use a block scalar, emit the indicator unquoted on the key line (for example `description: |-`). Never emit quoted block-scalar indicators such as `"|-"`; if unsure, use a one-line double-quoted string instead.
 Never use YAML single-quoted scalars for punctuation-heavy commands, code snippets, regex-like text, or similar machine-oriented strings.
 Write `contextGuidance` as an object with two keys: `patterns` (list of specific patterns to follow) and `anti_patterns` (list of anti-patterns to avoid).
@@ -1357,12 +1373,20 @@ beads:
     tests:
       - "Unit test verifies table creation."
     testCommands:
-      - "npm run test -- server/db"
+      - mode: "process"
+        program: "npm"
+        args: ["run", "test", "--", "server/db"]
+        cwd: "."
+        env: {}
 ```
-`testCommands` must always be a YAML list. When it is empty, add `testCommandReason` as a non-empty string; otherwise omit `testCommandReason`.
+`testCommands` must always be a YAML list of structured `CommandSpec` objects.
+Use `mode: "process"` with explicit `program` and `args`, or `mode: "shell"`
+with explicit `shell` and `script`; do not emit a bare command string or ask a
+later phase to guess a shell. When the list is empty, add `testCommandReason`
+as a non-empty string; otherwise omit `testCommandReason`.
 YAML Safety: For any field value or list item that contains dense punctuation, quotes, backslashes, `: `, brackets, braces, shell metacharacters, or other code-like inline syntax, prefer a block scalar (`|-`) and otherwise use a double-quoted YAML string.
 When using double-quoted YAML strings, escape literal backslashes as `\\` (for example `\\|` in regex-like text), or use a block scalar for commands and regex-like text.
-For `testCommands` containing regex backslashes such as `\+`, prefer a block scalar list item (`- |-`) or escape every literal backslash as `\\+`; never put raw `\+` inside a double-quoted YAML string.
+For a structured shell command whose `script` contains regex backslashes such as `\+`, prefer a block scalar for the `script` value (`script: |-`); for process commands, keep each argument as its own `args` list item and escape literal backslashes as `\\+` when needed.
 If you use a block scalar, emit the indicator unquoted on the key line (for example `description: |-`). Never emit quoted block-scalar indicators such as `"|-"`; if unsure, use a one-line double-quoted string instead.
 Never use YAML single-quoted scalars for punctuation-heavy commands, code snippets, regex-like text, or similar machine-oriented strings.
 Write `contextGuidance` as an object with two keys: `patterns` (list of specific patterns to follow) and `anti_patterns` (list of anti-patterns to avoid).

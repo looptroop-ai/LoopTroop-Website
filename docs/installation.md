@@ -153,6 +153,12 @@ Every release publishes an executable for macOS (Apple silicon), Linux (x64 and
 arm64) and Windows (x64) on the
 [releases page](https://github.com/looptroop-ai/LoopTroop/releases/latest).
 
+Standalone release archives are built with Node `v26.9.0`'s native
+`--build-sea` builder and carry that runtime in the executable, so they do not
+need Node on the host to run. This embedded runtime is separate from the
+application floor: application and package channels retain Node `24.18.1`,
+and the container uses that same floor for its application runtime.
+
 The installer will place one for you, into `~/.looptroop` unless you say
 otherwise:
 

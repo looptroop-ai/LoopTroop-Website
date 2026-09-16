@@ -1108,7 +1108,23 @@ The `...-Count` headers are exact. The `...-Lines` headers list file line number
 }
 ```
 
-`PUT /api/tickets/:id/beads` rewrites the tracker atomically only while the ticket is in `WAITING_BEADS_APPROVAL`. On the first write to a missing tracker no concurrency hash is required. When a tracker already exists, the request must include `X-Content-Sha256` from the read it was built on; missing it returns `428`, and a stale hash returns `409` with both the expected and current hashes. Manual saves write `user_edit_receipt:beads`, record `X-Edit-Surface` as `jsonl` only when the client sent exactly that value, and otherwise record the legacy `structured` surface. The write API accepts `dependencies.blockedBy` for compatibility but stores the canonical `dependencies.blocked_by` form on disk. `GET /api/tickets/:id/beads/:beadId/diff` returns `{ "diff": "", "captured": false }` when no diff artifact exists yet.
+The JSONL editor may send `X-Source-Lines` with one comma-separated file line for
+each edited row. The server requires exactly one strictly increasing positive
+safe integer per row, then keeps the mapping as diagnostic metadata only. It
+does not use that header to invent or rewrite source text. Unknown top-level and
+dependency keys survive canonicalization and save.
+
+Each bead's `testCommands` field is a `CommandSpec[]`. A process command carries
+an explicit `mode`, `program`, and `args`; a shell command carries an explicit
+`mode`, `shell`, and `script`, with optional repository-relative `cwd`, `env`,
+and timeout fields. A bare command string is not inferred into a shell command.
+
+`PUT /api/tickets/:id/beads` rewrites the tracker atomically only while the ticket is in `WAITING_BEADS_APPROVAL`. On the first write to a missing tracker no concurrency hash is required. When a tracker already exists, the request must include `X-Content-Sha256` from the read it was built on; missing it returns `428`, and a stale hash returns `409` with both the expected and current hashes. Manual saves write `user_edit_receipt:beads`, record `X-Edit-Surface` as `jsonl` only when the client sent exactly that value, and otherwise record the `structured` surface. The input alias `dependencies.blockedBy` is normalized to canonical `dependencies.blocked_by`; the server derives `blocks` from those authoritative edges and rejects dangling references or cycles before writing. `GET /api/tickets/:id/beads/:beadId/diff` returns `{ "diff": "", "captured": false }` when no diff artifact exists yet.
+
+Read-only ticket projections retain valid bead rows when the JSONL file is
+damaged and expose the affected lines through `runtime.beadsDiagnostics`. The
+board and workspace display a repair warning and suppress completion summaries
+while those diagnostics are present.
 
 ## SSE Events
 

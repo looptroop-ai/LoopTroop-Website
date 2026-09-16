@@ -195,7 +195,7 @@ The shared YAML candidate parser applies this repair to PRD, Beads, relevant-fil
 
 **Trigger:** An opt-in structured artifact list item starts with a bare scalar and is followed by object fields, e.g. `beads: - config-parser title: ...`.
 
-**Repair:** The existing scalar is moved into the configured primary key for that list, such as `id` for beads/PRD items or `path` for relevant files. This repair is only enabled for known structured lists and does not touch scalar-only lists such as `patterns`, `tests`, `testCommands`, or `acceptanceCriteria`.
+**Repair:** The existing scalar is moved into the configured primary key for that list, such as `id` for beads/PRD items or `path` for relevant files. This repair is only enabled for known structured lists and does not touch scalar-only lists such as `patterns`, `tests`, or `acceptanceCriteria`.
 
 **Warning:** *Repaired YAML sequence entry under "beads" at line 12: treated bare item "config-parser" as id before parsing.* (Lists the actual parent key, line, emitted scalar, and primary key.)
 
@@ -565,6 +565,15 @@ Patterns: Use X Anti-patterns: Avoid Y
 → converted to `{ patterns: ["Use X"], anti_patterns: ["Avoid Y"] }`
 
 **Warning:** *Canonicalized string context guidance at index 0 into patterns/anti_patterns object.*
+
+**Structured verification commands**
+
+`testCommands` is a list of structured `CommandSpec` objects. Process entries
+carry an explicit `program` and `args`; shell entries carry an explicit `shell`
+and `script`. The bead parser validates every entry and does not turn a bare
+string into a guessed shell command. Scalar-list repairs used for ordinary
+prose lists do not apply to this field. An empty command list is valid only with
+the required `testCommandReason`.
 
 **Empty `prdRefs` warning**
 

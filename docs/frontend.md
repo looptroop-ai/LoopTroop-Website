@@ -133,6 +133,12 @@ Current `CodingView` composes:
 
 It also merges persisted bead artifacts with runtime bead overlays from the live ticket payload so the UI can show in-progress status and notes without waiting for a full artifact refresh. Bead details render append-only **Failed Iteration Notes**, **User Retry Notes**, and **Finalization Failure Notes** sections independently, preserving their timestamp, iteration, content, and optional error code.
 
+When the runtime projection finds damaged or unrepresentable bead rows, the
+ticket payload exposes `runtime.beadsDiagnostics`. Ticket cards and the
+workspace summary show a repair warning and suppress completion percentages
+until the tracker is trustworthy. The approval navigator keeps damaged lines
+visible for repair and does not create anchors for rows it cannot represent.
+
 The live bead countdown uses the runtime bead's attempt-level `updatedAt` as its deadline anchor and falls back to the first-attempt `startedAt` only for legacy data. Restart recovery advances `updatedAt` when the replacement attempt begins, so the displayed clock and backend-owned per-iteration deadline both restart from the new attempt instead of remaining at `00:00`. Preparing Workspace Runtime uses the same compact remaining/total clock, anchored to the latest setup-attempt start log and the effective project/profile workspace-setup timeout; every automatic setup retry starts a fresh clock.
 
 QA-origin beads receive a **Manual QA Fix** badge and keep their version, source items, observations, expected behavior, and evidence thumbnails/references visible across Coding, Details, selected-bead, artifact, and log surfaces. Normal retry notes are presented separately.

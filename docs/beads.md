@@ -40,7 +40,7 @@ A bead is the smallest unit LoopTroop will schedule for coding. It carries enoug
 | `contextGuidance` | `{ patterns: string[]; anti_patterns: string[] }` | Local implementation guardrails |
 | `acceptanceCriteria` | `string[]` | Completion requirements |
 | `tests` | `string[]` | Verification intent in prose |
-| `testCommands` | `string[]` | Minimal planned commands the coding agent may adapt to repository evidence; may be empty |
+| `testCommands` | `CommandSpec[]` | Explicit process or shell command records the coding agent may adapt to repository evidence; may be empty |
 | `testCommandReason` | `string?` | Required visible explanation when `testCommands` is empty; omitted otherwise |
 | `priority` | `number` | Deterministic execution order among runnable beads |
 | `status` | `'pending' \| 'in_progress' \| 'done' \| 'error'` | Runtime state |
@@ -66,6 +66,13 @@ A bead is the smallest unit LoopTroop will schedule for coding. It carries enoug
 - **Graph fields** (`priority`, `dependencies`) let the scheduler choose work deterministically instead of letting the model decide its own sequence.
 - **Recovery fields** (`status`, `iteration`, the three typed note histories, `startedAt`, attempt-level `updatedAt`, `completedAt`, `qaOrigin`, and `beadStartCommit`) make retries durable across resets, backend restarts, blocked-error recovery, and Manual QA follow-up work without mixing distinct failure sources.
 
+`testCommands` uses structured `CommandSpec` records. A process command names
+its `program` and `args`; a shell command names its `shell` and `script`. The
+record can also carry a repository-relative `cwd`, environment values, and a
+timeout. Bead producers emit these fields explicitly: a bare command string is
+never guessed into a shell invocation. When no command is appropriate, keep the
+list empty and provide the visible `testCommandReason`.
+
 ### Example Bead
 
 ```json
@@ -87,7 +94,13 @@ A bead is the smallest unit LoopTroop will schedule for coding. It carries enoug
     "Cover reused refresh token invalidation"
   ],
   "testCommands": [
-    "npm run test:server"
+    {
+      "mode": "process",
+      "program": "npm",
+      "args": ["run", "test:server"],
+      "cwd": ".",
+      "env": {}
+    }
   ],
   "priority": 3,
   "status": "pending",
@@ -152,9 +165,26 @@ The raw read exposes the full repair payload:
 
 `content` is the exact JSONL as stored. `items` contains only the rows that parsed. This matters because rebuilding the file from `items` alone would silently delete damaged or unrepresentable lines instead of letting a person repair them in place.
 
-Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/beads` requires `X-Content-Sha256` on edits to an existing plan, returns `428` when the header is missing, and returns `409` when the hash is stale. A first write to a missing tracker needs no hash because there is nothing to overwrite. The optional `X-Edit-Surface` request header records whether the save came from the JSONL tab (`jsonl`) or the structured editor (`structured`, including the default when the header is missing or unrecognized).
+The JSONL editor may send `X-Source-Lines` with one comma-separated file line for
+each edited row. The server requires exactly one strictly increasing positive
+safe integer per row, then treats this mapping as diagnostic metadata only; it
+never uses it to invent or rewrite a source line. Unknown top-level and
+dependency keys are retained during canonicalization and save.
 
-For compatibility, the write route accepts `dependencies.blockedBy` as well as `dependencies.blocked_by`, but the stored JSONL is canonicalized to `blocked_by`.
+The canonical dependency edge is `dependencies.blocked_by`. The server derives
+`blocks` from those authoritative edges and validates missing references and
+cycles before writing. The input alias `dependencies.blockedBy` is normalized
+into the canonical shape without creating a second stored contract.
+
+Read-only runtime projections keep valid rows when a tracker is damaged and
+expose the affected lines in `runtime.beadsDiagnostics`. The board and
+workspace show a repair warning and suppress completion percentages while that
+diagnostic is present, so damaged data cannot look complete.
+
+Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/beads` requires `X-Content-Sha256` on edits to an existing plan, returns `428` when the header is missing, and returns `409` when the hash is stale. A first write to a missing tracker needs no hash because there is nothing to overwrite. The optional `X-Edit-Surface` request header records whether the save came from the JSONL tab (`jsonl`) or the structured editor (`structured`, including the default when the header is missing or unrecognized). The approval draft keeps its immutable base hash through autosave, refetch, edit, reload, save, and approve; a stale write never retags the open draft.
+
+Input aliases are normalized to the canonical `dependencies.blocked_by` form,
+which is the only dependency spelling written to JSONL.
 
 ### What Saving A Beads Edit Really Does
 
@@ -256,7 +286,7 @@ The setup agent may instead return `Blocked` when at least one required check ge
 - it must not quietly leave committable project changes behind
 - it may use setup-scoped online lookup (`websearch` / `webfetch`) when local metadata is insufficient to resolve a required launcher or version
 
-Beads coverage checks whether the semantic blueprint covers the approved PRD. Test commands remain project-agnostic strings and may use repository-native tools, standard platform utilities, or verify files and behavior that an earlier bead creates. Runtime setup separately checks that launchers required by the approved plan are available or provisions them under the temporary setup paths.
+Beads coverage checks whether the semantic blueprint covers the approved PRD. Test commands remain project-agnostic structured `CommandSpec` values and may use repository-native tools, standard platform utilities, or verify files and behavior that an earlier bead creates. Producers make the program and arguments, or the shell and script, explicit; a bare command string is not guessed. Runtime setup separately checks that launchers required by the approved plan are available or provisions them under the temporary setup paths.
 
 When temporary tooling needs a prepared environment, the setup agent creates `.ticket/runtime/execution-setup/env.sh` and `.ticket/runtime/execution-setup/run`. LoopTroop validates or safely recovers that canonical wrapper, records it in the accepted profile, and routes independent tooling probes, workspace probes, Git-hook checks, coding verification, and later project commands through it without reloading a login profile.
 
