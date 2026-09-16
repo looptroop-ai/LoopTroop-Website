@@ -63,7 +63,7 @@ When a final-test attempt passes, LoopTroop compares git-visible dirty files fro
 - classified `candidate`, `temporary`, and `unexpected` files
 - local-only files, their deterministic classification reasons, and any warning produced after classification retry
 
-Integration carries forward **audited candidate files** from this pass. Explicit candidate declarations and tracked or staged project changes are preserved even when a path looks generated. Untracked outputs under Git-ignored paths, recognized dependency/cache/output roots, or setup-declared temporary roots stay on disk for later tests but are excluded from implementation totals, checkpoints, commits, and PR delivery.
+Integration carries forward **audited candidate files** from this pass. Explicit candidate declarations and tracked or staged project changes are preserved even when a path looks generated. Untracked outputs under Git-ignored paths, recognized dependency/cache/output roots, or setup-declared temporary roots stay on disk for later tests but are excluded from implementation totals, checkpoints, commits, and PR delivery. The same generated-file classification is used by final-test auditing, bead commits, and the integration candidate.
 
 An unknown untracked file receives one same-session classification retry. If it is still undeclared, LoopTroop records a local-only warning, excludes it from delivery, and continues unattended. An unresolved modification to an existing tracked file remains a candidate so the later whole-PR candidate audit can review it without risking silent loss.
 
@@ -205,11 +205,19 @@ After the candidate audit and PR draft are ready, LoopTroop:
 2. creates a new draft PR, or updates the existing PR for that branch
 3. persists PR metadata in `pull_request_report`
 
+If cleanup later deletes the remote ticket branch, it requires the recorded
+remote head as a 40–64 character hexadecimal SHA and uses an explicit branch
+refspec with the lease. Missing or invalid expected heads leave the remote
+branch preserved and the deletion skipped.
+
 The stored PR report includes the PR URL, number, state, title, body, head SHA, timestamps, and the candidate-file audit summary that produced the final diff.
 
 ### 4.4 Failure safety
 
-Git push and GitHub-side failures are not retried blindly. Instead, LoopTroop preserves the local candidate state and writes a `git_recovery_receipt` that records the failing step and the known-safe recovery context.
+Git push and GitHub-side failures are not retried blindly. Git and SSH calls
+remain non-interactive and bounded, while LoopTroop preserves the local
+candidate state and writes a `git_recovery_receipt` that records the failing
+step and the known-safe recovery context.
 
 ---
 
@@ -288,7 +296,7 @@ Ticket artifacts such as `final_test_report`, `integration_report`, `pull_reques
 
 ### 6.3 Cleanup warnings are visible, not fatal
 
-Cleanup writes a `cleanup_report` with `status: clean` or `status: warning`. A warning means some transient path could not be removed, but the ticket still completes successfully and the warning stays visible for later housekeeping.
+Cleanup writes a `cleanup_report` with `status: clean` or `status: warning`. A warning means some transient path could not be removed, but the ticket still completes successfully and the warning stays visible for later housekeeping. Startup recovery is a separate boundary: an unresolved in-progress fallback can stop startup with its affected files available for diagnosis. `CLEANING_ENV` recursively removes its selected runtime/temp and `runtime/execution-setup` roots without inspecting every sidecar for recovery ownership; explicit Delete Worktrees removes an eligible worktree and its contents. The persistent Manual QA SQLite lock database is outside those transient roots and is not unlinked by cleanup or recovery code.
 
 ### 6.4 Cleanup resume behavior
 

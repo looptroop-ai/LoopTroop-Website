@@ -19,6 +19,8 @@ LoopTroop does **not** treat model transcripts as source of truth. Durable workf
 
 Both SQLite connections use WAL mode plus SQLite busy timeouts. The app DB connection and path resolution live in `server/db/index.ts`; the app schema is bootstrapped in `server/db/init.ts`. The project DB is created and evolved in `server/db/project.ts`, which also cleans foreign-key orphans before enabling `PRAGMA foreign_keys=ON` so old or manually edited project databases do not start with dangling references.
 
+Manual QA evidence locking is a separate persistent SQLite transaction database at `.ticket/manual-qa/vN/evidence/index.json.lock`. Each acquisition attempt opens its own connection, uses `BEGIN IMMEDIATE` with `busy_timeout=0`, retries asynchronously within a bound, and rolls back or closes before release. Process death releases the native transaction; LoopTroop never unlinks this lock database or treats a stale JSON marker as ownership proof. SQLite may create adjacent `-journal`, `-wal`, or `-shm` files while it is active.
+
 ## 2. Identity And Ownership Boundaries
 
 The main thing to understand is that LoopTroop has **public IDs**, **local row IDs**, and **filesystem paths**, and they are intentionally different:
@@ -451,14 +453,18 @@ SQLite is not the whole system. Some ticket state is intentionally filesystem-ba
 | `.ticket/manual-qa/generation-reservation-vN.json` | Restart-safe version reservation | Reused after generation retry/restart |
 | `.ticket/manual-qa/workspace-baseline-vN.json` and drift receipts | Git baseline and audited include/discard decisions | Submission/skip safety records |
 | `.ticket/manual-qa/events.jsonl` | Idempotent versioned generation, evidence, drift, submission, child-work, and completion events | Append-only Manual QA audit stream |
+| `<current-temp>.proof` beside a YAML temp | Byte length and SHA-256 proof for a complete YAML write | Required before YAML promotion; missing or mismatched proofs remain visible |
+| `<current-temp>.recovery` and `.recovery.write-*` | Fallback-copy ownership marker and its staging file | A complete matching marker is required to resume or clean up a fallback copy; an unresolved in-progress marker blocks startup and preserves the affected files |
+| Retained `<current-temp>.remove-*` | Private cleanup sidecar from an interrupted restoration race | May be retained at a recovery blocking point when ownership is uncertain; never treated as an unrelated target, and subject to cleanup/worktree deletion scope |
+| `.ticket/manual-qa/vN/evidence/index.json.lock` plus SQLite transient files | Persistent native transaction lock for evidence index publication | Outside CLEANING_ENV's transient roots and not unlinked by lock or recovery code; explicit worktree deletion removes the containing worktree |
 
-Manual QA also writes immutable draft snapshots, skip receipts, submission-operation journals, and origin/source receipts where needed. A skipped round intentionally has draft + skip receipt + summary rather than `results.yaml`, because Skip does not submit item results. Evidence is capped at 250 MiB **per file** with no count or round-total limit. Filenames are sanitized, traversal and symlinks at every contained ancestor are rejected, and bytes are streamed through contained temporary files, hashed, and atomically renamed. Synchronous index publication preserves concurrent uploads, while stable evidence/action IDs reconcile a restart between file rename or unlink, index persistence, and the final upload/remove receipt. These files remain under ticket-owned `.ticket` storage, so normal bead commits, candidate diffs, and PRs exclude them.
+Manual QA also writes immutable draft snapshots, skip receipts, submission-operation journals, and origin/source receipts where needed. A skipped round intentionally has draft + skip receipt + summary rather than `results.yaml`, because Skip does not submit item results. Evidence is capped at 250 MiB **per file** with no count or round-total limit. Filenames are sanitized, traversal and symlinks at every contained ancestor are rejected, and bytes are streamed through contained temporary files, hashed, and atomically renamed. Evidence index publication uses the persistent SQLite transaction lock above, while stable evidence/action IDs reconcile a restart between file rename or unlink, index persistence, and the final upload/remove receipt. Invalid Manual QA event shapes are skipped with diagnostics while their raw lines remain available for inspection. These files remain under ticket-owned `.ticket` storage, so normal bead commits, candidate diffs, and PRs exclude them.
 
 The important split is:
 
 - the **database** stores indexed workflow records and ownership relationships
 - the **filesystem** stores review documents, append-only logs, and ticket-owned runtime/recovery files
-- some filesystem files, especially `runtime/state.yaml` and `opencode-steps-restore.json`, are operational projections or sidecars rather than primary review documents
+- some filesystem files, especially `runtime/state.yaml`, `opencode-steps-restore.json`, and the recovery sidecars above, are operational projections or sidecars rather than primary review documents
 
 ## 7. Indexes And Runtime Behavior
 

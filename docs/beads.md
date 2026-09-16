@@ -473,6 +473,9 @@ Execution is isolated inside the ticket worktree, and the local Git rules are st
 - **Commit capture**: Git-visible project changes produce a local bead commit regardless of language or extension
 - **No-op completion**: a true no-op bead can still finish successfully when no committable project changes were needed
 - **Noise handling**: generated/untracked noise is surfaced as warnings rather than silently swept into bead commits
+- **Bounded Git recovery**: local commits, resets, and worktree cleanup use bounded process-tree handling, and every caller waits for the mutation outcome before it continues
+- **Opaque paths and safe refs**: status and diff readers use NUL-delimited records so whitespace, control bytes, and non-ASCII names remain unchanged; branch and ref inputs are validated before Git receives them
+- **Shared delivery exclusions**: final-test and bead-commit classification use the same generated/cache/setup allowlist, so local-only outputs remain available without entering the candidate commit
 
 ### Diff Capture
 

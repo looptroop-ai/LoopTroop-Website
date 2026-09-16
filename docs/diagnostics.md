@@ -242,6 +242,17 @@ When a phase fails hard enough to enter `BLOCKED_ERROR`, LoopTroop persists a no
 
 Use this surface when the ticket already blocked and you want the reason, not the whole-machine health picture.
 
+Startup artifact recovery distinguishes ordinary orphan content from an
+in-progress fallback. An orphan YAML temp without its matching proof, or a torn
+whole-file JSONL temp, is warned about and left unpromoted; append logs alone
+may receive bounded trailing-line repair. `RECOVERY_BLOCKED` is raised only
+when an in-progress fallback's `.recovery` ownership or completeness cannot be
+verified, before rebuilding projections, hydrating ticket actors, or starting
+execution timers. The affected files and diagnostic remain available at that
+blocking point. This process-level startup failure occurs before ticket actors
+exist, so it does not create a `BLOCKED_ERROR` ticket occurrence or expose
+ticket Retry, Continue, or Cancel actions.
+
 ### 3.1 OpenCode Provider Error Enrichment
 
 OpenCode sometimes streams only `Provider returned error` even though its local log contains the exact provider failure. LoopTroop best-effort correlates those generic stream errors with recent OpenCode log files by `session.id` and replaces the generic summary with a sanitized provider summary when a match exists.

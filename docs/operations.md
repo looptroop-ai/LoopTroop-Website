@@ -105,7 +105,8 @@ LoopTroop deliberately separates app-level state from project-level runtime stat
 | `~/.config/looptroop/app.sqlite` | App settings, profiles, and attached-project registry | Override with `LOOPTROOP_CONFIG_DIR` or `LOOPTROOP_APP_DB_PATH` |
 | `<project>/.looptroop/db.sqlite` | Project tickets, phase artifacts, attempts, sessions, status history, and error occurrences | Project-local operational database |
 | `<project>/.looptroop/worktrees/<ticket>/` | Ticket-owned Git worktree and `.ticket/**` runtime artifacts | One worktree per ticket |
-| `<ticket-worktree>/.ticket/runtime/` | Execution logs, stream state, locks, session records, temporary files, and state projection | Preserved or cleaned according to ticket outcome and cleanup choice |
+| `<ticket-worktree>/.ticket/runtime/` | Execution logs, stream state, session records, temporary files, and state projection | Logs and selected runtime data are preserved or cleaned according to ticket outcome and cleanup scope; startup may leave an unresolved in-progress fallback sidecar at a blocking point, while explicit worktree deletion removes the containing worktree |
+| `<ticket-worktree>/.ticket/manual-qa/vN/evidence/index.json.lock` | Persistent SQLite transaction database for evidence-index locking | The database is not unlinked; SQLite may create adjacent `-journal`, `-wal`, or `-shm` files |
 | `<repo>/tmp/dev-preflight-report.json` | Last `npm run dev` preflight result: dependency sync, audit remediation, OpenCode upgrade, and install checks | Rebuilt on successful dev preflight; safe to delete |
 | `<repo>/tmp/dev-maintenance-state.json` | Daily maintenance timestamps and invalidation bookkeeping for dependency sync, audit remediation, and OpenCode upgrade | Lets normal startup defer already-run daily maintenance until relevant inputs change |
 | `~/.local/share/opencode/log/` | Default local OpenCode log directory | Used for managed OpenCode DEBUG logs and generic provider-error enrichment unless `LOOPTROOP_OPENCODE_LOG_DIR` points elsewhere |
@@ -391,6 +392,17 @@ LoopTroop restores owner removal permissions before deleting each eligible workt
 - project source code and normal repository files
 - active, queued, and draft ticket worktrees
 - ticket records in the dashboard, including title, description, and status
+
+Startup recovery and cleanup have different boundaries. An orphan YAML temp
+without a matching proof or a torn whole-file JSONL temp is warned about and
+left unpromoted. Only an in-progress fallback whose `.recovery` ownership or
+completeness cannot be verified raises `RECOVERY_BLOCKED` and stops startup;
+the affected files and diagnostic remain available at that point. `CLEANING_ENV`
+then removes its selected resources under `runtime/`, including `runtime/tmp/`
+and `runtime/execution-setup/`, recursively without inspecting every sidecar
+for recovery ownership, and **Delete Worktrees** removes the entire eligible
+worktree. The persistent Manual QA SQLite lock database is outside those
+transient roots and is not unlinked by cleanup or recovery code.
 
 ## 10. Diagnostics
 
