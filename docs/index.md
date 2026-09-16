@@ -61,7 +61,7 @@ pnpm add -g looptroop
 looptroop open
 ```
 
-```bash [Yarn]
+```bash [Yarn (Bash/zsh)]
 yarn global add looptroop
 looptroop open
 ```
@@ -71,6 +71,10 @@ docker pull looptroopai/looptroop:latest
 ```
 
 :::
+
+The Yarn tab uses Bash or zsh syntax. Yarn Classic also runs on Windows, but a
+PowerShell PATH command is not documented here. Use npm on Windows, which is the
+recommended documented setup.
 
 The PowerShell command requires `curl.exe` (included in current Windows 10/11). See the
 [npm alternative](installation.md#channels) if it is unavailable.

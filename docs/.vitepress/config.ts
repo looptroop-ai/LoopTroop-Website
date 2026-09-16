@@ -80,8 +80,9 @@ export default defineConfig({
   vite: {
     build: {
       // The generated local-search index is intentionally a single searchable
-      // asset and currently sits below this documented docs-only budget.
-      chunkSizeWarningLimit: 850,
+      // asset. It is currently about 860 kB; keep a small, explicit docs-only
+      // budget above that payload while still warning for larger chunks.
+      chunkSizeWarningLimit: 900,
     },
   },
   head: [

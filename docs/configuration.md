@@ -81,6 +81,13 @@ behind a link, or any directory above them belongs to someone other than you,
 root, or the owner of the Node running LoopTroop. A refused tool is treated like
 a missing one, and `doctor` says it was refused and why.
 
+An extensionless Windows path is resolved through the executable siblings listed
+by `PATHEXT`, in that order, before the normal path trust checks run. The
+extensionless file itself is never run. In a
+container or sandbox that remaps file owners, LoopTroop will also recognise the
+platform's verified unmapped-owner value during this check; an unreadable or
+ambiguous mapping remains refused.
+
 LoopTroop automatically trusts OpenCode in its canonical install directory
 (`~/.opencode/bin`, or custom paths set via `OPENCODE_INSTALL_DIR` or
 `OPENCODE_DIR`). Official OpenCode release archives are built on CI runners with

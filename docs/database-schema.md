@@ -487,8 +487,14 @@ These match the hot runtime paths: ticket board/status queries, phase-attempt ve
 > [!NOTE]
 > This section is for working on LoopTroop from a checkout. The `db:*` scripts it
 > uses live in the repository and are not part of an installed copy. An installed
-> LoopTroop migrates its own database at startup, and `looptroop doctor` reports
+> LoopTroop checks its database schema at startup, and `looptroop doctor` reports
 > the schema state.
+
+Fresh project databases are the supported starting point. LoopTroop does not
+migrate or deduplicate older project databases that already contain duplicate
+skip receipts. If startup reports a duplicate skip-receipt index error, back up
+the repository, remove the old LoopTroop project database, and attach the
+repository again.
 
 LoopTroop uses Drizzle table definitions, but **runtime bootstrap code is the real startup contract**.
 

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { access, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { fetchSourceText } from './sync-cli-reference.mjs'
+import { CLI_SOURCE_REF, fetchSourceText } from './sync-cli-reference.mjs'
 
 const requiredFiles = [
   'site/index.html',
@@ -28,7 +28,9 @@ const SSE_EVENT_ROW = /^\| `([^`]+)` \| /gm
 const RESERVED_ROUTE_ROW = /\b(?:deprecated|tombstone)\b/i
 const INTERNAL_PR_LABEL = /\bPR\d+\b(?:\s*\(unreleased\))?/g
 const RELEASE_MARKER = /<!--\s*release[- ]marker\b[^>]*-->/gi
-const SOURCE_REPO_ROOT = path.resolve(process.cwd(), '..', 'LoopTroop')
+const SOURCE_REPO_ROOT = path.resolve(
+  process.env.LOOPTROOP_SOURCE_ROOT || path.resolve(process.cwd(), '..', 'LoopTroop'),
+)
 const SOURCE_PACKAGE_JSON = path.join(SOURCE_REPO_ROOT, 'package.json')
 const INSTALL_CATALOG_SCRIPT = path.join(SOURCE_REPO_ROOT, 'scripts', 'docs-install-catalog.mjs')
 
@@ -162,25 +164,13 @@ async function pathExists(file) {
   }
 }
 
-function fallbackInstallCatalog() {
-  return {
-    channels: [
-      {
-        id: 'installer-sh',
-        live: true,
-        documentedInstall: 'curl -fsSL https://www.looptroop.ovh/install | sh',
-      },
-      {
-        id: 'npm',
-        live: true,
-        documentedInstall: 'npm install -g looptroop',
-      },
-    ],
-  }
-}
-
 async function readInstallCatalog() {
-  if (!await pathExists(INSTALL_CATALOG_SCRIPT)) return fallbackInstallCatalog()
+  if (!await pathExists(INSTALL_CATALOG_SCRIPT)) {
+    fail(
+      `Install catalog missing at ${INSTALL_CATALOG_SCRIPT}. `
+      + `Check out LoopTroop at the immutable source ref ${CLI_SOURCE_REF}.`,
+    )
+  }
 
   try {
     return JSON.parse(execFileSync(process.execPath, [INSTALL_CATALOG_SCRIPT], {

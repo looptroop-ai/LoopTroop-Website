@@ -64,7 +64,7 @@ bun add -g looptroop
 pnpm add -g looptroop
 ```
 
-```bash [Yarn]
+```bash [Yarn (Bash/zsh)]
 yarn global add looptroop
 ```
 
@@ -73,6 +73,10 @@ docker pull looptroopai/looptroop:latest
 ```
 
 :::
+
+The Yarn tab uses Bash or zsh syntax. Yarn Classic also runs on Windows, but a
+PowerShell PATH command is not documented here. Use npm on Windows, which is the
+recommended documented setup.
 
 The PowerShell command requires `curl.exe` (included in current Windows 10/11).
 It downloads the whole script before invoking it, so a failed or truncated
@@ -88,7 +92,7 @@ URLs or redirects. See the
 | **Scoop** | Nothing else — it depends on `nodejs-lts`, `git` and `gh` |
 | **bun** | bun *and* Node 24.18.1+ (the launcher is a Node program), git, `gh` |
 | **pnpm** | pnpm *and* Node 24.18.1+, git, `gh`. pnpm will not resolve a tag to a version published in the last 24 hours |
-| **Yarn** | Yarn **Classic** *and* Node 24.18.1+, git, `gh`. Yarn 2 removed global installs, so modern Yarn cannot install a CLI at all |
+| **Yarn (Bash/zsh)** | Yarn **Classic** *and* Node 24.18.1+, git, `gh`. Yarn 2 removed global installs, so modern Yarn cannot install a CLI at all |
 | **Docker** | Only Docker — Node, git and `gh` are in the image, but it needs an OpenCode server it can reach |
 
 [Installation](installation.md) covers every channel in full: upgrading,

@@ -45,7 +45,7 @@ the installer is running.
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
 | **pnpm** (everywhere) | `pnpm add -g looptroop` | `pnpm add -g looptroop@latest` | ✅ |
-| **Yarn Classic** (everywhere) | `yarn global add looptroop` | `yarn global upgrade looptroop@latest` | ✅ |
+| **Yarn Classic** (Bash/zsh commands) | `yarn global add looptroop` | `yarn global upgrade looptroop@latest` | ✅ |
 | **Homebrew** (macOS, Linux) | `brew install looptroop-ai/tap/looptroop` | `brew upgrade looptroop` | ✅ |
 | **Scoop** (Windows) | `scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket`, then `scoop install looptroop` | `scoop update looptroop` | ✅ |
 | **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest` or `docker pull ghcr.io/looptroop-ai/looptroop:latest` | pull again | ✅ |
@@ -112,6 +112,16 @@ be authenticated (`gh auth login`) for that step to work. Everything before it
 runs without `gh`, which is why `looptroop doctor` warns about a missing `gh`
 rather than failing.
 
+If you use `nvm`, the current installer's help points to the supported Node 24
+line with this command:
+
+```bash
+nvm install 24
+```
+
+The command is documented by [nvm's official README](https://github.com/nvm-sh/nvm#installing-and-updating),
+and it supplies the Node runtime required by the npm-based channels.
+
 ## What each channel actually installs
 
 Four different things travel under the same version number, and the difference
@@ -154,7 +164,8 @@ curl -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 $script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n"))) -Binary
 ```
 
-Everything the installer accepts, in either mode:
+Installer flags in the current installer source (the last two are next-release
+behavior):
 
 | Flag | PowerShell | What it does |
 | --- | --- | --- |
@@ -165,10 +176,18 @@ Everything the installer accepts, in either mode:
 | `--dry-run` | `-DryRun` | Report what it would do and change nothing |
 | `--help` | `-Help` | Show the installer usage text and exit |
 
-That is the complete flag set. `--binary` / `-Binary` and `--tarball` /
-`-Tarball` are mutually exclusive: one installs the standalone executable, the
-other installs an npm tarball. `--prefix` / `-Prefix` only applies with
-`--binary` / `-Binary`.
+The current installer source supports `--dry-run` / `-DryRun` and `--help` /
+`-Help`. Those two flags are next-release behavior. The served `v0.5.9`
+installer does not provide them: it can treat `-DryRun` as an ordinary argument
+and install for real. Do not pass these flags to the served installer until it is
+updated.
+
+That is the complete flag set in the current installer source. Until the served
+installer is updated, use the other options in this table and omit `--dry-run` /
+`--help`.
+`--binary` / `-Binary` and `--tarball` / `-Tarball` are mutually exclusive: one
+installs the standalone executable, the other installs an npm tarball.
+`--prefix` / `-Prefix` only applies with `--binary` / `-Binary`.
 
 `LOOPTROOP_INSTALL_DIR` sets the same location as `--prefix`, for when you would
 rather not repeat the flag on every upgrade.
@@ -187,10 +206,25 @@ with nothing.
 > LoopTroop. On a machine with no Node at all, download the archive from the
 > releases page and unpack it yourself.
 
-If the installer reports `.install.lock` or `.install.lock.claim`, wait and
-retry. A process ID can be reused after a crash, so an old lock may need manual
-cleanup even when its original installer has stopped. Remove only the named
-file after confirming no installer is running; a custom prefix changes its path.
+If the installer reports `.install.lock`, wait and retry. The current installer
+source also uses `.install.lock.claim` and ownership-aware recovery. The claim
+file is next-release behavior: the served `v0.5.9` installer does not include it,
+so an old lock may need manual cleanup after a crash. Remove only the named file
+after confirming no installer is running. A custom prefix changes its path.
+
+The current installer source clears an abandoned lock only after it confirms
+that the recorded process has exited. Age alone is not enough: a live,
+malformed, permission-denied, or otherwise unverifiable owner keeps installation
+blocked.
+
+If the installed executable cannot answer its status probe and cannot run its
+version check, the current installer source refuses to replace it. It leaves the
+existing copy alone because a daemon may still be serving, so stop or remove the
+known installation before retrying. Nothing is installed in that case.
+
+On Windows, the current installer source rejects `-Version`, `-Tarball`, or
+`-Prefix` when the option was supplied without a value, instead of forwarding an
+empty value.
 
 ### Platforms with no executable
 
@@ -307,8 +341,8 @@ Channel caveats worth knowing in advance:
   name and fails with a confusing lockfile error. On modern Yarn, either run it
   without installing (`yarn dlx looptroop`) or install it with one of the other
   channels on this page.
-- **Yarn does not put its global binaries on your `PATH`.** This is the one that
-  looks like a failed install and is not: `yarn global add looptroop` reports
+- **In Bash or zsh, Yarn does not put its global binaries on your `PATH`.**
+  This is the one that looks like a failed install and is not: `yarn global add looptroop` reports
   success, and then `looptroop` is not a command. Yarn links global executables
   into its own directory and leaves adding it to you. Check where, and add it:
 
@@ -316,6 +350,9 @@ Channel caveats worth knowing in advance:
   yarn global bin                 # usually ~/.yarn/bin
   export PATH="$(yarn global bin):$PATH"
   ```
+
+  Yarn Classic also runs on Windows, but its PowerShell PATH setup is not
+  documented here. Use npm there, which is the recommended documented channel.
 
   Put that `export` in your shell profile — `~/.bashrc`, `~/.zshrc` — or the next
   terminal will have forgotten it. npm, bun and pnpm each install into a

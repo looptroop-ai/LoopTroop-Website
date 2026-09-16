@@ -44,6 +44,12 @@ Most modal routes and workspace views are also lazy-loaded through `lazyWithChun
 - a clickable version beside the LoopTroop title that opens About; when `/api/health/update` reports a newer published release, the badge gains a deliberately quiet monochrome update icon without changing color
 - display-only mock/demo ticket IDs render with a superscript `(M)` marker in board cards and selected-ticket dashboard surfaces while keeping the raw external ID for routing, file paths, and artifacts; the dashboard exposes Cancel for non-terminal mock/demo tickets while keeping runnable workflow controls hidden
 
+Modal navigation keeps the URL and selected ticket in sync when a dialog closes,
+the logo returns to the board, or the user presses browser Back. Dropdowns keep
+Escape and focus inside their popup while open. On narrow screens, the navigation
+drawer behaves like a dialog, traps focus, returns focus to its opener, and closes
+when the desktop layout appears; hidden controls are skipped when focus wraps.
+
 ### Ticket Dashboard Coordination
 
 `TicketDashboard.tsx` is the live-ticket coordinator rather than a passive wrapper.

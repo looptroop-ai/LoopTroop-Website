@@ -30,7 +30,7 @@ import { pathToFileURL } from 'node:url'
  * pinning the exact commit is safer than following `main`: the documentation can
  * move forward deliberately, but never silently.
  */
-export const CLI_SOURCE_REF = 'b96f5448251cbe88cd845cd5f262adda02701413'
+export const CLI_SOURCE_REF = '83ae324348164c6f4d1c5dedaebcba69359d15c9'
 
 const PAGE = path.join(process.cwd(), 'docs', 'cli.md')
 const MARKER = '<!-- generated from server/cli/cli.ts; run npm run sync:cli -->'

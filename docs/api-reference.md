@@ -418,7 +418,7 @@ Before Start, ticket responses expose the stored Manual QA choice and its effect
 
 All ticket route params shown as `:id` or `:ticketId` use the composite public ticket ref, such as `1:AUTH-12`. The browser URL uses only the external ticket id (`/ticket/AUTH-12`), but API callers should send the composite ref returned by ticket list/detail payloads and URL-encode it when constructing request paths or query strings.
 
-Ticket list/detail payloads also include `isDisplayOnlyMock`, a boolean UI hint for board-only mock/demo tickets. These tickets keep their raw `externalId` for routing and storage, but clients can use the flag to add display-only markers without parsing reserved branch names. Non-terminal mock/demo tickets expose only the `cancel` action; runnable workflow actions remain hidden and rejected.
+Ticket list/detail payloads also include `isDisplayOnlyMock`, a boolean UI hint for board-only mock/demo tickets. These tickets keep their raw `externalId` for routing and storage, but clients can use the flag to add display-only markers without parsing reserved branch names. Display-only mock/demo tickets that are not terminal expose only the `cancel` action; runnable workflow actions remain hidden and rejected.
 
 Example ticket size response:
 
@@ -611,6 +611,10 @@ The cancel endpoint accepts an optional JSON request body to trigger cleanup or 
 | `reason` | `string` | — | Optional. Why the ticket was cancelled, up to 20,000 characters. Stored on the ticket's own `cancel_reason` column, so it survives `deleteContent`. Nothing survives `deleteTicket` |
 
 The body is validated strictly. A malformed or oversized field returns `400` and the ticket is left running. It previously fell back to defaults and cancelled anyway, which silently dropped the rejected field while still performing the destructive part of the request.
+
+In the next release, the cancel endpoint will return `409` while the ticket is
+in `CLEANING_ENV` and after a verified merge has been recorded. In either case,
+the ticket remains unchanged.
 
 ### Interview And Planning Editing
 

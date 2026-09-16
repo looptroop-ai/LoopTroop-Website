@@ -15,6 +15,7 @@ concurrency:
 env:
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_AUDIT: 'false'
+  LOOPTROOP_SOURCE_ROOT: ${{ github.workspace }}/.source/LoopTroop
 
 jobs:
   verify:
@@ -22,9 +23,24 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout the pinned LoopTroop source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: looptroop-ai/LoopTroop
+          ref: 83ae324348164c6f4d1c5dedaebcba69359d15c9
+          path: .source/LoopTroop
+          persist-credentials: false
+          sparse-checkout: |
+            package.json
+            scripts/docs-install-catalog.mjs
+            scripts/smoke-published.mjs
+            scripts/smoke-lib.mjs
+            scripts/tool-path.ts
+            server/lib/executablePath.ts
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.18.1
           cache: npm
       - run: npm ci
       - run: npm test
