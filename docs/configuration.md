@@ -81,6 +81,14 @@ behind a link, or any directory above them belongs to someone other than you,
 root, or the owner of the Node running LoopTroop. A refused tool is treated like
 a missing one, and `doctor` says it was refused and why.
 
+LoopTroop automatically trusts OpenCode in its canonical install directory
+(`~/.opencode/bin`, or custom paths set via `OPENCODE_INSTALL_DIR` or
+`OPENCODE_DIR`). Official OpenCode release archives are built on CI runners with
+UID 1001, so extracting them as root preserves that UID on the binary. LoopTroop
+excuses this ownership for `opencode` when its directory chain belongs to a
+trusted owner and the binary is not writable by group or others. Sibling binaries
+in that directory must still pass normal ownership checks.
+
 If a tool lives somewhere else on purpose, for example a toolchain owned by a
 service account, name its directory:
 
