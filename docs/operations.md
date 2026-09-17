@@ -121,7 +121,7 @@ modal state is not promised across a reload.
 
 ## Child-process credentials
 
-Project commands, Git and hook commands, and managed or development OpenCode
+Project commands, Git and hook commands, doctor tool probes, and managed or development OpenCode
 launches receive a copied environment after their explicit overrides are
 merged. LoopTroop removes only `LOOPTROOP_API_TOKEN` and
 `LOOPTROOP_DEV_EVENT_TOKEN` from those child environments. On Windows the two
@@ -254,6 +254,12 @@ read, and index failures surface, while diagnostic enrichment remains best
 effort. Native page materialization is `LIMIT`-bounded, but lineage visibility
 work grows with ancestry depth; a cold or unseen session still scans its needed
 prefix and upstream-deleted files cannot be recovered.
+
+> [!NOTE]
+> **Next release behavior.** Same-size native file rewrites with a changed
+> modification time produce a fresh history snapshot. Retained cursors keep
+> their old rows, while fresh views include the updated native logs.
+
 - **Ephemeral auth:** if `OPENCODE_SERVER_PASSWORD` is not set and a new local OpenCode server is about to start, `npm run dev` generates a random credential and sets `OPENCODE_SERVER_USERNAME` to `opencode`. This credential is propagated automatically to all child processes — backend and watcher — for the duration of the session.
 - **Ephemeral API token:** if `LOOPTROOP_API_TOKEN` is not set, `npm run dev` generates one for the backend and Vite dev proxy so local same-origin `/api/*` calls are protected without embedding the token in the frontend bundle.
 

@@ -52,7 +52,7 @@ origins retain their configured scheme and authority. Remote opt-in does not add
 a new strict Host-name validator to requests without an Origin. Forwarded host
 values do not widen the trusted authority.
 
-Project commands, Git and hooks, and managed or development OpenCode launches
+Project commands, Git and hooks, doctor tool probes, and managed or development OpenCode launches
 receive copied environments after their overrides are merged. The child
 boundary removes only LoopTroop's two daemon credential names and retains
 intentional provider and Git credentials. The trusted CLI-to-daemon handoff is
@@ -64,6 +64,16 @@ syntax forms and exact filename-plus-operation boundaries, including a
 metadata-only project-folder browser. They do not claim whole-program alias or
 dataflow analysis, so new raw operations must use the existing helpers and stay
 narrow.
+
+The static checks cover literal and static-template loaders, built-in module
+loading, re-exports, namespace destructuring, and nested filesystem promises.
+Raw directory iteration is covered too. These checks do not trace arbitrary
+values through dynamic imports or aliases.
+
+SSE reserves the client before collecting replay events and activates live
+delivery afterward. If activation loses a race with disconnect, cleanup runs
+immediately and observes outstanding handshake writes without waiting for them
+to settle.
 
 ## 2. Runtime Actors
 
