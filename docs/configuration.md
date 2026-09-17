@@ -220,6 +220,13 @@ The docs links on each control point back to this page, but the UI itself also h
 
 - **OpenCode health is checked live.** The dialog shows whether OpenCode is reachable, whether model discovery is still loading, and whether the connected providers currently expose any models.
 - **The reload button performs a strong provider/model refresh.** It spins and remains disabled until the refresh finishes, disposes only LoopTroop's OpenCode catalog/root instance, then fetches the provider catalog again and replaces the cached model query. Use it after adding or changing OpenCode provider credentials, or when the catalog was empty during startup. This does not restart `opencode serve` or interrupt active ticket worktree instances.
+
+> [!NOTE]
+> **Next release behavior.** Model discovery retries only while OpenCode is
+> starting. The initial catalog query and the manual reload retry the exact
+> startup response ``OpenCode server is not reachable. Start it with `opencode serve`.``. Other failures, including HTTP 500 responses, keep their existing
+> error and are not retried by these model queries.
+
 - **Model pickers load configured providers only by default.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop registers with OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. The much larger full OpenCode catalog is not requested until you enable **Show all providers**; turning the option off returns to the configured-provider list.
 - **Duplicate model selection is prevented.** The main implementer is auto-included in the council, and the picker disables models already chosen in another council slot.
 - **Effort controls are conditional.** The effort / thinking picker only appears when the selected model advertises variants, and the saved variant is stored per slot.

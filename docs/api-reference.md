@@ -98,9 +98,27 @@ API routes use a global per-client rate limit, with separate buckets for read re
 
 `POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but always refreshes the provider catalog first and returns the connected-model view rather than the optional `scope=all` catalog.
 
+> [!NOTE]
+> **Next release behavior.** While OpenCode is starting, the browser retries
+> model discovery only when the response carries the exact startup message
+> ``OpenCode server is not reachable. Start it with `opencode serve`.``. Other
+> failures, including HTTP 500 responses, keep their existing error and are not
+> retried by the model query or its manual refresh.
+
 `/api/stream` accepts an optional replay cursor from either the `Last-Event-ID` header or the `lastEventId` query parameter; the header wins when both are present. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible.
 
-Unsafe cursor values fail the request before the stream opens: control characters or values longer than 128 characters return `400` with `{ "error": "Invalid lastEventId" }`. A bounded but invalid cursor instead opens the stream and emits `replay_gap` with `reason: "invalid_cursor"`. A well-formed cursor that is no longer available in the replay buffer emits `replay_gap` with `reason: "cursor_unavailable"`. In both replay-gap cases the event is sent with an empty SSE `id:` so the browser resets its native last-event-id state. The frontend also clears its durable per-ticket stored cursor, refetches ticket/list/artifact/interview/bead/skip/log state from REST, and reconnects without `lastEventId` after reloads or later transport failures.
+Unsafe cursor values fail the request before the stream opens: control characters or values longer than 128 characters return `400` with `{ "error": "Invalid lastEventId" }`. A bounded but invalid cursor instead opens the stream and emits `replay_gap` with `reason: "invalid_cursor"`. A well-formed cursor that is no longer available in the replay buffer emits `replay_gap` with `reason: "cursor_unavailable"`. In both replay-gap cases the event is sent with an empty SSE `id:` so the browser resets its native last-event-id state.
+
+> [!NOTE]
+> **Next release behavior.** On the first `open` after a reload with a stored
+> cursor, the browser refreshes the affected ticket caches but keeps the cursor
+> and live subscription. A `replay_gap` clears the in-memory and durable cursor,
+> refreshes the affected caches when that connection has not already recovered,
+> and keeps the live subscription while the snapshots load. After a replay gap,
+> later reconnects omit `lastEventId` until a new event supplies one. Ordinary
+> transport errors
+> still invalidate the current ticket and ticket list, but do not trigger the
+> broad cache refresh unless the server reports a gap.
 
 The stream route rejects the 7th concurrent client for the same ticket and rejects new streams once the global total reaches 100 active clients.
 
@@ -858,6 +876,13 @@ Regeneration payload:
 `GET /api/tickets/:id/opencode/questions` returns `{ "questions": [...], "timer": ... }`. The aggregate route returns `{ "questions": [...], "timers": {...} }`, keyed by ticket ID, and may also include `{ "errors": [...] }` when some tickets fail question discovery. Each question entry carries a `timerKey` naming the countdown it belongs to; several entries can share one.
 
 Both list routes reconcile against OpenCode before answering. A poll that succeeds prunes anything OpenCode no longer lists and arms a countdown for anything OpenCode has that LoopTroop is not yet tracking. A poll that fails prunes nothing, because an unreachable server is not evidence that a question went away.
+
+> [!NOTE]
+> **Next release behavior.** After the browser receives a resolution for a
+> question, it keeps that `(sessionId, requestId)` identity closed until a
+> successful snapshot omits it. A stale successful response containing the same
+> identity cannot reopen the question; a later request with a new identity can
+> still appear.
 
 Timer shape, which appears as `timer` on the per-ticket route, as a value in `timers` on the aggregate route, and inside the `needs_input` SSE payload:
 

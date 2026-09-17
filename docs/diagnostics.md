@@ -156,6 +156,13 @@ even though they are the same server on the same port. Signing in again does not
 help, because `looptroop open` signs you in at `127.0.0.1` and a `localhost`
 bookmark still has no cookie. Use the `127.0.0.1` address.
 
+> [!NOTE]
+> **Next release behavior.** A brief SSE disconnect does not by itself sign the
+> browser out. The client asks an ordinary API route with a five-second deadline
+> after a failed stream connection; only an HTTP 401 response marks the session
+> signed out. An unreachable daemon leaves the session state unchanged while the
+> stream reconnects.
+
 ## 2. Runtime Stall Report
 
 Run the report while `npm run dev` is still running, ideally during the slowdown:

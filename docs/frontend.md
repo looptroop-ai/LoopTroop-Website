@@ -16,6 +16,11 @@ An **installed** LoopTroop serves this bundle from the daemon, so the interface 
 
 In development, same-origin `/api/*` calls go through the Vite proxy. When `npm run dev` generates or receives `LOOPTROOP_API_TOKEN`, the proxy supplies the token to the backend server-side so the browser bundle does not contain the secret. This includes native `EventSource` connections to `/api/stream`; the API does not accept the token in a query parameter. When the frontend is reached through another same-origin address, such as an HTTPS Tailscale URL, Vite also normalizes the request `Origin` to the loopback backend origin before forwarding it—but only when the browser identifies the request as same-origin and the `Origin` authority exactly matches the incoming frontend `Host`. Origins from unrelated sites remain unchanged for the backend to reject. Vite completes one explicit optimization pass for every production browser dependency, including `react-virtuoso`, before accepting requests; it also warms the lightweight ticket dashboard, active-workspace router, phase-review shell, and log panel. Dev resources use `Cache-Control: no-store`. This prevents a restored tab from combining cached React/React Query modules from an earlier server process with a newly loaded workspace module.
 
+> [!NOTE]
+> **Next release behavior.** The resolved-question, replay-recovery, bounded
+> auth-probe, and startup-only model-retry details below describe upcoming
+> client changes. The currently published client does not include them yet.
+
 The app shell also polls `/api/health` for the global reconnecting banner. Health probes have a dedicated five-second deadline; after the backend has been reached once, a failed probe is retried once after 1.5 seconds before the banner appears. A `429` probe still proves that the backend is reachable, and the basic liveness route does not consume the normal read-rate budget. Backend reconnects retain the mounted workspace and recover through normal query/SSE retries instead of forcing a page reload, so native file pickers, hidden tabs, workspace-module transformation, and transient proxy pressure cannot discard the active screen. Guarded reloads remain limited to sustained post-initial ticket-data recovery, recoverable lazy-chunk failures, and the development-only null hook dispatcher produced when restored React and React DOM dependency generations differ.
 
 Most modal routes and workspace views are also lazy-loaded through `lazyWithChunkReload()`. Recoverable chunk-load failures trigger at most one full-page reload per surface, using `sessionStorage` markers so the browser does not loop forever on a broken import. The app-wide error boundary also recognizes the exact development-only signature produced when one React or React Query module appears under two Vite dependency generations; it requests one cooldown-limited recovery reload while leaving ordinary render errors and all production behavior unchanged.
@@ -58,7 +63,7 @@ when the desktop layout appears; hidden controls are skipped when focus wraps.
 - reconciles the polled ticket snapshot with live `state_change` events so the workspace can advance immediately while the REST snapshot catches up
 - tracks selected phase, selected error occurrence, archived attempt review, full-log mode, and the `Back to live` flow
 - forwards workspace navigation/focus events so approval panes can jump directly to a requested anchor
-- owns loading and reconnecting banners plus the guarded auto-reload path for sustained ticket-data recovery; stream reconnection recovers through targeted query invalidation without reloading the workspace
+- owns loading and reconnecting banners plus the guarded auto-reload path for sustained ticket-data recovery; initial cursor recovery and explicit replay gaps refresh affected ticket data without reloading the workspace, while ordinary transport reconnects keep the stream retry path
 
 `App.tsx` renders this subtree as `<TicketDashboard key={selectedTicketId}>`. That `key` is the ticket-switch remount boundary: when the selected ticket changes, React unmounts the whole dashboard and rebuilds every draft buffer, timer, ref, and ticket-local `useState` value from scratch. This prevents one ticket's local UI state from leaking into another ticket's save/edit surfaces.
 
@@ -198,7 +203,9 @@ The timeline is visit-aware rather than solely status-index based. Ticket payloa
 
 A request that fails is reported, not swallowed. Every error the frontend shows carries the HTTP status and whatever the server said with it, so a banner reads `Failed to cancel ticket (HTTP 409: Ticket is locked)` rather than a generic sentence. A non-2xx response is always a failure: an empty list or empty content means a successful empty result and nothing else, so a surface that has no data to draw says the request failed and offers a retry instead of looking like work that has not happened yet.
 
-`installSessionWatch()` treats a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes an ordinary API route instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe is armed once per subscription and re-armed after a stream opens, so a reconnect loop against a stopped daemon does not ask repeatedly.
+`installSessionWatch()` treats a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes an ordinary API route instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe has a five-second deadline, shares one in-flight request across a reconnect burst, and is armed once per failed connection and re-armed after a stream opens.
+
+Model queries and the manual model refresh use the same narrow retry rule: they retry only the exact startup response ``OpenCode server is not reachable. Start it with `opencode serve`.``. A different error, including an HTTP 500 response, keeps the existing normalized error and request count.
 
 ### Live Updates
 
@@ -209,13 +216,14 @@ Current behavior:
 - connects to `/api/stream`
 - persists the latest SSE event id per ticket in browser storage
 - sends `ticketId` and `lastEventId` on reconnect when available
-- refreshes ticket, artifact, Manual QA, interview, bead, and log queries after a stream gap instead of full-page reloading the active workspace
+- refreshes the affected ticket, artifact, Manual QA, interview, bead, and log caches when an initial stored cursor opens or an explicit replay gap occurs instead of full-page reloading the active workspace; initial recovery keeps the cursor and live subscription, while `replay_gap` clears the cursor and keeps the live subscription while snapshots load
+- after a replay gap, omits `lastEventId` on later reconnects until a new event supplies one; ordinary transport errors still invalidate the current ticket and ticket list but do not trigger the broad cache refresh unless replay reports a gap
 - waits for the dev backend readiness guard before opening the stream during local Vite development
 - uses the same-origin Vite proxy during development, which injects token auth server-side; installed browsers use their same-origin session cookie, and neither path accepts query-string credentials
 - listens for `state_change`, `progress`, `log`, `app_error`, `bead_complete`, `needs_input`, and `artifact_change`
 - receives AI/model log detail as fast live-only `log` upserts plus persisted finalizations/backfills backed by `.ticket/runtime/execution-log.ai.jsonl`, so OpenCode thinking, tool calls, and model output can appear live without bloating durable logs and remain available after reconnect or tab close
 - patches or invalidates React Query caches in response, including direct artifact snapshot merging for `artifact_change`
-- refetches ticket details, ticket lists, artifacts, interview state, setup-plan state, bead state, and server logs after a reconnect gap
+- refetches ticket details, ticket lists, artifacts, interview state, setup-plan state, bead state, and server logs after those recovery cases
 - lets the dashboard trigger the guarded recovery reload once the visible live-update reconnecting episode has cleared
 - returns `{ lastEventIdRef, connectionState }`
 
@@ -452,7 +460,7 @@ Among the custom LoopTroop state providers, three carry most of the frontend-spe
 | --- | --- | --- |
 | `LogProvider` | `LogContext.tsx` | Owns the bounded in-memory live-log overlay for the active ticket. Merges SSE-delivered rows immediately by stable identity; paginated durable history stays in React Query and is never copied into `localStorage`. |
 | `UIProvider` | `UIContext.tsx` | Manages app UI state such as the selected ticket, `filters.search`, Kanban triage filters (`status`, `phase`, `priority`, `stuckDays`, `errorState`, `sortBy`), project-scoped triage presets (`presetsByProject`), sidebar state, log panel height, and theme. It persists that state to `localStorage` before paint after UI updates. Browser URL synchronization is owned separately by `App.tsx`. |
-| `AIQuestionProvider` | `AIQuestionContext.tsx` | Manages the queue of pending OpenCode human-input requests across active tickets, including minimize/reopen state, answer/skip actions, the server-owned countdown, and periodic recovery from `/api/opencode/questions`. |
+| `AIQuestionProvider` | `AIQuestionContext.tsx` | Manages the queue of pending OpenCode human-input requests across active tickets, including minimize/reopen state, answer/skip actions, the server-owned countdown, and periodic recovery from `/api/opencode/questions`. The recovery polls immediately and then every 30 seconds while active-ticket membership is unchanged, even when ticket-list snapshots replace ticket objects. A resolved `(sessionId, requestId)` stays closed through stale successful snapshots until a later snapshot omits it. |
 
 Interview draft persistence is separate: `InterviewQAView` uses `useBatchSubmit()` and ticket UI-state artifacts for interview answers, while `AIQuestionProvider` is specifically for execution-time OpenCode questions.
 
