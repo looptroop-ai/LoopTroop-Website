@@ -186,12 +186,16 @@ The raw read exposes the full repair payload:
 > Canonical fields take precedence over their aliases, including an explicit
 > empty value. Submitted edits reject unknown statuses and invalid dependency
 > edges rather than silently turning them into runnable work.
+> Unknown statuses already stored in the tracker also block approval and
+> structured saves. Their original values remain available in the JSONL tab
+> for repair; recognised aliases still normalize normally.
 
 > [!NOTE]
 > **Next release behavior.** The structured editor gives each process argument
 > its own text field. Spaces, newlines and empty arguments stay literal; the
 > editor does not split them into shell words. List fields have numbered
 > accessible names within their groups.
+> Command labels distinguish the bead number from the command item number.
 
 Unknown top-level and dependency keys are retained during canonicalization and
 save.
@@ -223,6 +227,13 @@ Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/bead
 > **Next release behavior.** Saves retain the draft's original hash, while
 > approval uses the hash of the current fetched plan. A failed request for
 > optional UI-state data does not prevent approval of a loaded, valid plan.
+> Editing stays disabled until the artifact hash has loaded, and a draft
+> without that baseline cannot be saved.
+
+> [!NOTE]
+> **Next release behavior.** YAML formatting repairs preserve valid canonical
+> answers beside aliases and leave literal text inside list-item block scalars
+> unchanged. Repairs do not choose one answer over another or invent text.
 
 Input aliases are normalized to the canonical `dependencies.blocked_by` form,
 which is the only dependency spelling written to JSONL.

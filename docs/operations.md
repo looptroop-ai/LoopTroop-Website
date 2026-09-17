@@ -202,7 +202,7 @@ equivalent-case behavior is not claimed here.
 Protected explicit Git-hook validation uses a separate marker under
 `<app-config>/hook-validation/`, keyed by the canonical worktree path and bound
 to the worktree and Git directory. The snapshot includes the complete Git index,
-not just its staged file contents. An invalid or escaped marker fails before
+not just its staged file contents. An invalid, escaped or symbolic-link marker fails before
 recovery writes. Recovery checks for changed tracked files, staged work, and
 unknown untracked additions before restoring anything. Ambiguous work stays in
 place and reentry waits for it to be resolved. A completed restore removes the

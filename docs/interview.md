@@ -124,6 +124,14 @@ The browser uses one in-flight guard for submit and skip, sets it before the
 first await, and clears it in `finally`, so a same-tick double action cannot
 start both mutations.
 
+> [!NOTE]
+> **Next release behavior.** Editing a recorded answer also sends the active
+> `batchNumber`. The edit takes the same claim as generation and compares the
+> saved session before writing; stale or competing edits return `409`.
+> Interrupted follow-up generation keeps a durable in-flight marker. Recovery
+> restores its answered snapshot only if that snapshot still matches, so a
+> retry cannot overwrite newer answers.
+
 If answer processing times out while the remote stop is uncertain, LoopTroop
 restores the durable current batch and leaves a non-expiring pending-stop marker
 for retry. Only a confirmed stop matching that exact marker can release the

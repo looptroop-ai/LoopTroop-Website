@@ -844,8 +844,15 @@ Structured interview-answer approval payload:
 
 Edit-answer payload:
 
+> [!NOTE]
+> **Next release behavior.** Answer edits must also include the active positive
+> `batchNumber`. A missing or invalid identity returns `400`; a stale batch or
+> concurrent edit returns `409`. The answer is written only while its claim
+> and saved session version still match.
+
 ```json
 {
+  "batchNumber": 2,
   "questionId": "q-auth-1",
   "answer": "Support password login and SSO."
 }
@@ -934,6 +941,13 @@ Execution setup plan read response:
 Execution setup plan reads may select archived versions with `phaseAttempt`. Drafting attempts preserve the generated candidate, generation report, and diagnostics; approval attempts hold the separately published, potentially user-edited copy used by runtime setup. Archived reads stay available, but explicit writes to non-current phase attempts return `409` because archived versions are read-only. Invalid `phaseAttempt` values return `400`. Successful manual saves write `user_edit_receipt:execution_setup_plan`.
 
 Successful `PUT /execution-setup-plan` responses return the saved `raw`, normalized `plan`, `contentSha256`, and current route state (`status`, `state`, `ticket`) so the client does not need an immediate follow-up fetch.
+
+> [!NOTE]
+> **Next release behavior.** Raw and structured setup-plan saves include
+> `expectedContentSha256` from the plan the draft was built on. Replacing an
+> existing plan without that hash returns `428`; a stale hash returns `409`.
+> The route serializes edits and, when runtime setup must stop, checks the hash
+> again after the confirmed stop and before archiving attempts or saving.
 
 `workspaceInputs`, `workspaceProbes`, and `gitHooks.validationCommands` are ordered editable lists. Each workspace input contains `path`, `kind`, `sourceStatus`, and `reason`; the server checks it against the original checkout before accepting the plan. `gitHooks.detected` is refreshed from repository/Git evidence and cannot be changed through the plan editor. `gitHooks.policy` is also backend-authoritative: both raw and structured saves replace an attempted policy edit with the ticket's locked project value. An empty validation-command list is valid; no waiver field or secondary confirmation is required.
 
