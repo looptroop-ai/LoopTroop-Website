@@ -177,6 +177,7 @@ LoopTroop deliberately separates app-level state from project-level runtime stat
 | Location | Contents | Notes |
 | --- | --- | --- |
 | `~/.config/looptroop/app.sqlite` | App settings, profiles, and attached-project registry | Override with `LOOPTROOP_CONFIG_DIR` or `LOOPTROOP_APP_DB_PATH` |
+| `<app-config>/hook-validation/<worktree-hash>.json` | Interrupted Git-hook validation snapshot | Stored outside the project so a hook cannot remove it by cleaning project files; bound to the canonical worktree and Git directory |
 | `<project>/.looptroop/db.sqlite` | Project tickets, phase artifacts, attempts, sessions, status history, and error occurrences | Project-local operational database |
 | `<project>/.looptroop/worktrees/<ticket>/` | Ticket-owned Git worktree and `.ticket/**` runtime artifacts | One worktree per ticket |
 | `<ticket-worktree>/.ticket/runtime/` | Execution logs, stream state, session records, pending OpenCode ownership marker, temporary files, and state projection | Logs and selected runtime data are preserved or cleaned according to ticket outcome and cleanup scope; startup may leave an unresolved in-progress fallback sidecar at a blocking point, while explicit worktree deletion removes the containing worktree; `opencode-pending-sessions.json` can recover ownership when the project database is unavailable; if both storage layers fail, only the current process guard remains and restart recovery is not promised |
@@ -190,17 +191,22 @@ records the exact root `opencode.json` bytes to restore. A valid pending marker
 keeps that temporary root config out of bead and final candidate commits without
 adding an `opencode.json` rule to a common Git exclude. If the current bytes
 conflict with the marker, `CODING` preserves the edited config and sidecar and
-refuses a destructive reset that would overwrite them. A later bead can continue
+refuses a destructive reset that would overwrite them. A malformed LoopTroop-owned
+sidecar also blocks reset and staging rather than treating the temporary config
+as an ordinary project file. A later bead can continue
 without a fresh cap when no reset is needed. If the sidecar is missing after a
 restart, ownership cannot be proven and LoopTroop does not guess. Filesystem-
 equivalent casing follows the actual worktree paths; native Windows/macOS
 equivalent-case behavior is not claimed here.
 
-Protected explicit Git-hook validation uses a separate
-`.ticket/runtime/hook-validation-restore.json` marker bound to the worktree and
-Git directory. An invalid or escaped marker fails before recovery writes. If an
-interrupted validation leaves unknown untracked additions, those paths stay in
-place and reentry waits for safe attribution.
+Protected explicit Git-hook validation uses a separate marker under
+`<app-config>/hook-validation/`, keyed by the canonical worktree path and bound
+to the worktree and Git directory. The snapshot includes the complete Git index,
+not just its staged file contents. An invalid or escaped marker fails before
+recovery writes. Recovery checks for changed tracked files, staged work, and
+unknown untracked additions before restoring anything. Ambiguous work stays in
+place and reentry waits for it to be resolved. A completed restore removes the
+marker so a later retry cannot replay it over newer edits.
 
 When a project is attached, LoopTroop applies its saved [folder-ignore policy](configuration.md#looptroop-folder-ignore-policy) to `/.looptroop/` and `/.ticket/`. **This clone** (`local`) is the default and appends the rules to the clone's Git exclude file, normally `.git/info/exclude`, without modifying tracked files. **Repository** (`repo`) appends them to the project's tracked `.gitignore`, while **Nowhere** (`skip`) deliberately writes neither destination and leaves a visible warning. Ticket initialization reapplies the saved project policy; for non-skip projects, it uses the shared Git exclude only when a new worktree does not yet see effective rules. Existing rules are never removed automatically.
 
