@@ -12,7 +12,10 @@ LoopTroop is not a thin chat wrapper around a coding model. It is a long-running
 > details on this page are upcoming: content-hash save preconditions, retained
 > drafts, best-effort leaving flushes, and conditional step-cap or hook recovery.
 > A recovery conflict can refuse destructive reset; browser unload is not a
-> delivery guarantee.
+> delivery guarantee. The same upcoming scope includes durable same-PR review
+> decisions, server-advertised blocked actions, click-time Manual QA snapshots,
+> action-triggered complete log history with typed cursor expiry, and actual-
+> value form snapshots that preserve edits through hydration and save races.
 
 ## 1. Mental Model
 
@@ -24,6 +27,13 @@ LoopTroop operates as a layered local system:
 4. Council orchestration and structured-output normalization turn raw model text into bounded, typed artifacts before anything becomes canonical.
 5. Durable truth lives in SQLite, `.ticket/**` artifacts, runtime projections, and JSONL logs rather than in model transcripts.
 6. OpenCode sessions do the model work inside isolated ticket worktrees, and Git/GitHub delivery turns the resulting change set into a PR outcome.
+
+Form drafts are deliberately browser state until a write succeeds. Configuration,
+project, ticket, and prompt callers compare actual current values with a saved or
+initial snapshot, including custom controls. Hydration and refetch preserve a
+dirty draft, a completed save acknowledges only the submitted snapshot, and a
+failed save leaves it dirty; an unsaved modal draft is not treated as reload-
+durable state.
 
 ## 2. Runtime Actors
 
@@ -67,6 +77,15 @@ LoopTroop deliberately splits state across several storage layers. Each layer ow
 | `.ticket/manual-qa/**` | Versioned checklists/results/coverage, evidence binaries, generation/operation receipts, clean baselines, and workspace-drift decisions | Outside CLEANING_ENV's selected transient roots and excluded from bead commits, candidate diffs, and PRs; explicit Delete Worktrees removes the containing worktree; evidence index locking uses a persistent SQLite database |
 | `phase_artifacts` table | Structured snapshots, receipts, and UI read models used by the API and UI | Holds artifact content, phase, attempt number, timestamps, approval receipts, edit receipts, cleanup/integration reports, and content hashes. Lightweight manifest/content endpoints are available for targeted consumers; the historical phase review keeps its established curated artifact-card presentation. |
 
+The log projection also indexes native OpenCode files in incremental ranges.
+Complete DEBUG/history actions can read older native files beyond the bounded
+diagnostic defaults, while the initial view remains paginated. Four recent
+native snapshots keep cursors stable across append and rotation; an expired
+cursor is a typed error rather than a partial page. Cold or unseen sessions
+still scan their needed prefix, upstream-deleted files cannot be recovered,
+and native page row materialization is `LIMIT`-bounded while lineage visibility
+work grows with ancestry depth.
+
 > Note
 > SQLite and the filesystem are complementary, not redundant. The database is optimized for querying, ownership, and workflow bookkeeping; `.ticket/**` keeps user-facing docs, durable logs, and ticket-owned recovery/runtime files inspectable without polluting the target repository branch. Some `.ticket/**` files are canonical documents, while others are derived projections or recovery sidecars.
 
@@ -88,7 +107,7 @@ For the per-table breakdown of which database owns what, see the [Database Schem
 8. The user approves the beads artifact; LoopTroop drafts the pre-implementation execution setup plan in an active status, then publishes a separate copy for human review.
 9. Implementation runs bead by bead in an isolated ticket worktree, with bounded retry per bead.
 10. Post-implementation final testing routes either directly to integration or through the start-locked optional `GENERATING_QA_CHECKLIST → WAITING_MANUAL_QA` loop. QA failures become fix beads and return to coding/fresh tests; pass, waiver, or skip continues.
-11. Integration, PR creation, review follow-up, and cleanup drive the ticket to `COMPLETED`, `CANCELED`, or `BLOCKED_ERROR`.
+11. Integration, PR creation, review follow-up, and cleanup drive the ticket to `COMPLETED`, `CANCELED`, or `BLOCKED_ERROR`. A verified merge or closed-unmerged decision is durable for the same PR and can resume after an interrupted dispatch; an initial remote refresh failure records a recovery receipt and leaves the ticket waiting without a decision.
 
 The full phase map lives in [Ticket Flow & State Machine](ticket-flow.md).
 
@@ -111,6 +130,13 @@ Councils are a reusable subsystem, not bespoke logic embedded in each phase. The
 Structured output is a hard boundary. `server/structuredOutput/*` and `server/phases/parserTaggedStructuredOutput.ts` normalize, validate, and optionally repair model output before anything becomes canonical artifact content. Rejected or uncorrectable responses are preserved as diagnostics and raw attempts so downstream phases never consume malformed text as if it were approved state.
 
 Human approval gates are content-addressed. The API exposes the current artifact hash for interview, PRD, beads, and execution setup plan views; approval requests must send `expectedContentSha256`; stale approvals return `409` instead of approving bytes the user did not review. Approval snapshots and receipts keep the reviewed raw content plus `content_sha256`, and interview/PRD receipts also record the post-stamp stored hash when approval metadata changes the YAML.
+
+The workspace viewer keeps display pairing and counts together: equal-length
+plan/refined bead lists pair by position, otherwise IDs provide the fallback.
+Long single-line text diffs use a bounded fine-grained comparison and return a
+full replacement when the safe budget is exceeded. Artifact log readers select
+the current phase rows and load action directly, so unrelated streamed context
+updates do not repeat expansion parsing.
 
 Interview and PRD raw or structured saves use the same loaded hash as a
 precondition. A missing baseline returns `428`; a stale baseline returns the
@@ -148,6 +174,7 @@ Recovery is a first-class architectural concern.
 | --- | --- |
 | Browser reload, close, or reconnect gap | REST state remains canonical; the browser keeps the last SSE event id, restores best-effort log cache detail, replays buffered live events, and on an SSE `replay_gap` clears the saved cursor and refetches tickets, artifacts, bead state, interview state, Manual QA/AI-detail views, and matching server logs |
 | Frontend crash or tab close | Interview drafts, approval drafts, and browser-cached logs are persisted locally and flushed on leaving with best-effort keepalive/beacon behavior; browser unload delivery is not guaranteed, and an optimistic retained draft is not a confirmed server save |
+| Confirmed ticket or project deletion | Pending UI-state saves settle before deletion. Success clears the deleted ticket's ticket-scoped query and browser state, including logs, seen notices, UI revisions, rendered markers, the SSE cursor, question-collapse state, and pending ticket-scoped invalidations; ticket lists refetch and unrelated tickets stay intact. A failed deletion releases the save queue, and a reissued id starts without the old cursor in that tab. |
 | Concurrent/stale autosave | Approval editors retain the loaded content hash across refetch/remount; missing baselines fail with `428`, stale baselines with typed `409`, and failed saves remain retryable. UI-state writes use per-ticket/scope compare-and-set revisions and latest-wins ordering, retaining failed local drafts while fencing retries against the server revision |
 | Crash during atomic write or append | Startup scans canonical roots and known artifact allowlists. It promotes recognized JSON only after parsing, YAML only with a matching byte-length/SHA-256 `.proof`, and whole-file JSONL only when complete; an unproved orphan YAML or torn whole-file JSONL is warned about and left unpromoted, while append logs may receive bounded trailing-line repair. Fallback copies require a complete matching `.recovery` ownership marker and an exclusive no-follow target. An unresolved in-progress fallback marker raises `RecoveryBlockedError` before projections, hydration, or timers; unknown or legacy temps and symlink temps remain visible with diagnostics, and cleanup has a separate scope |
 | Invalid model output | Retry with repair or explicit re-prompt, depending on phase |
@@ -155,6 +182,8 @@ Recovery is a first-class architectural concern.
 | Interrupted OpenCode step-cap restore | Preserve the edited root config and valid sidecar, refuse a destructive reset that would overwrite it, and let a later bead continue without a fresh cap when no reset is needed. A missing sidecar after restart supplies no ownership evidence. |
 | Interrupted protected Git-hook validation | Reuse the identity-bound marker. Invalid or escaped markers fail before recovery writes; unknown untracked additions remain intact and reentry is refused until attribution is resolved. |
 | OpenCode reconnect gap | Validate the exact project-local owned session against the remote session and the ticket-contained pending-session marker; preserve all centrally classified blocked-error continuations and all temporarily unverifiable records, and abandon only confirmed-missing or stale ownership. If both SQLite and marker storage are unavailable, only the current process guard remains, so restart recovery is not promised |
+| Initial pull-request refresh failure | Record a typed durable recovery receipt with `step: refresh_pull_request`, the PR number, error, and null remote state/URL; keep the ticket in `WAITING_PR_REVIEW` without recording Merge or Close Without Merge success |
+| Interrupted pull-request completion | Resume the persisted decision for the same PR after revalidation. A recorded merge or closed-unmerged result fences conflicting Merge, Close Without Merge, and Cancel actions; an observed merged state remains visible even when candidate-head validation refuses completion |
 | Backend process restart | Reconcile persisted XState snapshots, hydrate ticket actors from durable ticket state, and immediately process restored active snapshots. Drafting setup plans consume a durable regeneration request exactly once rather than duplicating or losing a generation. An interrupted coding attempt without a preserved continuation or current finalization checkpoint consumes a Failed Iteration Note, resets safely, advances its iteration, and receives a fresh configured deadline |
 | User edits approved interview or PRD | Archive the active approved generation and downstream attempts, cancel downstream sessions intentionally, clear stale downstream artifacts/UI state, persist a `user_edit_receipt:*`, and restart from the next drafting phase |
 | User edits or regenerates setup plan during runtime setup | Stop active runtime setup, archive the relevant setup-plan/runtime attempts, preserve the tool cache when safe, and clear stale outputs. Editing returns directly to `WAITING_EXECUTION_SETUP_APPROVAL`; regeneration persists the baseline/commentary and enters `GENERATING_EXECUTION_SETUP_PLAN` before fresh approval |
@@ -520,13 +549,21 @@ OpenCode session status events are translated into normalized log entries by `se
 
 The log builder handles retry status events (rate limits, usage limits, timeouts, transport errors) and session phase transitions. These entries feed the normal execution log alongside phase log entries, while the separate AI-detail log keeps prompt/tool-call depth when that channel is needed.
 
+The durable projection is also the source for historical views. Complete
+DEBUG/history drains are action-triggered and include available native history;
+diagnostic provider enrichment remains bounded and best effort. Native cursor
+expiry returns `LOG_CURSOR_EXPIRED`, and the client retries a complete drain
+once before leaving a visible error. Full drains avoid repeated growing-array
+publication, while the native lineage visibility cost still grows with
+ancestry depth.
+
 ## 15. Optional Manual QA Architecture And Cross-Application Impact
 
 Manual QA is a ticket-locked branch of the execution band, not a browser-only form. Configuration resolves ticket → project → profile on Start and stores both the effective boolean and source. The public ticket read model adds `visitedStatuses`, monotonic `workflowRevision`, and a compact Manual QA projection so polling, SSE, the navigator, status summaries, completed review, and needs-input attention agree even when a failed round moves backward to Coding.
 
-The backend domain under `server/phases/manualQa/*` owns strict schemas, PRD ref/coverage validation, version reservation, checkpoint/baseline and drift audits, contained streaming evidence, checklist generation, submission journaling, child-ticket provenance, and AI-assisted QA-bead planning. Canonical files live under `.ticket/manual-qa/vN/`; compact phase artifacts support indexed UI/history queries, while binary evidence remains filesystem-only. The round index exposes structured checklist availability/outcome/completion/phase-attempt entries so reservation-only rounds are not treated as artifacts. Status titles remain stable and version-free, and the standard selector appears only when multiple checklist-backed rounds exist. The generic UI-state channel is server-revisioned CAS storage, and `manual_qa_draft:vN` is the only live draft.
+The backend domain under `server/phases/manualQa/*` owns strict schemas, PRD ref/coverage validation, version reservation, checkpoint/baseline and drift audits, contained streaming evidence, checklist generation, submission journaling, child-ticket provenance, and AI-assisted QA-bead planning. Canonical files live under `.ticket/manual-qa/vN/`; compact phase artifacts support indexed UI/history queries, while binary evidence remains filesystem-only. The round index exposes structured checklist availability/outcome/completion/phase-attempt entries so reservation-only rounds are not treated as artifacts. Status titles remain stable and version-free, and the standard selector appears only when multiple checklist-backed rounds exist. The generic UI-state channel is server-revisioned CAS storage, and `manual_qa_draft:vN` is the only live draft. Submit and Skip snapshot the draft, evidence, and round at click time; a later autosave remains the newer draft and does not replace the submitted checks or cancel follow-up generation. This is separate from best-effort unload persistence.
 
-The candidate checkpoint is the boundary between final tests and user verification. Accepted candidate effects are committed locally through exact-file staging, while untracked generated, cache, and setup-local outputs remain usable in the worktree and are excluded from totals, checkpoints, and delivery. The saved delivery baseline still detects application-created drift before submit/skip. This design affects final-test classification, Git integration/squashing, candidate exclusions, and the first subsequent QA-fix commit without requiring a completely empty worktree.
+The candidate checkpoint is the boundary between final tests and user verification. Accepted candidate effects are committed locally through exact-file staging, while known untracked generated, cache, and setup-local outputs remain usable in the worktree and are excluded from totals, checkpoints, and delivery; arbitrary untracked-file exemptions are not supported. The saved delivery baseline still detects application-created drift before submit/skip. This design affects final-test classification, Git integration/squashing, candidate exclusions, and the first subsequent QA-fix commit without requiring a completely empty worktree.
 
 Submission stages immutable results and its operation journal first. For failed merge groups, one main-implementer prompt receives focused ticket/PRD/bead/final-test/checklist/evidence/diff context and must complete at least one successful read-only repository inspection. Strict parsing validates complete normal-bead fields, safe project-relative targets, references, dependencies, and exact merge-group coverage. The full candidate set is persisted to `fix-beads.yaml` before any child side effect; only then are Improvement tickets created and application-owned IDs/lifecycle metadata applied to normal `qa-fix` beads. Generation/tool/parser failure therefore creates no child records, moves the ticket to recoverable `BLOCKED_ERROR`, and Retry resumes the exact action. Improvements retain the chosen P1–P5 priority and explicit Manual QA setting. Advisory PRD coverage includes reasoned `not_applicable` criteria, and the selected-version phase log is collapsed by default.
 

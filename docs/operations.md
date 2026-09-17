@@ -92,7 +92,7 @@ operation — `LOOPTROOP_OPENCODE_MODE=mock` looks around without one.
 > [!NOTE]
 > **Next release behavior.** The following notes describe upcoming confirmed
 > remote-stop cancellation, retryable ownership, the two-storage restart
-> limit, and guarded approval-save/flush behavior.
+> limit, guarded approval-save/flush behavior, and actual-value form snapshots.
 
 Cancellation and cleanup use confirmed remote-stop results. A local abort call
 that returns false, throws, or cannot be verified does not prove that OpenCode
@@ -107,6 +107,15 @@ HTTP `428`, stale baselines with typed HTTP `409`, and failed saves stay
 retryable. Leaving a ticket can flush UI state with keepalive or beacon, but
 browser unload delivery is best-effort and an optimistic retained draft is not
 proof of a durable save.
+
+Configuration, project, ticket, and prompt dialogs use the same actual-value
+rule for their close warning, including custom model/profile controls. A
+successful write advances the submitted snapshot; failed writes, background
+refetches, and edits made while a request is completing leave the newer draft
+visible. Model loading/errors are announced, a failed folder Git check can be
+retried without being mistaken for a non-Git directory, and prompt preview
+responses are ignored when they belong to an older prompt or draft. Unsaved
+modal state is not promised across a reload.
 
 ---
 
@@ -204,7 +213,17 @@ Before those services launch, LoopTroop runs a dev preflight that:
 - **Permission mode:** when `npm run dev` starts the managed OpenCode server, it sets `OPENCODE_PERMISSION='"allow"'` by default. LoopTroop also applies a complete ordered permission policy to every session before each prompt, explicitly allowing `external_directory` and `doom_loop` for trusted unattended work before applying any phase-specific restrictions. If OpenCode still emits an unexpected permission request, LoopTroop answers it automatically with `always`; a failed reply aborts the session immediately so normal retry or blocked-error handling can proceed instead of leaving the ticket idle. Set `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` to leave any existing OpenCode permission environment untouched; session-level policies still apply.
 - **LAN and trusted same-origin proxies:** start with `npm run dev --lan` only when exposing the frontend directly on a trusted local network. The startup summary prints LAN URLs and a QR code for mobile testing, while backend API and OpenCode remain loopback-only behind the Vite dev proxy. A trusted same-origin proxy such as Tailscale Serve can instead front the ordinary loopback Vite server. For either route, before forwarding an API request to the loopback backend, Vite normalizes `Origin` only when the browser marks the request as same-origin and its `Origin` authority matches the incoming frontend `Host`. An unrelated site's `Origin` stays unchanged and the backend rejects it. Documentation links continue to use the hosted site. Under WSL, LoopTroop does not start a relay process; it prints a Windows Administrator PowerShell `netsh interface portproxy` + firewall one-liner, matching cleanup commands, and a Windows-side self-test instead. If the matching Windows network profile is Public, LoopTroop also prints the exact `Set-NetConnectionProfile ... -NetworkCategory Private` fix command. Router/AP client isolation still has to be checked manually if Windows-side self-tests pass but other devices cannot connect.
 - **Verbose OpenCode logs:** start with `npm run dev --opencode-logs=all` to print full managed OpenCode DEBUG logs in your terminal via `--print-logs --log-level DEBUG`. Managed logs are also written to the normal OpenCode log directory. This only affects servers started by the dev launcher; reused, remote, or mock OpenCode servers keep their own logging configuration. Treat DEBUG output as sensitive local troubleshooting data because it may include request or provider details.
-- **Provider error enrichment:** if OpenCode reports only `Provider returned error`, LoopTroop scans the newest local OpenCode logs for the same session and records the exact sanitized provider cause when available. By default it looks in `~/.local/share/opencode/log/`; set `LOOPTROOP_OPENCODE_LOG_DIR` when reusing an external OpenCode server whose logs live elsewhere.
+- **Provider error enrichment:** if OpenCode reports only `Provider returned error`, LoopTroop scans the newest local OpenCode logs for the same session and records the exact sanitized provider cause when available. By default it looks in `~/.local/share/opencode/log/`, considers ten candidate files, and reads at most 5 MiB per file; set `LOOPTROOP_OPENCODE_LOG_DIR` when reusing an external OpenCode server whose logs live elsewhere. This bounded diagnostic read is separate from complete DEBUG/history loads.
+
+Complete DEBUG/history reads use the full available native OpenCode file set
+only when a user requests history, Go to top, bead navigation, or export.
+Initial views stay paginated and do not eagerly download the archive. Native
+history retains four recent snapshots for cursor stability; an expired cursor
+returns `LOG_CURSOR_EXPIRED` rather than a partial page. Complete metadata,
+read, and index failures surface, while diagnostic enrichment remains best
+effort. Native page materialization is `LIMIT`-bounded, but lineage visibility
+work grows with ancestry depth; a cold or unseen session still scans its needed
+prefix and upstream-deleted files cannot be recovered.
 - **Ephemeral auth:** if `OPENCODE_SERVER_PASSWORD` is not set and a new local OpenCode server is about to start, `npm run dev` generates a random credential and sets `OPENCODE_SERVER_USERNAME` to `opencode`. This credential is propagated automatically to all child processes — backend and watcher — for the duration of the session.
 - **Ephemeral API token:** if `LOOPTROOP_API_TOKEN` is not set, `npm run dev` generates one for the backend and Vite dev proxy so local same-origin `/api/*` calls are protected without embedding the token in the frontend bundle.
 
@@ -489,6 +508,13 @@ npm run diagnose:stall -- --ticket-path /path/to/worktree/.ticket
 ```
 
 For the full diagnostics guide, including the runtime report plus blocked-error and structured-retry surfaces, see [Runtime Diagnostics](diagnostics.md).
+
+> [!NOTE]
+> **Next release behavior.** The diagnostic command and provider-error
+> enrichment remain bounded diagnostic surfaces. Complete DEBUG/history reads
+> are separate, action-triggered operations and report native cursor expiry or
+> complete-read failures instead of silently returning a partial or empty
+> history.
 
 ## 11. OpenCode Reachability
 

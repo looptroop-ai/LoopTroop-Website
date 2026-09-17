@@ -23,6 +23,16 @@ At runtime, LoopTroop chooses exactly one adapter: the real SDK adapter for a li
 | Catalog and selection | `server/opencode/providerCatalog.ts`, `modelValidation.ts` | Discover OpenCode models, normalize provider-catalog responses, and validate saved model selections against connected providers |
 | Diagnostics and recovery | `server/opencode/retryPolicy.ts`, `errorDetails.ts`, `blockedErrorDiagnostics.ts`, `logDiagnostics.ts` | Classify retryable interruptions, sanitize provider errors, enrich generic failures from local OpenCode logs, and surface blocked-error diagnostics to the UI |
 
+> [!NOTE]
+> **Next release behavior.** The browser model-picker announcements described
+> below are upcoming client behavior.
+
+The browser's `ModelPicker` keeps the committed model separate from the
+keyboard-active option: `aria-selected` names the saved selection and
+`aria-activedescendant` follows movement until the user commits a choice.
+Loading and catalog failures are announced as status or alert content rather
+than being presented as an empty provider list.
+
 ## 2. Adapter Surface
 
 The `OpenCodeAdapter` interface currently exposes:
@@ -107,6 +117,22 @@ LoopTroop sends work through your OpenCode server rather than replacing OpenCode
 For full local OpenCode DEBUG logs in your terminal, run `npm run dev --opencode-logs=all`. The launcher maps that opt-in to OpenCode's documented [`--print-logs` and `--log-level DEBUG` CLI flags](https://opencode.ai/docs/cli/) for [`opencode serve`](https://opencode.ai/docs/server/) and propagates `LOOPTROOP_OPENCODE_LOGS=all` to the watcher. This only changes logging for an OpenCode server that LoopTroop starts itself; reused, remote, or mock servers keep their own logging configuration. OpenCode's [troubleshooting docs](https://opencode.ai/docs/troubleshooting/) describe DEBUG logs as detailed diagnostic output; treat them as sensitive local data because they may contain request or provider details.
 
 When OpenCode emits only a generic `Provider returned error` stream event, LoopTroop best-effort scans the newest local OpenCode log files for the same `session.id` and surfaces the exact provider cause in the ticket log and blocked-error diagnostics. The enrichment keeps compact fields only: HTTP status, retryability, OpenCode provider/model, request model, provider error type/title/message, and a short response-body preview. It discards prompt bodies, raw request payloads, headers, cookies, authorization values, and URL query strings before persisting anything. By default it reads OpenCode's documented local log directory; set `LOOPTROOP_OPENCODE_LOG_DIR` when LoopTroop is attached to an external server with logs stored elsewhere.
+
+> [!NOTE]
+> **Next release behavior.** Complete `DEBUG` history and export use all
+> available native OpenCode history, while provider-error enrichment remains a
+> bounded diagnostic read of ten candidate files at 5 MiB per file. The two
+> paths do not share a limit. Complete reads surface metadata, read, and index
+> failures; diagnostic enrichment remains best effort.
+
+The complete history path is loaded only for an explicit history action. It
+uses incremental native index ranges, scans a needed prefix for a cold or
+unseen session, and keeps stable file/line identities through JSON
+serialization. Four recent native snapshots keep cursors stable across append
+and rotation; an expired cursor returns `LOG_CURSOR_EXPIRED` rather than a
+partial page. Native page materialization is bounded by the requested `LIMIT`,
+but lineage visibility work grows with ancestry depth, and upstream-deleted
+files cannot be recovered.
 
 For trusted local LoopTroop sessions, the managed OpenCode server is permissive by default: `scripts/dev-opencode.ts` sets `OPENCODE_PERMISSION='"allow"'` when it starts `opencode serve`, unless `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` is set. LoopTroop also applies a complete ordered SDK permission policy to each session immediately before prompting. The unrestricted baseline explicitly allows all actions, `external_directory`, and `doom_loop`, including absolute-path patterns needed by system inspection and temporary tool provisioning; prompt-specific restrictions are appended afterward so read-only, tool-disabled, and web-access policies remain authoritative.
 

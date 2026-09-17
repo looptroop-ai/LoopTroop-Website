@@ -14,6 +14,23 @@ This page covers the diagnostics that help explain slow local behavior, blocked 
 | Blocked-error diagnostics | A phase ends in `BLOCKED_ERROR` | Ticket error view and persisted error occurrence data | Provider failures, timeouts, session errors, transport failures, model output truncation |
 | Structured retry diagnostics | A structured-output phase rejects one or more model attempts before validating or finally failing | Artifact processing notices and artifact detail views | Why a response was retried, what validation failed, and what excerpt caused the retry |
 
+### Complete DEBUG history and bounded diagnostics
+
+> [!NOTE]
+> **Next release behavior.** Complete DEBUG/history reads use the full
+> available native OpenCode file set. Provider-error diagnostics retain their
+> bounded defaults: the ten newest candidate files and at most 5 MiB per file.
+> Diagnostic reads remain best effort; complete metadata, read, and index
+> failures are surfaced instead of being turned into an empty history.
+
+The DEBUG/history path is an action-triggered complete read for Go to top,
+bead navigation, and export. Initial log views stay paginated and do not
+eagerly download the archive. Native history uses incremental index ranges for
+appends and retains four recent snapshots for cursor stability. A cold or
+unseen session still scans the needed prefix, and files removed upstream cannot
+be recovered. Native page rows are `LIMIT`-bounded, while lineage visibility
+checks grow with ancestry depth.
+
 ## 1a. `looptroop doctor`
 
 The first thing to run, and the cheapest.
@@ -309,6 +326,20 @@ unsaved/error for the existing retry path. A completed GET may remember the
 remote revision while retaining that unconfirmed local payload; it must not be
 read as proof that the browser unload delivered the save.
 
+#### Configuration, project, and prompt form diagnostics
+
+> [!NOTE]
+> **Next release behavior.** Form dirty-state and preview handling described in
+> this subsection are upcoming client behavior.
+
+Form close warnings compare actual current values with the saved or initial
+snapshot, including custom model/profile controls; typing and then restoring a
+value clears the warning. Hydration or a background refetch does not replace a
+draft already being edited. Model catalog loading and errors are announced,
+folder-check failures remain distinct from a genuine non-Git directory and can
+be retried, and prompt preview errors belong only to the current prompt and
+draft. A stale preview response is ignored rather than displayed as current.
+
 #### Remote-stop uncertainty and ownership recovery
 
 > [!NOTE]
@@ -326,7 +357,7 @@ recovery in that case.
 
 ### 3.1 OpenCode Provider Error Enrichment
 
-OpenCode sometimes streams only `Provider returned error` even though its local log contains the exact provider failure. LoopTroop best-effort correlates those generic stream errors with recent OpenCode log files by `session.id` and replaces the generic summary with a sanitized provider summary when a match exists.
+OpenCode sometimes streams only `Provider returned error` even though its local log contains the exact provider failure. LoopTroop best-effort correlates those generic stream errors with recent OpenCode log files by `session.id` and replaces the generic summary with a sanitized provider summary when a match exists. The diagnostic reader considers the ten newest candidate files and at most 5 MiB from each by default; complete DEBUG/history reads use a separate uncapped path.
 
 The enrichment keeps only compact diagnostic fields such as HTTP status, retryability, provider/model identity, request model, provider error type/title/message, and a short response-body preview. It does **not** persist prompt bodies, raw request payloads, headers, cookies, authorization values, or URL query strings.
 

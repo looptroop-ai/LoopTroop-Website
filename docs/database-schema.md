@@ -75,6 +75,11 @@ Operational notes:
 - defaults come from `server/db/defaults.ts`
 - validation ranges are enforced by the API layer in `server/routes/profiles.ts`, not by SQLite column constraints alone
 
+> [!NOTE]
+> **Next release behavior.** Dirty form snapshots, hydration state, and
+> unsaved modal drafts stay in the browser; only a successful profile write
+> changes this row, and a reload is not a promise of recovering an unsaved draft.
+
 ### `app_meta`
 
 `app_meta` is intentionally small and generic: `key`, `value`, and `updated_at`.
@@ -114,6 +119,7 @@ The project database is the operational store for one attached repository. LoopT
 | `ticket_ai_turn_metrics` | One idempotent row per newly completed OpenCode assistant message; powers AI/model details |
 | `execution_log_projection` | Rebuildable, query-oriented rows projected from the three durable JSONL log channels |
 | `execution_log_projection_cursors` | Per-ticket/channel byte offsets used for incremental projection catch-up |
+| `execution_log_native_*` | Native OpenCode file generations, indexed entries, and four-retained cursor snapshots for complete DEBUG history |
 
 ### `projects`
 
@@ -178,7 +184,13 @@ Operational notes:
 ### `phase_artifacts`
 
 > [!NOTE]
-> A partial unique index prevents two `skip_receipt:*` artifacts on one ticket from carrying the same `receipt_id`. Bulk items still share an `action_id`; the batch is transactional and replayed receipts are ignored. Receipt rollback, cancellation-content cleanup, and ticket deletion use the existing artifact cleanup. No separate action-claim table is needed. Other artifact types and non-JSON content are outside the receipt key.
+> Receipt identity includes action, item, phase, and phase attempt. Duplicate
+> writes within one attempt remain idempotent, while a later attempt receives a
+> new receipt. The existing artifact uniqueness boundary is reused; no schema
+> migration or separate action-claim table is needed. Receipt rollback,
+> cancellation-content cleanup, and ticket deletion use the existing artifact
+> cleanup. Other artifact types and non-JSON content are outside the receipt
+> key.
 
 This table stores structured workflow artifacts and related UI/read-model payloads.
 
@@ -198,7 +210,7 @@ Operational notes:
 - `phase_attempt` versions artifacts across retries, regenerations, and post-approval restarts for tracked phases
 - the database does **not** have a `file_path` column; API artifact payloads may expose `filePath`, but DB-backed artifacts currently return `null`
 - this table stores more than just final docs: examples include `interview`, `prd`, `beads`, `execution_setup_plan`, coverage artifacts, `approval_snapshot:*`, `ui_state:error_attention`, `cleanup_report`, `merge_report`, `final_test_report`, and `pull_request_report`
-- `skip_receipt:<surface>` rows are the append-only record of everything that got skipped. The surface is part of the artifact type: `interview_question`, `interview_all`, `interview_approval_mark_skipped`, `approval_with_gaps`, `close_unmerged`, `cancel_ticket`, and `opencode_question`. Each row carries a schema version, an idempotent `action_id`, the item, the phase and attempt, the ticket status before the action, the timestamp, and the reason as it read at that moment. A bulk action writes one summary row plus one row per item, all in a single transaction, which is what makes a forty-question Skip All count as one action rather than forty-one skips. Manual QA is not in that list: it already wrote its own skip and waiver records, and the shared read API adapts those rather than adding a duplicate.
+- `skip_receipt:<surface>` rows are the append-only record of everything that got skipped. The surface is part of the artifact type: `interview_question`, `interview_all`, `interview_approval_mark_skipped`, `approval_with_gaps`, `close_unmerged`, `cancel_ticket`, and `opencode_question`. Each row carries a schema version, an idempotent `action_id`, the item, the phase and attempt, the ticket status before the action, the timestamp, and the reason as it read at that moment. Receipt identity is attempt-scoped: duplicate writes in one phase attempt are ignored, while the same action/item on a later attempt gets a new receipt. A bulk action writes one summary row plus one row per item, all in a single transaction, which is what makes a forty-question Skip All count as one action rather than forty-one skips. Manual QA is not in that list: it already wrote its own skip and waiver records, and the shared read API adapts those rather than adding a duplicate.
 - receipts are at schema version `2`. `skipped_by` widened from the literal `user` to `user | timeout | system`, because a question the wait ran out on was refused by nobody and filing that under a person's name is a lie the trail cannot walk back. Rows written before the field existed report `user`, which is what they meant. `opencode_question` rows additionally carry a `question_context` object with the request and session IDs, the configured window, the armed and deadline times, how many times another model reset the shared clock, the elapsed wall and active time, the sibling requests the same refusal covered, an expiry reason, and a quorum-impact note where one applies. It is on the receipt because the request itself is gone the moment OpenCode is told, leaving no current state to read.
 - `opencode_question:<sessionId>:<requestId>` and `opencode_question_timer:<phase>:<attempt>` are the durable copies of live AI-question state. Memory is the cache and these are the record: a daemon restart rebuilds from them, or refuses what it cannot rebuild. Failing to write one costs a restart's worth of recovery, not the wait itself, so the write is best-effort and never blocks a run.
 - Manual QA keeps compact append-only checklist, coverage, results, draft snapshot, and summary artifacts here; live editing exists only as `ui_state:manual_qa_draft:vN` with a server-owned compare-and-set revision
@@ -418,6 +430,23 @@ Operational notes:
 
 `execution_log_projection_cursors` stores the last indexed byte offset for each `(ticket_id, channel)`. A truncated/replaced file resets only that channel. Cold catch-up reads the remaining suffix cooperatively in bounded batches, and concurrent readers share one catch-up promise per ticket. Both tables cascade with ticket deletion and can be reconstructed from the filesystem logs.
 
+> [!NOTE]
+> **Next release behavior.** Native OpenCode history is indexed separately from
+> the bounded diagnostic reader. Complete DEBUG/history actions can scan the
+> full available file set; initial views remain paginated and do not eagerly
+> load the archive.
+
+The native projection stores file identities, generations, indexed entries,
+snapshot pointers, and snapshot-to-file ranges in
+`execution_log_native_index_files`, `execution_log_native_index_versions`,
+`execution_log_native_index_entries`, `execution_log_native_snapshots`, and
+`execution_log_native_snapshot_files`. Four recent complete snapshots are
+retained for cursor stability across append and rotation. An expired cursor
+returns `LOG_CURSOR_EXPIRED` instead of a partial page. Appends index only new
+ranges, but a cold or unseen session scans its needed prefix; upstream-deleted
+files cannot be recovered. Native page rows are `LIMIT`-bounded, while lineage
+visibility checks grow with ancestry depth.
+
 ## 5. Relationship Overview
 
 Within a project DB, the relational shape is:
@@ -434,6 +463,7 @@ erDiagram
     tickets ||--o{ ticket_ai_turn_metrics : measures
     tickets ||--o{ execution_log_projection : projects
     tickets ||--o{ execution_log_projection_cursors : indexes
+    tickets ||--o{ execution_log_native_snapshots : retains
 ```
 
 Deletion behavior:

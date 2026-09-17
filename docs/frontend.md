@@ -19,8 +19,11 @@ In development, same-origin `/api/*` calls go through the Vite proxy. When `npm 
 > [!NOTE]
 > **Next release behavior.** The resolved-question, replay-recovery, bounded
 > auth-probe, startup-only model-retry, and guarded approval-draft/leave-flush
-> details below describe upcoming
-> client changes. The currently published client does not include them yet.
+> details below describe upcoming client changes. The same notice covers
+> server-advertised recovery actions, click-time Manual QA snapshots, and
+> action-triggered complete log drains with cursor-expiry recovery, and actual-
+> value form snapshots that preserve edits through hydration and save races. The
+> currently published client does not include them yet.
 
 The app shell also polls `/api/health` for the global reconnecting banner. Health probes have a dedicated five-second deadline; after the backend has been reached once, a failed probe is retried once after 1.5 seconds before the banner appears. A `429` probe still proves that the backend is reachable, and the basic liveness route does not consume the normal read-rate budget. Backend reconnects retain the mounted workspace and recover through normal query/SSE retries instead of forcing a page reload, so native file pickers, hidden tabs, workspace-module transformation, and transient proxy pressure cannot discard the active screen. Guarded reloads remain limited to sustained post-initial ticket-data recovery, recoverable lazy-chunk failures, and the development-only null hook dispatcher produced when restored React and React DOM dependency generations differ.
 
@@ -155,7 +158,7 @@ Execution setup approval exposes the separately published approval copy's worksp
 
 The plan's environment variables are edited as rows with stable ids, each remembering the name it currently occupies in the plan. A name a sibling already holds is reported on the row and not taken up: that row keeps the name it had, so nothing is renamed or dropped behind the user's back, and every other edit on the form still reaches the plan while the collision stands. Renames settle to a fixed point, because freeing a name applies whichever rename was waiting for it — renaming `FOO` to `BAR` and then moving the original `BAR` out of the way leaves the field and the saved plan agreeing on `BAR`. Two names differing only in case are pointed out as a warning rather than refused: Windows treats `PATH` and `Path` as one variable and Node keeps only one of them when it spawns a process there, while on Linux and macOS both are real and usable.
 
-A live `BLOCKED_ERROR` from `PREPARING_EXECUTION_ENV` orders its setup actions as **Edit setup plan...**, **Retry with extra note...**, then **Retry**. The two retry actions sit beside each other. Both dotted labels open a dialog before changing anything. The retry dialog sends only the entered note to the preserved setup session and grants one manual attempt beyond the configured automatic retry budget. It keeps the current runtime phase attempt. The edit dialog asks for confirmation before archiving the failed runtime attempt and returning to the setup approval editor. Historical error occurrences show neither action. Coding uses the same **Retry with extra note...** label, but keeps its existing fresh-bead retry behavior.
+A live `BLOCKED_ERROR` from `PREPARING_EXECUTION_ENV` orders its advertised setup actions as **Edit setup plan...**, **Retry with extra note...**, then **Retry** when the server supplies them. The two retry actions sit beside each other. Both dotted labels open a dialog before changing anything. The retry dialog sends only the entered note to the preserved setup session and grants one manual attempt beyond the configured automatic retry budget. It keeps the current runtime phase attempt. The edit dialog asks for confirmation before archiving the failed runtime attempt and returning to the setup approval editor. Historical error occurrences show neither action, and setup approval does not imply either action. Coding uses the same **Retry with extra note...** label, but keeps its existing fresh-bead retry behavior. Unknown statuses render no recovery actions.
 
 Blocked errors lead with a cause-specific explanation and recommended recovery derived from stable workflow status, diagnostics, and error codes rather than scanning log prose. Incomplete agent responses, coding timeouts, provider/environment interruptions, exhausted implementation retries, Final Testing failures, and Git finalization failures receive distinct headings. The original message, codes, provider/session diagnostics, and surrounding phase logs remain available under a collapsed **Technical details** section.
 
@@ -173,7 +176,7 @@ Every checklist item, required or optional, can become a non-blocking Improvemen
 
 Coverage presents a fourth **Not applicable to Manual QA** count and badge beside covered, partially covered, and uncovered. Each such criterion includes the model-supplied reason; criteria cannot be both referenced by a checklist item and marked not applicable.
 
-Draft conflicts stop submit/skip until the user explicitly reloads the server's latest draft. If Submit or Skip was interrupted, the workspace becomes read-only for that operation and reuses the action ID/type exposed by the durable journal; it cannot switch operation types or edit the revision underneath a partial batch. Successful files from a multi-file upload are linked immediately even when a later file fails. Each failed upload retains its exact browser `File` object in an explicit Retry/Dismiss state, so files with identical names/sizes/timestamps still have distinct action/evidence identities. Upload, removal, and drift retries keep those identities, refresh checklist/revision CAS guards from the latest round, refetch after ambiguous failures, and expose recoverable error states. Historical rounds preserve their complete outcome summary, item/coverage counts, waivers, child IDs, evidence/model delivery metadata, and remain selectable while a newer checklist is generating or after a later loop blocks/cancels.
+Draft conflicts stop submit/skip until the user explicitly reloads the server's latest draft. Submit and Skip capture the draft, evidence, and round synchronously at click time. A later autosave from another tab remains the newer draft and does not replace submitted checks or cancel follow-up generation. If Submit or Skip was interrupted, the workspace becomes read-only for that operation and reuses the action ID/type exposed by the durable journal; it cannot switch operation types or edit the revision underneath a partial batch. This click snapshot is separate from best-effort unload persistence: `pagehide`/`beforeunload` delivery is not guaranteed. Successful files from a multi-file upload are linked immediately even when a later file fails. Each failed upload retains its exact browser `File` object in an explicit Retry/Dismiss state, so files with identical names/sizes/timestamps still have distinct action/evidence identities. Upload, removal, and drift retries keep those identities, refresh checklist/revision CAS guards from the latest round, refetch after ambiguous failures, and expose recoverable error states. Historical rounds preserve their complete outcome summary, item/coverage counts, waivers, child IDs, evidence/model delivery metadata, and remain selectable while a newer checklist is generating or after a later loop blocks/cancels.
 
 The view distinguishes autosaving, QA-bead generation, submission, child creation/resume, workspace-drift decisions, and skip states. The collapsed selected-version log records validation, the required repository tool activity, candidate persistence, every created ticket/bead and its settings, completion, and errors. There is one primary **Submit** action and no manual Save button. Beside the required-check count, the UI explains that drafts save automatically and shows a relative “Last saved” value; hovering reveals the exact local date and time. Live drafts save only to `manual_qa_draft:vN` after the standard five-second debounce, use server compare-and-set revisions/action IDs, and flush with keepalive on `pagehide`/`beforeunload`. A `409` conflict returns the latest server draft for reconciliation.
 
@@ -199,6 +202,27 @@ The timeline is visit-aware rather than solely status-index based. Ticket payloa
 | `useOpenCodeModels()` / `useAllOpenCodeModels()` | Connected-model list versus full provider catalog |
 | `useBackendHealth()` | Global backend-reachability banner with confirmation probes to avoid startup false positives |
 | `useRecoveryAutoReload(source, active)` | Guarded full-page recovery reload after a sustained, continuously attended reconnect/loading episode clears; browser blur and hidden-tab intervals suppress the reload |
+
+### Ticket Cache And Deletion
+
+Ticket responses pass through one client normalizer. A malformed row in a
+ticket list is warned about and skipped so the other rows remain visible; a
+single-ticket response still fails when its required identity or status is
+missing. Action responses are sparse patches: invalid fields are left out, so
+they cannot erase a valid cached value, while an explicitly valid empty
+collection still clears that collection.
+
+Confirmed ticket and project deletion first settles pending UI-state saves and
+then removes ticket-specific query and browser state in the current tab. That
+includes logs, seen-error and needs-input notices, UI-state revisions,
+rendered-ticket recovery markers, the SSE cursor, pending-question collapse,
+and pending ticket-scoped invalidations. Ticket-list queries are retained for
+their normal refetch; unrelated tickets are not cleared. If deletion fails,
+the living ticket keeps its state and its blocked save queue is released. A
+ticket id issued again in this tab starts without the old cursor or rendered
+marker. Project deletion matches cached composite ticket references by their
+exact project-id prefix, so a merely similar id is not swept in. This is a
+local tab boundary; cross-tab deletion cleanup is not promised.
 
 ### Draft Persistence And Leaving A Ticket
 
@@ -321,6 +345,13 @@ Council-style live workspace phases keep their current-action card dense: compac
 
 `LogProvider` treats the server-side execution-log projection as the frontend's durable log source. SSE-delivered rows merge into a bounded in-memory overlay immediately, by stable entry identity, so phase and full-log views stay live without waiting for file persistence. Restored/history queries request the newest 20 matching projected rows for a fast first paint, merge that page with the live overlay in one Map-indexed pass, and fetch older cursors in batches of up to 250 only when the user scrolls upward. The ALL projection applies its visible-row rules before that limit, excluding command chatter and AI-detail-only rows that belong in dedicated tabs, so neither kind of tail can produce a false empty filter after a browser refresh. Opening or switching to a ticket resets tail-following for both phase and Full Log views, so that first 20-row page is immediately visible rather than inheriting another ticket's scroll position. Phase and Full Log views show a **Loading remaining logs** row while an older page is pending and preserve the current reading position when rows are prepended. Large phase and lifecycle timelines virtualize log rows and bead/phase delimiters with `react-virtuoso`; **Copy all** requests the complete matching history directly rather than waiting for visible pagination, shows a spinner and explanatory tooltip until the export reaches the clipboard, and exposes a retry message if that operation fails. The browser no longer writes durable log snapshots to `localStorage`; only the SSE replay cursor remains browser-persistent. None of these history/read changes replay restored rows through live persistence or SSE broadcasting.
 
+The full-history actions are explicit: Go to top, bead navigation, and Copy all
+drain every matching cursor page without a required Load more click or a page
+cap. Initial mount does not eagerly download the archive. Automatic drains
+publish the growing result once at completion rather than repeatedly sorting or
+publishing each intermediate array. History scopes use separate query identity,
+so a phase/attempt/model/bead change cannot reuse another scope's pages.
+
 Log identity is attempt-scoped on purpose. Phase and Full Log folding key rows by `phaseAttempt + entryId`, with fingerprint aliases for the same row re-emitted under a fresh id, so a retried phase reusing `milestone:<phase>:started` does not collapse another attempt into the same visible row. Undated rows also remain distinct: they are not treated as "the same moment" just because timestamp ordering cannot place them, and their fallback identities are derived from their own text.
 
 In Full Log, **Go to top** is an explicit whole-lifecycle navigation action: it loads every remaining older cursor page, suppresses ordinary prepend anchoring for that action, and then targets the first virtualized or normal row. **Back to bottom** targets the last virtualized row or the viewport's maximum scroll position, repeats the target after layout settles, and re-enables live tail following.
@@ -347,7 +378,15 @@ When `AI` or an individual model tab is selected, **AI details** or **Model deta
 
 Completed tool rows include elapsed time when OpenCode reports start/end timestamps, attachment filename/MIME summaries, and output-compaction timestamps. Inline attachment bytes and data URLs never enter the LoopTroop log. Provider recovery actions are recorded as error rows with provider, reason, message, and suggested action; the same row appears in `ERROR` and its AI/model view, and only HTTP(S) recovery links are interactive.
 
-The `DEBUG` tab provides a complete view of every log line for the ticket. It loads `channel=all` on demand, which merges all three LoopTroop log files (`execution-log.jsonl`, `execution-log.debug.jsonl`, `execution-log.ai.jsonl`) plus OpenCode native server log lines filtered by the ticket's session IDs. All OpenCode SDK stream event types — including `part_removed` — are logged to the debug channel. OpenCode native logs are always written at `--log-level DEBUG` (the managed server is always started with this flag), so they are always available for the DEBUG tab without any extra configuration. Use `npm run dev --opencode-logs=all` to also print them to the terminal. Other tabs (`ALL`, `SYS`, `AI`, `ERROR`) are unaffected — they classify entries from structured `source`, `audience`, and `kind` fields regardless of which channel loaded them.
+The `DEBUG` tab provides a complete view of every log line for the ticket. It loads `channel=all` on demand, which merges all three LoopTroop log files (`execution-log.jsonl`, `execution-log.debug.jsonl`, `execution-log.ai.jsonl`) plus OpenCode native server log lines filtered by the ticket's session IDs. Complete DEBUG history uses the full available native file set; diagnostic collection remains bounded to its separate defaults of 10 files and 5 MiB per file. All OpenCode SDK stream event types — including `part_removed` — are logged to the debug channel. OpenCode native logs are always written at `--log-level DEBUG` (the managed server is always started with this flag), so they are always available for the DEBUG tab without any extra configuration. Use `npm run dev --opencode-logs=all` to also print them to the terminal. Other tabs (`ALL`, `SYS`, `AI`, `ERROR`) are unaffected — they classify entries from structured `source`, `audience`, and `kind` fields regardless of which channel loaded them.
+
+Native cursors retain four recent snapshots for append and rotation stability.
+An expired cursor returns `409 LOG_CURSOR_EXPIRED`; the full drain restarts once,
+then leaves a visible error even when rows are already shown. Complete native
+metadata, read, and index failures surface instead of becoming an empty result.
+Indexed page materialization is bounded by `LIMIT`, but lineage visibility work
+grows with ancestry depth. Native history still scans the needed prefix for a
+cold or unseen session, and upstream-deleted files cannot be recovered.
 
 Artifact raw tabs show line, character, and tokenizer counts. Coverage report cards intentionally omit line-count details because JSON envelopes and escaped multiline payloads can make a displayed card total misleading. Coverage result summaries show status, gap counts, termination/budget notes, open coverage gaps, and interview follow-up questions; the underlying model output and retry attempts remain available in Raw. Versioned coverage reports list normal transition tabs in version order, include user-triggered approval fixes as `Extra Fix N` tabs in the same history, keep `Latest Check` last but selected by default, and suppress open-gap lists when the latest candidate has no remaining gaps; transition tabs still show the gaps found in that specific earlier version.
 
@@ -360,6 +399,22 @@ Failed execution setup-plan and runtime reports keep `modelOutput` out of the st
 Manual Retry from `BLOCKED_ERROR` is represented as a phase version for every non-implementation status, not another Raw variant. Views that load archived phase attempts use the existing previous-version selector and `phaseAttempt`-scoped artifact/log queries, including non-`CODING` runtime/delivery phases shown through `CodingView`; error occurrence history remains the source for the blocked-error timeline. Active selected attempts use the live `LogContext`/SSE stream with a `phaseAttempt` filter, while archived selected attempts use a static `/api/files/:ticketId/logs?phaseAttempt=N` snapshot and do not merge live rows. `CODING` keeps its bead-scoped retry UI instead of phase versions.
 
 When a bead is selected in `CodingView`, the bead panel exposes `Details`, `Changes`, `Log`, `Input`, and `Output` tabs with tooltips on each tab. `Input` shows the raw initial prompt captured for the selected bead iteration, using the same readable raw formatting, line count, character count, GPT-5 tokenizer count, and compact copy button as artifact Raw panes. `Output` shows the final model response for that bead iteration, or a captured diagnostic when no model text was available; it stays disabled until the selected iteration has a terminal output or diagnostic. If multiple bead iterations exist, a `Versions` selector appears below the tab bar, sorted by iteration number and labelled by outcome so failed, timed-out, rejected, and accepted attempts remain inspectable without mixing inner same-session retry prompts into the history.
+
+Prompt editing keeps save and preview feedback tied to the current prompt and
+draft. A canonical save echo does not erase later typing, a failed save keeps
+the draft dirty, and explicit **Revert** requests the default returned for that
+prompt while later edits remain dirty. Preview errors stay visible for the
+current request; a result from an older prompt or draft is ignored. The folder picker treats a failed Git check as
+a retryable error rather than a genuine non-Git result, and stale navigation
+responses cannot replace the current directory.
+
+Long single-line diffs use a bounded fine-grained comparison and fall back to a
+full replacement when the safe budget is exceeded, so the viewer stays
+responsive without dropping text. Expansion views use one pairing rule for
+their rows and added-field count: equal-length plan/refined lists pair by
+position, otherwise IDs provide the fallback. Artifact readers use the current
+phase log rows and load action; unrelated streamed log updates do not reparse
+the expansion content. The `/` shortcut focuses board search only.
 
 ### Artifact Processing Notices
 
@@ -391,6 +446,15 @@ This is why keeping the docs aligned with `workflowMeta` matters: the UI is buil
 
 `ProfileSetup` (`src/components/config/ProfileSetup.tsx`) is the main configuration form. It is opened from the app header and lets you set all model and workflow defaults. The adjacent Projects modal (`ProjectsPanel` / `ProjectForm`) handles repository attachment, restore, and cleanup operations for local projects.
 
+Forms report dirty state by comparing their actual current values with a saved
+or initial snapshot, so native inputs and custom model/profile controls follow
+the same rule. A modal warns only while those values differ; typing and then
+restoring the snapshot clears the warning. Profile or project hydration can set
+the baseline, but it does not mark clean fields dirty or replace values already
+being edited. A successful save advances the submitted snapshot, while a failed
+save, later edit, or background refetch keeps the newer draft visible. An
+unsaved in-memory modal draft is not promised to survive a reload.
+
 The About modal also consumes `useUpdateStatus`. It shows current/latest
 versions, the install channel and ordered update lifecycle, while its Changelog
 hover/focus card renders the complete latest GitHub release body in a bounded
@@ -406,6 +470,12 @@ keeps this data fresh on window focus while the backend owns the shared
 | Council Members | Additional models that participate in planning drafts and voting. The main implementer is always added to the council automatically and cannot appear twice. |
 
 `ModelPicker` (`src/components/config/ModelPicker.tsx`) is the shared dropdown for selecting models from the live OpenCode catalog. It defaults to connected models only, but the footer toggle can expand to the full provider catalog. The picker also supports provider grouping, text search, and a free-only filter.
+
+The picker keeps the committed model separate from the keyboard-active option:
+`aria-selected` identifies the committed value and `aria-activedescendant`
+follows keyboard movement until the user chooses it. Loading and catalog errors
+are announced as status or alert content, with connection and discovery failures
+kept distinct from an empty model list.
 
 `EffortPicker` (`src/components/config/EffortPicker.tsx`) appears next to a model selector when that model exposes variants (for example `high`, `low`, `medium`). The selected variant is stored per model id in `councilMemberVariants`.
 

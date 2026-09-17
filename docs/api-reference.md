@@ -158,6 +158,17 @@ LoopTroop uses a singleton profile, not a collection.
 
 `POST /api/profile` returns `409` when the profile already exists. `PATCH /api/profile` returns `404` when no profile has been created yet.
 
+> [!NOTE]
+> **Next release behavior.** The browser form snapshot and prompt preview
+> handling described in this section are upcoming client behavior.
+
+The browser forms keep a snapshot of the actual values they are editing. A
+successful profile, project, or ticket write advances only the submitted
+snapshot; a failed write leaves the draft dirty, and later edits remain newer
+than the request that is still completing. Hydration and refetch do not replace
+values already being edited. This is browser state, not a promise that an
+unsaved modal draft survives a reload.
+
 Example profile update payload:
 
 > [!NOTE]
@@ -256,6 +267,12 @@ Prompt IDs can name either editable prompt templates or editable global rule blo
 
 Unknown prompt IDs return `404`. Save requests require a non-empty `source` string. Preview returns `400` when the supplied text cannot be parsed as a valid prompt or rule block. Revert returns the current defaulted source for the selected ID, and reset-all returns `{ "reset": true, "templatesDir": "..." }`.
 
+The Prompts editor applies preview results only when the prompt ID and draft
+still match the request. Current validation or preview errors remain visible;
+responses from an older prompt or draft are ignored. **Revert** intentionally
+requests the default returned by the server; later edits remain dirty instead of
+being replaced by that response.
+
 ## Project Routes
 
 | Method | Route | Notes |
@@ -271,6 +288,11 @@ Unknown prompt IDs return `404`. Save requests require a non-empty `source` stri
 | `DELETE` | `/api/projects/:id/worktrees` | Delete worktrees for completed and canceled tickets only, including same-user read-only cache trees; active ticket worktrees are left untouched |
 
 `GET /api/projects/check-git` returns attach-flow metadata in addition to simple validity. When relevant, the response also includes `scope` (`root` or `subfolder`), `repoRoot`, `githubRepoSlug`, `hasLoopTroopState`, `existingProject`, `alreadyAttached`, `attachedProject`, and `performanceWarning` for WSL mounted-drive performance warnings. `alreadyAttached` is based on the canonical Git repository root, so a subfolder, symlink, trailing slash, or alternate path for an attached repository reports the same conflict. `attachedProject` contains the attached project's `id`, `name`, `shortname`, and canonical `folderPath`; clients should block the create action when `alreadyAttached` is true. GitHub origin inspection adds `githubOriginWriteAccess` (`writable`, `read_only`, or `unknown`) and `githubViewerPermission`; a confirmed `READ` or `TRIAGE` permission also adds `githubWriteWarning`. This warning is advisory and leaves `status` as `valid`, because the active GitHub CLI identity may differ from the credentials used by Git push. The `existingProject` preview contains the saved `name`, `shortname`, `icon`, `color`, `ticketCounter`, total `ticketCount`, `activeTicketCount`, `gitHookPolicy`, `manualQaOverride`, and `ignoreMode`. `activeTicketCount` counts statuses other than `DRAFT`, `COMPLETED`, and `CANCELED`. This lets clients show exactly which project settings and ticket data each attachment action keeps or removes before submitting.
+
+The folder picker treats a failed Git-check request as a retryable error, not as
+the valid response for a non-Git directory. Navigation generations fence late
+directory or check responses so an older result cannot replace the current
+path.
 
 Example existing-state preview:
 
@@ -411,6 +433,17 @@ Ticket routes are implemented using a modular handler architecture located in `s
 | `GET` | `/api/tickets/:id/ui-state?scope=...` | Read persisted UI state |
 | `PUT` | `/api/tickets/:id/ui-state` | Save persisted UI state |
 
+The browser treats a confirmed `DELETE /api/tickets/:id` as a cache boundary.
+It settles pending UI-state saves before sending the request, removes the
+deleted ticket's ticket-scoped query and local state after success, and
+refetches the ticket list. Logs, seen notices, UI-state revisions, rendered
+markers, the SSE cursor, question-collapse state, and pending ticket-scoped
+invalidations are included; unrelated tickets are left alone. A failed delete
+keeps the living ticket's state and releases its pending save queue. If the
+server later issues the same ticket id again, this browser tab starts it
+without the previous cursor. This behavior is local to the current tab and is
+not a cross-tab cleanup guarantee.
+
 Example ticket creation payload:
 
 ```json
@@ -522,6 +555,12 @@ UI-state `scope` must match `^[a-zA-Z0-9:_-]+$` and be at most 80 characters. St
 
 Manual QA live drafts use the sole scope `manual_qa_draft:vN`; only evidence metadata/references enter that state. New items initialize as `pending`; Pass and Waive require no evidence, Pass notes and waiver reasons are optional, and the frontend keeps the five-second debounce plus keepalive flush on `pagehide`/`beforeunload`. There is no separate manual-save endpoint: the workspace derives its relative last-save indicator and exact hover timestamp from the successful UI-state response.
 
+Submit and Skip capture the draft, evidence, and checklist round synchronously
+at the click. A later autosave from another tab may be newer, but it does not
+replace the submitted checks or cancel follow-up generation. This click-time
+snapshot is separate from best-effort unload persistence; an unload request is
+not guaranteed to arrive.
+
 ### Manual QA Routes
 
 | Method | Route | Notes |
@@ -563,6 +602,16 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 | `POST` | `/api/tickets/:id/retry` | Retry a blocked ticket or failed phase; an optional `{ "note": "..." }` body adds CODING bead guidance or sends one direct message to a preserved execution setup session |
 | `POST` | `/api/tickets/:id/continue` | Continue a blocked ticket only when eligible OpenCode/provider diagnostics, including `HTTP 402 Payment Required`, have a matching active preserved OpenCode session |
 | `POST` | `/api/tickets/:id/dev-event` | Disabled by default; requires `LOOPTROOP_ENABLE_DEV_EVENT=1`, `LOOPTROOP_DEV_EVENT_TOKEN`, and `X-LoopTroop-Dev-Event-Token` |
+
+Merge and Close Without Merge read the live pull request before making a
+decision, then revalidate the same PR under the ticket lock. An initial remote
+read failure writes a typed recovery receipt with `step: "refresh_pull_request"`,
+the PR number, the error, and null remote state/URL, then leaves the ticket in
+`WAITING_PR_REVIEW` without recording success. A verified merge or
+closed-unmerged decision resumes after an interrupted dispatch and fences
+conflicting actions for that PR; observed merged state remains visible even if
+approved-candidate validation rejects completion. Close Without Merge never
+merges the PR, and remote uncertainty is not recorded as success.
 
 All approval routes, including the generic `/approve` route, require the hash of the content currently shown to the user:
 
@@ -621,11 +670,16 @@ The Retry endpoint accepts an empty body for ordinary recovery. It also accepts 
 
 For execution setup, the request requires the preserved `PREPARING_EXECUTION_ENV` OpenCode session. LoopTroop sends only the user's text as the next prompt in that session and allows exactly one manual setup attempt beyond the configured automatic retry budget. The current runtime phase attempt is not archived, and the text is not appended to `execution_setup_notes` or reused as future setup context. If the session cannot be resumed or the manual attempt cannot start, the ticket remains blocked. Note-bearing requests for historical errors, other phases, blank notes, or oversized notes are rejected. Omitting `note` preserves ordinary Retry behavior.
 
+The ticket's advertised `availableActions` are authoritative for recovery UI.
+Setup approval does not imply `edit_execution_setup_plan` or a note-bearing
+retry; those actions are available only for the live blocked runtime setup when
+the server includes them. Unknown workflow statuses advertise no actions.
+
 `POST /api/tickets/:id/edit-execution-setup-plan` is available only for the live `BLOCKED_ERROR` whose `previousStatus` is `PREPARING_EXECUTION_ENV`. The UI opens a confirmation dialog before calling it. Once confirmed, the route archives the failed runtime attempt, preserves it in phase history, and returns the ticket to `WAITING_EXECUTION_SETUP_APPROVAL` with the current plan available for editing or regeneration. Other phases and historical error occurrences return `409`.
 
 Bead API/read-model payloads expose three independent append-only arrays: `failedIterationNotes`, `userRetryNotes`, and `finalizationFailureNotes`. Each entry contains `timestamp`, `iteration`, `content`, and optional `errorCode`. Runtime bead overlays also expose `startedAt`, `updatedAt`, `completedAt`, and typed nullable `qaOrigin` on Manual-QA-created fix beads. `updatedAt` is the live countdown anchor. LoopTroop strips ANSI terminal sequences from machine-generated failed-iteration and finalization content; user retry content is preserved exactly.
 
-Final-test file effects no longer expose include/discard recovery endpoints. The audit preserves explicit candidate intent and tracked or staged changes, keeps recognized untracked generated/cache/setup-local outputs on disk as local-only, and retries classification once for unknown untracked files. Files that remain undeclared are excluded with a warning so unattended delivery can continue; unresolved tracked changes remain candidates for the later PR audit.
+Final-test file effects no longer expose include/discard recovery endpoints. The audit preserves explicit candidate intent and tracked or staged changes, keeps recognized untracked generated/cache/setup-local outputs on disk as local-only, and retries classification once for unknown untracked files. The same known generated exclusions apply at merge; arbitrary untracked-file exemptions are not supported. Unresolved tracked changes remain candidates for the later PR audit.
 
 The cancel endpoint accepts an optional JSON request body to trigger cleanup or complete deletion at cancellation time.
 
@@ -856,7 +910,7 @@ Successful `PUT /execution-setup-plan` responses return the saved `raw`, normali
 
 `workspaceInputs`, `workspaceProbes`, and `gitHooks.validationCommands` are ordered editable lists. Each workspace input contains `path`, `kind`, `sourceStatus`, and `reason`; the server checks it against the original checkout before accepting the plan. `gitHooks.detected` is refreshed from repository/Git evidence and cannot be changed through the plan editor. `gitHooks.policy` is also backend-authoritative: both raw and structured saves replace an attempted policy edit with the ticket's locked project value. An empty validation-command list is valid; no waiver field or secondary confirmation is required.
 
-`PUT /execution-setup-plan` and `POST /regenerate-execution-setup-plan` are normally accepted only while the ticket is in `WAITING_EXECUTION_SETUP_APPROVAL`. A manual save stays at approval. Regeneration durably preserves the commentary plus the supplied structured or raw baseline, archives the current drafting/approval attempts, creates fresh attempts, and immediately returns `GENERATING_EXECUTION_SETUP_PLAN`; the runner later publishes the new plan/report into approval through normal artifact, log, and SSE updates. The request reference survives backend restart and blocked-error retry so one requested version is neither lost nor duplicated.
+`PUT /execution-setup-plan` and `POST /regenerate-execution-setup-plan` are normally accepted only while the ticket is in `WAITING_EXECUTION_SETUP_APPROVAL`. A manual save stays at approval. Regeneration parses the request before entering the ticket lock, then re-reads the current ticket and status under that lock. It durably preserves the commentary plus the supplied structured or raw baseline, archives the current drafting/approval attempts, creates fresh attempts, and immediately returns `GENERATING_EXECUTION_SETUP_PLAN`; a stale or competing request is rejected rather than silently losing content. The runner later publishes the new plan/report into approval through normal artifact, log, and SSE updates. The request reference survives backend restart and blocked-error retry so one requested version is neither lost nor duplicated.
 
 Both routes are also accepted from `PREPARING_EXECUTION_ENV` as a runtime rewind. LoopTroop stops active runtime setup, archives the relevant setup-plan/runtime attempts, clears stale setup profile/runtime outputs, and preserves `.ticket/runtime/execution-setup/tool-cache`. Manual editing uses the `execution_setup_runtime_rewind` archival reason and returns directly to `WAITING_EXECUTION_SETUP_APPROVAL` with the supplied plan. Regeneration uses `execution_setup_runtime_regenerate`, enters `GENERATING_EXECUTION_SETUP_PLAN`, and returns to approval only after the fresh version is produced. These routes still reject from `CODING` and later statuses. Host or Git-hook evidence refresh during approval remains in `WAITING_EXECUTION_SETUP_APPROVAL` because it updates the existing plan without model generation.
 
@@ -982,6 +1036,22 @@ See [Configuration → AI Questions](configuration.md#ai-questions) for the sett
 The manifest route accepts the same filters and returns `{ "artifacts": [...] }`. Every entry includes its identity, phase and attempt, type, timestamps, `contentByteCount`, lowercase `contentSha256`, availability, and a compact scalar preview. It never includes the raw artifact body. Fetch bodies from the content routes after selecting the artifact; batch requests use `{ "artifactIds": [1, 2] }` and return unavailable or byte-budget-deferred IDs in `omittedIds`.
 
 The projected log route accepts `scope=phase|lifecycle`, `view=overview|system|command|ai|error|debug`, optional `phase`, `phaseAttempt`, and `modelId`, `limit=1..500`, and an opaque `before` cursor. When `limit` is omitted, it defaults to 20 so ticket and status views can paint the latest activity quickly; the frontend then requests older cursor pages in batches of up to 250 as the user scrolls upward. Overview excludes command-classified rows before applying the page limit because commands have their own view and are not rendered in ALL. The newest-page response returns chronological `entries`, `olderCursor`, `hasOlder`, cursor-independent `totalEntries`, and `totalTextLines` for the complete matching filter; older cursor pages omit the unchanged totals to avoid repeating the aggregate work. Empty content contributes zero text lines; non-empty content contributes one plus its newline count. These totals are aggregated in SQLite and do not load historical entry bodies into the application or browser. The AI channel includes model-scoped error rows so provider recovery information is also visible beside that model; the same durable event remains available from the ERROR view. Projection catch-up reads unindexed JSONL suffixes cooperatively and deduplicates concurrent catch-up requests; it does not change the live SSE or durable log-writing paths.
+
+> [!NOTE]
+> **Next release behavior.** Complete `DEBUG` history and export use the full
+> available native OpenCode history, including older files beyond the bounded
+> diagnostic defaults. Initial pages remain bounded; Go to top, bead navigation,
+> and complete exports perform action-triggered full drains. A native cursor
+> that falls outside the four retained snapshots returns HTTP `409` with
+> `code: "LOG_CURSOR_EXPIRED"`; it is never returned as a silently partial
+> page. Complete metadata, read, and index failures surface to the caller.
+
+Native history keeps stable file/line identities through JSON serialization and
+uses incremental index ranges for appends. A cold or previously unseen session
+still scans the needed file prefix, and upstream-deleted files cannot be
+recovered. Returned native rows are bounded by the page `LIMIT`, while lineage
+visibility checks grow with ancestry depth; the route does not promise constant
+total query work or a bounded archive.
 
 The newest-page response includes `modelIds`: sorted distinct model IDs across the requested ticket, phase, attempt, and bead scope, independent of `view`, `modelId`, and the page limit. Older pages omit this metadata with the totals. AI history includes attributed system milestones and matches source-only model identity when no explicit model ID exists. Missing audience and kind fields are inferred before indexing with the same rules used by raw log reads, so plain model output remains in ALL counts, pages, and exports. Sparse OpenCode session rows retain their session kind for activity detection. Explicit source, audience, and kind fields take precedence. AI history also recovers entries saved only in the AI file when the normal-file append was interrupted, deduplicating mirrored copies before pagination, counts, and exports. Repeated anonymous appends remain distinct; canonical updates use the latest surviving revision. AI history sorts by timestamp with a stable logical-entry tie-breaker; other views retain file order. Cursors remain opaque and must be reused with the same scope and filter.
 
