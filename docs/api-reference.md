@@ -7,6 +7,12 @@ All backend routes are mounted under `/api`.
 
 This page documents the current HTTP surface exposed by `server/index.ts` and the route handlers in `server/routes/*`.
 
+> [!NOTE]
+> **Next release behavior.** Remote-mode cookie enforcement, strict Origin
+> checks, configured development-origin exceptions, and SSE admission
+> reservations described below are upcoming. The installed daemon’s credential
+> mechanisms remain unchanged.
+
 ## Reaching An Installed Daemon
 
 An installed LoopTroop serves the interface and the API from **one address**,
@@ -52,6 +58,27 @@ Requests are also restricted to this machine and to this daemon's own address,
 so a page served from a different port on the same loopback interface cannot
 drive it with a cookie the browser would otherwise attach — cookies carry no
 port scope of their own.
+
+### Browser cookies and remote mode
+
+When remote access is explicitly enabled, a request that carries the session
+cookie still has to prove same-origin with the daemon's canonical authority.
+With an `Origin` header, its scheme, host, and effective port must match the
+actual request authority. In local mode, the request Host authority must be
+recognized as loopback; Origin parsing rejects non-canonical hostname spellings,
+including alternate IPv4 forms, and explicit port `0` is rejected. A request
+without `Origin` must carry `Sec-Fetch-Site: same-origin`. Remote opt-in does
+not add a new strict Host-name validator to requests without an Origin, and
+explicit configured development origins retain their configured scheme and
+authority. A bearer-only script request that has no session cookie remains valid
+without that browser header. An invalid bearer header does not turn a
+cookie-bearing request into bearer-only authentication, and forwarded host
+headers do not widen the authority check.
+
+The same authentication boundary applies to `/api/stream`. Admission reserves
+capacity before the asynchronous stream opens, with six connections per ticket
+and 100 connections globally; aborted or failed opens release their reservation
+exactly once.
 
 ## Conventions
 

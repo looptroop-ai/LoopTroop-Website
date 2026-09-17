@@ -16,6 +16,8 @@ LoopTroop is not a thin chat wrapper around a coding model. It is a long-running
 > decisions, server-advertised blocked actions, click-time Manual QA snapshots,
 > action-triggered complete log history with typed cursor expiry, and actual-
 > value form snapshots that preserve edits through hydration and save races.
+> The request guards, child-process credential filtering, and static
+> process-launch and filesystem checks described below are also upcoming.
 
 ## 1. Mental Model
 
@@ -34,6 +36,34 @@ initial snapshot, including custom controls. Hydration and refetch preserve a
 dirty draft, a completed save acknowledges only the submitted snapshot, and a
 failed save leaves it dirty; an unsaved modal draft is not treated as reload-
 durable state.
+
+### Control-plane boundaries
+
+The Hono boundary keeps the installed daemon loopback-only unless the operator
+explicitly enables a wider bind. Remote requests with session cookies still
+need a canonical same-origin proof, while bearer-only script calls remain
+available. The API token that authorizes a wider bind is separate from the
+daemon-minted live API and browser-session credentials. In local mode, the
+request Host authority must be recognized as loopback. Origin parsing rejects
+non-canonical hostname spellings, including alternate IPv4 forms, and a
+same-authority Origin must match the actual request scheme, hostname, and
+effective port; explicit port `0` is rejected. Explicit configured development
+origins retain their configured scheme and authority. Remote opt-in does not add
+a new strict Host-name validator to requests without an Origin. Forwarded host
+values do not widen the trusted authority.
+
+Project commands, Git and hooks, and managed or development OpenCode launches
+receive copied environments after their overrides are merged. The child
+boundary removes only LoopTroop's two daemon credential names and retains
+intentional provider and Git credentials. The trusted CLI-to-daemon handoff is
+kept intact. This is credential propagation control, not a process sandbox.
+
+Filesystem safety is enforced at runtime by contained, no-follow, managed-root,
+and ticket-root helpers. Static checks reinforce those contracts with known
+syntax forms and exact filename-plus-operation boundaries, including a
+metadata-only project-folder browser. They do not claim whole-program alias or
+dataflow analysis, so new raw operations must use the existing helpers and stay
+narrow.
 
 ## 2. Runtime Actors
 

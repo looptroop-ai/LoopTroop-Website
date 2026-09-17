@@ -10,6 +10,8 @@ The singleton profile is the baseline configuration, accessible through the **Co
 > protected Git-hook recovery marker described on this page are upcoming. The
 > ordinary, non-conflicting run remains the normal restore path; a conflict can
 > refuse destructive recovery while preserving the edited files and markers.
+> The remote-mode cookie enforcement, strict Origin checks, port validation, and
+> configured development-origin behavior described below are also upcoming.
 
 ## Where LoopTroop Keeps Its State
 
@@ -152,14 +154,38 @@ LoopTroop treats these as loopback:
 - `::1`
 - IPv4-mapped IPv6 loopback forms whose mapped IPv4 address is inside `127/8`
 
-It does **not** treat `127.attacker.example`, malformed dotted quads such as
-`127.0.0.01`, URL-shaped strings, or non-loopback mapped addresses as local.
+In local mode, it does **not** treat `127.attacker.example`, malformed dotted
+quads such as `127.0.0.01`, URL-shaped strings, or non-loopback mapped
+addresses as local.
 
 > [!NOTE]
 > Managed and adopted OpenCode health checks refuse HTTP redirects, and managed
 > OpenCode startup validates the configured host before spawning `opencode
 > serve`. That keeps readiness probes from being redirected somewhere else and
 > keeps malformed host values from becoming process-launch surprises.
+
+### Remote access and credentials
+
+The default loopback bind is the safest mode for the local control plane. A
+wider bind requires `LOOPTROOP_ALLOW_REMOTE_API`,
+`LOOPTROOP_BACKEND_HOST`, and `LOOPTROOP_API_TOKEN`. The API token in that
+configuration is the permission to expose the wider bind. It is not the live
+API or browser-session token minted by the daemon and recorded in owner-only
+daemon state. See [API Reference](api-reference.md) for the credentials used by
+callers after the daemon starts.
+
+Remote browser requests that carry a session cookie must prove same-origin with
+the daemon's canonical authority. A request without an `Origin` header must
+instead identify itself as same-origin with `Sec-Fetch-Site: same-origin`.
+Bearer-only scripts remain supported without that browser-cookie proof. An
+invalid bearer value cannot bypass the cookie check. In local mode, the request
+Host authority must be recognized as loopback. Origin parsing rejects
+non-canonical hostname spellings, including alternate IPv4 forms, and an
+explicit port `0` is rejected. A same-authority Origin must match the actual
+request scheme, hostname, and effective port. Remote opt-in does not add a new
+strict Host-name validator to requests without an Origin; explicit configured
+development origins retain their configured scheme and authority. Forwarded
+host headers do not expand the trusted authority.
 
 ## Scope And Inheritance
 

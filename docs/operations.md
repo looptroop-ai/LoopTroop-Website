@@ -62,6 +62,8 @@ because those worktrees may be in use.
 > **Next release behavior.** The cleanup and process-control guarantees below
 > describe the upcoming release. The currently published release does not
 > include these changes yet.
+> The child-process credential filtering and request-boundary changes described
+> below are also upcoming.
 
 With `--apply`, it repeats containment, ownership, activity, registration, and
 Git checks immediately before each removal and keeps a candidate that changed
@@ -116,6 +118,28 @@ visible. Model loading/errors are announced, a failed folder Git check can be
 retried without being mistaken for a non-Git directory, and prompt preview
 responses are ignored when they belong to an older prompt or draft. Unsaved
 modal state is not promised across a reload.
+
+## Child-process credentials
+
+Project commands, Git and hook commands, and managed or development OpenCode
+launches receive a copied environment after their explicit overrides are
+merged. LoopTroop removes only `LOOPTROOP_API_TOKEN` and
+`LOOPTROOP_DEV_EVENT_TOKEN` from those child environments. On Windows the two
+names are matched case-insensitively; other names are not removed by a
+secret-shaped wildcard.
+
+Provider credentials and intentional Git controls such as `GH_TOKEN`,
+`GITHUB_TOKEN`, `GIT_SSH_COMMAND`, `GIT_SSH`, `GIT_TERMINAL_PROMPT`, and
+`GIT_ASKPASS` remain available to the tools that need them. The trusted CLI
+daemon startup handoff retains its configured daemon environment. Filtering
+credential propagation is not a process sandbox; commands still run with the
+same user's filesystem access.
+
+The request boundary keeps local-mode Host validation loopback-only. Its Origin
+check uses strict hostname spelling and the actual request scheme, hostname, and
+effective port; an explicit port `0` is rejected. Remote opt-in does not claim a
+new strict Host-name validator for requests without an Origin, and configured
+development origins retain their configured scheme.
 
 ---
 
