@@ -505,7 +505,27 @@ for recovery ownership, and **Delete Worktrees** removes the entire eligible
 worktree. The persistent Manual QA SQLite lock database is outside those
 transient roots and is not unlinked by cleanup or recovery code.
 
+> [!NOTE]
+> **Next release behavior.** Whole-file JSONL recovery requires a matching
+> byte-length and SHA-256 proof, including for an empty collection. Unproved
+> temporary files remain available for inspection. Recovery checks every path
+> component before filesystem operations and reports paths in the spelling
+> supplied by the caller, including platform-specific path aliases.
+
+> [!NOTE]
+> **Next release behavior.** Manual QA workspace decisions serialize their Git
+> mutations. A repeated quarantine copy reuses an identical backup; different
+> content gets an action-specific retry destination, recorded in the receipt
+> and event. Comparison uses bounded buffers so large files do not need to fit
+> in memory. Existing backup content is preserved.
+
 ## 10. Diagnostics
+
+> [!NOTE]
+> **Next release behavior.** The Node check in the doctor's JSON report includes
+> `node.version`. Automation can read the embedded runtime version from that
+> field without parsing the human-readable detail. Existing check names stay
+> unchanged.
 
 > [!NOTE]
 > `diagnose:stall` is a **checkout-only** tool. It lives in `scripts/`, which the

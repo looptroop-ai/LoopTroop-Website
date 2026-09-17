@@ -223,10 +223,15 @@ that the recorded process has exited. Age alone is not enough: a live,
 malformed, permission-denied, or otherwise unverifiable owner keeps installation
 blocked.
 
-If the installed executable cannot answer its status probe and cannot run its
-version check, the current installer source refuses to replace it. It leaves the
-existing copy alone because a daemon may still be serving, so stop or remove the
-known installation before retrying. Nothing is installed in that case.
+> [!NOTE]
+> **Next release behavior.** When a damaged executable cannot report its
+> status or version, replacement requires a complete daemon record, a recorded
+> process that has exited, and a closed recorded endpoint. Missing, malformed
+> or inconclusive evidence blocks installation and leaves the executable alone.
+> A closed default port does not prove that the daemon stopped: startup options
+> can select another port. The refusal identifies the recorded PID when one is
+> available and explains how to remove the damaged installation after confirming
+> no daemon remains.
 
 On Windows, the current installer source rejects `-Version`, `-Tarball`, or
 `-Prefix` when the option was supplied without a value, instead of forwarding an
