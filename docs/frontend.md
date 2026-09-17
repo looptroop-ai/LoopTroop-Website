@@ -321,6 +321,11 @@ Approval panes use the same success-aware debounced UI-state pattern for editor 
 
 Approval autosave protects the editor draft across reloads; it does not update the authoritative interview, PRD, blueprint, or execution setup artifact. The user must still click **Save** to apply the draft, including any downstream invalidation or workflow effects.
 
+In the next release, a dirty workspace setup draft keeps the content hash it
+was based on, including across reloads. Background refreshes do not replace that
+baseline. If another writer changes the authoritative plan, Save reports a
+conflict rather than applying the draft over the newer plan.
+
 Artifact edits in the approval panes are made through the shared `YamlEditor` (`src/components/editor/YamlEditor.tsx`), a CodeMirror-based YAML surface with line numbers, syntax highlighting, and bracket matching, used in both editable and read-only modes. When a manual edit would invalidate downstream artifacts, the pane raises a `CascadeWarning` (`src/components/editor/CascadeWarning.tsx`) confirmation dialog before committing the change, so the user knows the edit cascades into later phases. The interview, PRD, and execution-setup-plan approval panes all share these two surfaces via `ApprovalView`.
 
 `PrdApprovalPane` keeps the PRD editor as the primary surface. When the winning PRD draft has a Part 1 Full Answers artifact, the header shows a compact `Full Answers` chip that opens the read-only complete interview answer set used by that winning draft.

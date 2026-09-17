@@ -103,6 +103,14 @@ retryable. Startup can replay the ticket marker when the project database has no
 row, but it cannot claim restart recovery when both the database and marker
 storage are unavailable.
 
+A pending cancellation also writes `.ticket/runtime/cancellation-pending.json`.
+After a restart, that marker blocks automatic phase startup until cleanup
+confirms the stop. An unreadable or malformed marker keeps the block in place.
+If writing the marker fails, the current process still blocks startup, but the
+marker cannot provide that protection after a restart. Council cleanup waits
+only a bounded time for a session still being created; a late session is stopped
+when its identity becomes available, and an unconfirmed stop retains ownership.
+
 Approval editing has the same conservative handoff. Interview and PRD panes
 keep the loaded content hash with a dirty draft; missing baselines fail with
 HTTP `428`, stale baselines with typed HTTP `409`, and failed saves stay
@@ -169,7 +177,7 @@ it up.
 > [!NOTE]
 > **Next release behavior.** The ownership marker and unresolved fallback-sidecar
 > behavior in the runtime-storage table describe the upcoming release. The
-> OpenCode step-cap restore sidecar and protected Git-hook recovery marker below
+> cancellation-pending marker, OpenCode step-cap restore sidecar, and protected Git-hook recovery marker below
 > are part of the same upcoming behavior.
 
 LoopTroop deliberately separates app-level state from project-level runtime state.
