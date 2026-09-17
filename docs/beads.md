@@ -1,13 +1,24 @@
 # Beads & Execution
 
 > [!IMPORTANT]
-> **TL;DR** - LoopTroop does not hand an entire feature to one long coding chat. It first turns the approved PRD into small, dependency-ordered beads, then runs those beads one at a time in an isolated worktree with strict retries, hard resets, structured completion markers, and explicit runtime-setup handoff.
+> **TL;DR** - LoopTroop does not hand an entire feature to one long coding chat. It first turns the approved PRD into small, dependency-ordered beads, then runs those beads one at a time in an isolated worktree with bounded retries, safe reset/recovery, structured completion markers, and explicit runtime-setup handoff.
 
 Beads are LoopTroop's execution units. They are the bridge between the approved PRD and the live coding loop: small enough to keep context narrow, but structured enough to encode dependency order, file scope, verification intent, retry history, and durable recovery metadata.
 
 The canonical bead model lives in `server/phases/beads/types.ts`. Runtime scheduling lives in `server/phases/execution/scheduler.ts`. The coding loop is split between `server/phases/execution/executor.ts` and `server/workflow/phases/executionPhase.ts`. The setup handoff immediately before coding lives in `server/workflow/phases/executionSetupPhase.ts`, `server/phases/executionSetupPlan/types.ts`, and `server/phases/executionSetup/types.ts`.
 
 LoopTroop implements only part of the broader "beads" idea popularized by Steve Yegge. Its implementation is intentionally pragmatic: deterministic scheduling, small coding slices, strong retry/reset semantics, and durable workflow artifacts.
+
+> [!NOTE]
+> **Next release behavior.** The start-checkpoint ordering and restart/retry
+> recovery described on this page are upcoming. LoopTroop records the bead's
+> reset anchor before publishing `in_progress`; if that checkpoint cannot be
+> persisted, the bead stays pending and execution does not begin. Ordinary
+> recovery resets only when safe, while a step-cap conflict can refuse a
+> destructive reset and leave the bead blocked with its edited config and
+> sidecar intact. A later bead can continue without a fresh cap when no
+> destructive reset is needed and valid marker evidence keeps the root config
+> out of delivery.
 
 ---
 
@@ -320,7 +331,7 @@ LoopTroop keeps scheduling intentionally simple and deterministic.
 Important consequences:
 
 - beads in `error` are never auto-selected again
-- interrupted `in_progress` beads are handled by recovery logic first, not by the scheduler; a current execution checkpoint may finalize without rerunning, a preserved continuation may reuse its exact session, and an otherwise unresumable attempt is recorded, reset, and advanced to the next iteration
+- interrupted `in_progress` beads are handled by recovery logic first, not by the scheduler; a current execution checkpoint may finalize without rerunning, a preserved continuation may reuse its exact session, and an otherwise unresumable attempt is recorded and safely reset when possible before advancing to the next iteration
 - the model never chooses its own work order
 
 ---
@@ -329,7 +340,7 @@ Important consequences:
 
 `executeBead()` is the core loop for one bead attempt.
 
-1. **Select** - mark the next runnable bead `in_progress`, persist `startedAt`, and record `beadStartCommit`.
+1. **Select** - record the current worktree `HEAD` as `beadStartCommit` before publishing the next runnable bead as `in_progress`; if that checkpoint cannot be persisted, the bead stays `pending` and no execution call is made. Then persist `startedAt` with the tracker update.
 2. **Assemble narrow context** - load the active bead plus focused runtime context for that bead.
 3. **Create or reattach session** - own the OpenCode session for that bead iteration.
 4. **Prompt** - send the coding prompt and watch OpenCode stream/status events.
@@ -374,7 +385,7 @@ Each bead attempt must end with exactly one `<BEAD_STATUS>...</BEAD_STATUS>` blo
 
 If the output is malformed or missing the marker, LoopTroop does **not** guess. It sends a structured retry reminder that asks for the exact `<BEAD_STATUS>...</BEAD_STATUS>` block and required fields again. If the workflow deadline expires before a valid marker is returned, the failure is recorded explicitly as an iteration timeout rather than being reduced to a generic missing-marker message.
 
-If the marker shape is valid but the bead is still incomplete, LoopTroop sends a continuation reminder instructing the agent to keep editing, rerun the failing checks, and only return once the bead is actually complete. Planned commands are guidance rather than a frozen second gate: the agent may adapt them to facts discovered in the repository, while Final Testing remains the mandatory backend-executed ticket-level gate. A session that cannot repair and verify the repository before the deadline follows the normal Ralph reset and fresh-session path.
+If the marker shape is valid but the bead is still incomplete, LoopTroop sends a continuation reminder instructing the agent to keep editing, rerun the failing checks, and only return once the bead is actually complete. Planned commands are guidance rather than a frozen second gate: the agent may adapt them to facts discovered in the repository, while Final Testing remains the mandatory backend-executed ticket-level gate. A session that cannot repair and verify the repository before the deadline follows the normal Ralph reset and fresh-session path when recovery is safe; a conflicting step-cap marker can refuse that reset and block recovery.
 
 The response enforcement distinguishes:
 
@@ -397,11 +408,11 @@ For ordinary implementation failure or a workflow-owned per-iteration timeout:
 
 1. capture a compact retry note from the failing session when possible
 2. append that note to the bead's durable `failedIterationNotes`
-3. hard-reset the worktree to `beadStartCommit`
+3. attempt a safe reset of the worktree to `beadStartCommit`; a conflicting step-cap marker can refuse the destructive reset and leave the bead blocked with its edited config and sidecar intact
 4. abandon the old session
-5. retry in a fresh session with the accumulated notes as compact guidance
+5. retry in a fresh session with the accumulated notes as compact guidance when the reset succeeds
 
-An application, OpenCode, OS, or machine restart uses the same bounded failure semantics when the active coding attempt has neither an explicitly preserved continuation nor a current execution checkpoint. LoopTroop appends a deterministic Failed Iteration Note for the interrupted attempt, resets to `beadStartCommit`, increments the bead iteration, and starts the replacement attempt with a fresh configured per-iteration deadline. This prevents the restored attempt from inheriting an expired clock or running outside the normal iteration accounting.
+An application, OpenCode, OS, or machine restart uses the same bounded failure semantics when the active coding attempt has neither an explicitly preserved continuation nor a current execution checkpoint. LoopTroop appends a deterministic Failed Iteration Note for the interrupted attempt and attempts a safe reset to `beadStartCommit`. If a step-cap conflict or another recovery guard refuses that destructive reset, the bead remains blocked with the edited config and sidecar available for recovery. A later bead can continue without a fresh cap when no destructive reset is needed and valid marker evidence keeps the root config out of delivery. When the reset succeeds, LoopTroop increments the bead iteration and starts the replacement attempt with a fresh configured per-iteration deadline. This prevents the restored attempt from inheriting an expired clock or running outside the normal iteration accounting.
 
 ```mermaid
 flowchart TD
@@ -410,8 +421,10 @@ flowchart TD
     C -- yes --> S[Mark bead done and capture diff]
     C -- no --> H[Enter BLOCKED_ERROR]
     B -- no --> N[Generate context wipe note]
-    N --> E[Reset worktree to bead start commit]
-    E --> F{Retry budget left?}
+    N --> E{Safe reset available?}
+    E -- no, cap conflict --> K[Block and preserve config plus sidecar]
+    E -- yes --> R[Reset worktree to bead start commit]
+    R --> F{Retry budget left?}
     F -- yes --> G[Fresh session next iteration]
     G --> A
     F -- no --> H[Enter BLOCKED_ERROR]
@@ -459,7 +472,7 @@ Execution uses owned OpenCode sessions, but not every failure is handled the sam
 
 ### Fresh Session Versus Preserved Session
 
-- **Ordinary bead failure or workflow-owned iteration timeout** -> no Continue; LoopTroop captures notes, resets, and retries in a fresh session
+- **Ordinary bead failure or workflow-owned iteration timeout** -> no Continue; LoopTroop captures notes, resets when safe, and retries in a fresh session
 - **Continuable provider/session interruption** -> the active session may be preserved and the ticket may enter `BLOCKED_ERROR` with **Continue**
 
 ### When Continue Is Available
@@ -499,7 +512,7 @@ It will finalize from that checkpoint only when the checkpoint still matches the
 - `updatedAt`
 - `beadStartCommit`
 
-If the checkpoint is missing, stale, malformed, or mismatched, LoopTroop does **not** trust it as proof of success. It resets the bead to its start snapshot, returns it to `pending`, and lets the scheduler choose the next valid attempt.
+If the checkpoint is missing, stale, malformed, or mismatched, LoopTroop does **not** trust it as proof of success. It attempts a safe reset to the bead's start snapshot. A conflicting step-cap marker or another recovery guard can refuse that destructive reset, leaving the bead blocked with the edited config and sidecar intact. When the reset succeeds, the bead returns to `pending` and the scheduler chooses the next valid attempt.
 
 ---
 
@@ -510,7 +523,7 @@ Execution is isolated inside the ticket worktree, and the local Git rules are st
 ### Important Behaviors
 
 - **Bead start snapshot**: every new bead records `beadStartCommit` before coding
-- **Reset on retry**: retries hard-reset and clean back to that snapshot
+- **Reset on retry**: ordinary retries reset and clean back to that snapshot when recovery is safe; a conflicting step-cap marker can refuse the destructive reset
 - **Metadata preservation**: LoopTroop-owned planning/runtime paths are preserved appropriately during resets
 - **Commit capture**: Git-visible project changes produce a local bead commit regardless of language or extension
 - **No-op completion**: a true no-op bead can still finish successfully when no committable project changes were needed
@@ -566,7 +579,7 @@ Every genuine setup retry starts with a fresh full budget. Setting this timeout 
 
 ### Per-Iteration Timeout
 
-The maximum runtime for one bead attempt in `CODING`. When this workflow-owned deadline fires, LoopTroop captures retry notes if possible, resets to `beadStartCommit`, and retries in a fresh session.
+The maximum runtime for one bead attempt in `CODING`. When this workflow-owned deadline fires, LoopTroop captures retry notes if possible, attempts a safe reset to `beadStartCommit`, and retries in a fresh session when the reset succeeds. A conflicting step-cap marker can refuse the destructive reset and leave the bead blocked.
 
 ### Max Bead Retries
 
@@ -587,7 +600,7 @@ LoopTroop's bead-and-execution model gives it:
 - narrow context slices instead of giant conversations
 - deterministic dependency order outside the model
 - durable restart/recovery checkpoints
-- hard resets instead of degraded-chat spirals
+- safe, bounded resets instead of degraded-chat spirals
 - explicit runtime setup contracts before coding starts
 - bead-level audit artifacts instead of one opaque final diff
 

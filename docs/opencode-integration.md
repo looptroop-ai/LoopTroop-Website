@@ -7,6 +7,12 @@ LoopTroop uses OpenCode as the model-execution layer, but it wraps that layer he
 
 At runtime, LoopTroop chooses exactly one adapter: the real SDK adapter for a live OpenCode server, or the in-process mock adapter for tests and offline development.
 
+> [!NOTE]
+> **Next release behavior.** The step-cap/root-configuration recovery in §6.1
+> and the durable ownership, marker fallback, and restart limits described below
+> are upcoming. A conflicting marker can refuse destructive recovery; a missing
+> marker after restart does not provide ownership evidence.
+
 ## 1. Core Modules
 
 | Area | Modules | Responsibility |
@@ -184,7 +190,24 @@ continue please
 
 Continue does not archive the active phase attempt or create a fresh attempt. Retry still keeps the fresh-attempt behavior.
 
-### 6.1 Session Reuse Controls
+### 6.1 OpenCode Step Caps And Root Configuration
+
+When `OpenCode Max Steps` is greater than zero, LoopTroop merges the cap into
+the root `opencode.json` and writes `.ticket/opencode-steps-restore.json` before
+the change. The sidecar holds the exact pre-run bytes, including the `absent`
+case when LoopTroop created the file. A valid marker keeps the temporary root
+config out of bead and final candidate staging without adding a common Git
+exclude rule.
+
+Ordinary capped runs reset and retry normally. If the current config conflicts
+with the marker, LoopTroop preserves the edited bytes and sidecar and refuses a
+destructive reset or recovery that would overwrite them. A later bead can run
+without applying a fresh cap when no reset is needed. If the sidecar is missing
+after a restart, there is no durable ownership evidence, so LoopTroop leaves the
+file alone rather than guessing. Filesystem-equivalent casing follows actual
+worktree paths; native Windows/macOS equivalent-case behavior is not claimed.
+
+### 6.2 Session Reuse Controls
 
 | Control | Effect |
 | --- | --- |
@@ -192,10 +215,6 @@ Continue does not archive the active phase attempt or create a fresh attempt. Re
 | `forceFresh` | Requests a remote abort and abandons the currently owned active session only after that stop is confirmed; an unconfirmed stop keeps ownership visible and retryable |
 
 These controls are what let multi-turn phases reuse a durable session when appropriate, while still allowing hard resets for flows that must discard the old transcript.
-
-> [!NOTE]
-> **Next release behavior.** Durable OpenCode ownership, marker fallback, and
-> restart limits in the following sections describe the upcoming release.
 
 Session creation records ownership in the project database before it relies on
 the remote session. If that write is unavailable, LoopTroop records a

@@ -18,7 +18,8 @@ In development, same-origin `/api/*` calls go through the Vite proxy. When `npm 
 
 > [!NOTE]
 > **Next release behavior.** The resolved-question, replay-recovery, bounded
-> auth-probe, and startup-only model-retry details below describe upcoming
+> auth-probe, startup-only model-retry, and guarded approval-draft/leave-flush
+> details below describe upcoming
 > client changes. The currently published client does not include them yet.
 
 The app shell also polls `/api/health` for the global reconnecting banner. Health probes have a dedicated five-second deadline; after the backend has been reached once, a failed probe is retried once after 1.5 seconds before the banner appears. A `429` probe still proves that the backend is reachable, and the basic liveness route does not consume the normal read-rate budget. Backend reconnects retain the mounted workspace and recover through normal query/SSE retries instead of forcing a page reload, so native file pickers, hidden tabs, workspace-module transformation, and transient proxy pressure cannot discard the active screen. Guarded reloads remain limited to sustained post-initial ticket-data recovery, recoverable lazy-chunk failures, and the development-only null hook dispatcher produced when restored React and React DOM dependency generations differ.
@@ -189,7 +190,7 @@ The timeline is visit-aware rather than solely status-index based. Ticket payloa
 | `useWorkflowMeta()` | Reads phase/group metadata straight from `shared/workflowMeta.ts` and exposes `{ groups, phases, phaseMap, isLoading }`. It makes no request; `/api/workflow/meta` still serves the same data. |
 | `useTicketArtifacts(ticketId, opts?)` | Fetches, caches, and merges ticket artifacts for live and archived review surfaces |
 | `useTicketPhaseAttempts(ticketId?, phase?)` | Reads archived phase-attempt history for selectors and review panes |
-| `useTicketUIState(ticketId, scope)` / `useSaveTicketUIState()` | Persists per-ticket draft/editor UI state such as interview drafts, approval editors, and error-attention markers |
+| `useTicketUIState(ticketId, scope)` / `useSaveTicketUIState()` | Persists per-ticket draft/editor UI state such as interview drafts, approval editors, and error-attention markers with server revisions, queued writes, and retained failed drafts |
 | `useTickets(projectId?)` | Ticket list with 10-second auto-refresh while any ticket is non-terminal |
 | `useTicket(id)` | Individual ticket query with 5-second auto-refresh while active, seeded from cached ticket lists when possible |
 | `useProjects()` | Attached project metadata for the dashboard, kanban cards, ticket forms, and project management modal |
@@ -198,6 +199,28 @@ The timeline is visit-aware rather than solely status-index based. Ticket payloa
 | `useOpenCodeModels()` / `useAllOpenCodeModels()` | Connected-model list versus full provider catalog |
 | `useBackendHealth()` | Global backend-reachability banner with confirmation probes to avoid startup false positives |
 | `useRecoveryAutoReload(source, active)` | Guarded full-page recovery reload after a sustained, continuously attended reconnect/loading episode clears; browser blur and hidden-tab intervals suppress the reload |
+
+### Draft Persistence And Leaving A Ticket
+
+Interview and PRD approval panes keep the content hash that was loaded with a
+dirty editor. Refetches and remounts do not silently rebase that draft onto
+newer server content. Raw and structured saves send the same baseline; a
+missing baseline fails closed with HTTP `428`, a stale one is a typed HTTP
+`409`, and only a successful durable response advances the baseline. Failed
+saves remain visibly unsaved and use the existing retry/recovery path.
+
+Ticket UI-state writes share one per-ticket/scope ordering fence. Normal saves
+and leaving flushes are ordered so a delayed response body cannot put older
+text back into the React Query cache. A completed UI-state `GET` can remember
+the server revision it saw while retaining a pending or failed local draft;
+the revision fences a later retry, but the local text is not presented as
+confirmed. Approval and interview consumers ignore stale flush events and an
+approval success acknowledges only the snapshot currently rendered.
+
+Unmount and ticket-change flushes use best-effort keepalive/beacon delivery.
+They do not guarantee that a browser unload sends the request. If the flush
+fails, the newest draft and its failure state remain available for retry rather
+than being reported as saved.
 
 ### Request Failures
 

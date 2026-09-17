@@ -5,6 +5,12 @@
 
 The singleton profile is the baseline configuration, accessible through the **Configuration** button in the LoopTroop UI. You do not need to restart the server after editing it, but settings are not all consumed at the same moment: some are frozen when a ticket starts, while others are read later at phase or session boundaries.
 
+> [!NOTE]
+> **Next release behavior.** The OpenCode step-cap restore/conflict rules and
+> protected Git-hook recovery marker described on this page are upcoming. The
+> ordinary, non-conflicting run remains the normal restore path; a conflict can
+> refuse destructive recovery while preserving the edited files and markers.
+
 ## Where LoopTroop Keeps Its State
 
 Everything an installation owns lives in one directory, outside the installation
@@ -481,15 +487,20 @@ Maximum number of steps OpenCode is allowed to perform per session. When the lim
 
 **When to set a value:** If you observe sessions running for a very large number of messages and then silently restarting, setting a cap (e.g. `20`) ensures OpenCode wraps up and summarizes at a predictable point. A session that hits the configured limit produces a summary response, so the restart is cleaner than a natural mid-step stop.
 
-**Implementation detail:** When `opencodeSteps > 0`, LoopTroop sets the cap in `opencode.json` at the root of the ticket worktree before coding starts, and undoes that when coding finishes, including on error.
+**Implementation detail:** When `opencodeSteps > 0`, LoopTroop sets the cap in `opencode.json` at the root of the ticket worktree before coding starts. On an ordinary non-conflicting completion or recoverable error, it restores the recorded file; if the current bytes conflict with the restore marker, recovery preserves the edited file and sidecar and refuses a destructive overwrite.
 
-If the project has no `opencode.json` of its own, LoopTroop creates one holding just the step cap, excludes it through the worktree-local git exclude so it never appears in commits or `git status`, and deletes it afterwards.
+If the project has no `opencode.json` of its own, LoopTroop creates one holding just the step cap. It does not add an `opencode.json` rule to a common Git exclude. While the valid restore marker exists, exact commit selection keeps the temporary root config out of bead and final candidate commits; the file can remain visible to ordinary Git status until cleanup.
 
-If the project ships its own `opencode.json`, the cap is merged into it. Everything else in the file — MCP servers, providers, permissions, other agents — stays in force for the whole run, and the file is put back as it was when coding finishes. How it is tracked in git is left alone. If LoopTroop is killed outright before it can put the file back, it does so at the next start.
+When that cap-created file is edited, the restore marker records that the
+original file was absent and stays beside the edited file. Recovery refuses to
+remove or reset it until the ownership conflict is resolved; it does not treat
+the edited file as disposable just because LoopTroop created it.
 
-The cap never reaches your git history. For as long as it is applied, `opencode.json` is kept out of the commits LoopTroop makes for each bead and listed among that commit's skipped files — restoring the file afterwards would put the worktree right, but it could not take back a commit. The worktree resets LoopTroop performs when a bead is retried leave the file alone as well, and the cap goes back on afterwards, so it applies for every attempt rather than quietly lapsing after the first.
+If the project ships its own `opencode.json`, the cap is merged into it. Everything else in the file — MCP servers, providers, permissions, other agents — stays in force for the whole run. On an ordinary non-conflicting completion, the file is put back as it was; if LoopTroop is killed outright before that happens, the sidecar lets the next start restore it when the run-owned bytes are still unchanged. A conflicting edit remains visible with its sidecar for deliberate recovery. How the file is tracked in git is left alone.
 
-A file LoopTroop cannot merge into is left exactly as it is, and the run continues with no step cap: unreadable JSON, a top level that is not a JSON object, an `agent` section shaped some other way, or a symlink. The ticket log says which it was. The same holds if the file changes while the run is going — that change is yours, so it is reported rather than overwritten, and your version from before the run is kept in the ticket directory until you deal with it. While it is waiting there, a later run will not apply a cap either, rather than write over that copy.
+The cap never reaches your git history. For as long as a valid marker is in place, `opencode.json` is kept out of the commits LoopTroop makes for each bead and listed among that commit's skipped files — restoring the file afterwards would put the worktree right, but it could not take back a commit. During an ordinary non-conflicting retry, the worktree reset leaves the capped file alone and the cap is reapplied for the next attempt. If current bytes conflict with the marker, the destructive reset/recovery is refused instead; the edited file and sidecar remain available until the conflict is resolved.
+
+A file LoopTroop cannot merge into is left exactly as it is, and the run continues with no step cap: unreadable JSON, a top level that is not a JSON object, an `agent` section shaped some other way, or a symlink. The ticket log says which it was. The same holds if the file changes while the run is going: that change is yours, so it is reported rather than overwritten, and your version from before the run is kept in the ticket directory until you deal with it. Ordinary capped retries continue when there is no conflict. A later bead can run without applying a fresh cap when no destructive reset is needed, while valid marker evidence keeps the root config out of bead and final staging. If the sidecar is missing after a restart, LoopTroop has no durable ownership evidence and leaves the file unattributed rather than guessing. Filesystem-equivalent casing follows the actual worktree paths; native Windows/macOS equivalent-case behavior is not claimed here.
 
 **Trade-offs:**
 
@@ -828,7 +839,7 @@ When a project is created without an explicit API/CLI choice, LoopTroop copies t
 
 Execution setup shows the locked project policy and detected hooks as read-only, backend-authoritative fields. You may add, edit, reorder, or remove validation commands. Raw-YAML or structured edits that try to change `git_hooks.policy` are replaced with the locked project policy when the plan is parsed or saved. An unknown hook never causes LoopTroop to invent an ecosystem-specific command. Removing all validation commands is allowed and the approval receipt records that exact decision.
 
-Check and Require run their commands under a snapshot of the worktree and the Git index, and put both back whatever the commands did — a hook that writes files or stages them leaves nothing behind. If the snapshot cannot be taken, validation is refused rather than run unprotected: Require reports it as a blocking error and Check as a warning, and the commands do not run at all. If the restore itself fails, that is reported alongside whatever validation found, and blocks under either choice, because the next step would otherwise start from hook output nobody asked for.
+Check and Require run their approved commands under a snapshot of the worktree and the Git index, and put both back the mutations that run introduced. If the snapshot cannot be taken, validation is refused rather than run unprotected: Require reports it as a blocking error and Check as a warning, and the commands do not run at all. If validation is interrupted, the persisted marker binds the worktree, Git directory, index/worktree trees, and initial untracked set. Invalid or escaped markers fail before recovery writes; unknown untracked additions stay intact and reentry is refused until they can be attributed safely. If the restore itself fails, that is reported alongside whatever validation found, and blocks under either choice, because the next step would otherwise start from hook output nobody asked for. This protection applies to the approved validation path and does not promise that unrelated hook commands are harmless or fully transactional.
 
 This policy affects only LoopTroop's internal Git operations. It does not alter the repository's hook configuration for your own Git commands. The `?` beside each control opens this section.
 
@@ -846,7 +857,7 @@ The maximum runtime for a single bead attempt in `CODING`, including implementat
 
 **What retry means here:**
 
-LoopTroop generates a context wipe note summarizing the failure when possible, abandons the timed-out session so stale completions cannot finalize the bead, resets the worktree to the bead's start snapshot, opens a fresh OpenCode session, and retries — up to `Max Bead Retries` times. Repeated iteration timeouts consume this same attempt budget; once it is exhausted, CODING blocks with `BEAD_RETRY_BUDGET_EXHAUSTED`.
+LoopTroop generates a context wipe note summarizing the failure when possible, abandons the timed-out session so stale completions cannot finalize the bead, and attempts a safe reset to the bead's start snapshot before opening a fresh OpenCode session and retrying — up to `Max Bead Retries` times. A conflicting OpenCode step-cap marker can refuse that destructive reset and leave CODING blocked until recovery is safe. Repeated iteration timeouts consume this same attempt budget; once it is exhausted, CODING blocks with `BEAD_RETRY_BUDGET_EXHAUSTED`.
 
 **Trade-offs:**
 
@@ -915,7 +926,7 @@ How many iteration attempts LoopTroop allows for a failing bead before it enters
 
 **What "fresh session" means:**
 
-Each retry discards the polluted conversational state from the failed attempt, resets the worktree to the bead's start commit, opens a brand-new OpenCode session, and starts over with the context wipe note from the previous attempt as context. See [Beads & Execution — Bounded Ralph-Style Retry](/beads#bounded-ralph-style-retry) for the full design rationale.
+Each ordinary, safe retry discards the polluted conversational state from the failed attempt, resets the worktree to the bead's start commit, opens a brand-new OpenCode session, and starts over with the context wipe note from the previous attempt as context. A conflicting step-cap marker can refuse the destructive reset and preserve the edited config and sidecar instead. See [Beads & Execution — Bounded Ralph-Style Retry](/beads#bounded-ralph-style-retry) for the full design rationale.
 
 Startup and manual-retry recovery can avoid a fresh attempt when the interrupted bead already has a current matching `bead_execution` checkpoint or an explicitly preserved session continuation. In those cases LoopTroop finalizes the checkpointed result or continues the exact session. An otherwise unresumable in-progress attempt is appended to Failed Iteration Notes, safely reset, and advanced to the next iteration under this retry budget. Its replacement receives a fresh per-iteration timeout window.
 

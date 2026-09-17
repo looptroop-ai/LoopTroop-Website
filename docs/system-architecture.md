@@ -7,6 +7,13 @@ This document is the canonical architecture reference for the current LoopTroop 
 
 LoopTroop is not a thin chat wrapper around a coding model. It is a long-running workflow system with explicit planning phases, durable storage, isolated execution worktrees, resumable ticket actors, and restart-aware OpenCode session ownership. The core architectural rule is simple: **important state must survive the model and survive the browser**.
 
+> [!NOTE]
+> **Next release behavior.** The durable approval-save and runtime-recovery
+> details on this page are upcoming: content-hash save preconditions, retained
+> drafts, best-effort leaving flushes, and conditional step-cap or hook recovery.
+> A recovery conflict can refuse destructive reset; browser unload is not a
+> delivery guarantee.
+
 ## 1. Mental Model
 
 LoopTroop operates as a layered local system:
@@ -53,7 +60,8 @@ LoopTroop deliberately splits state across several storage layers. Each layer ow
 | `.ticket/runtime/execution-log.jsonl`, `.debug.jsonl`, `.ai.jsonl` | Durable workflow, debug, and AI-detail log channels | Live rows arrive through SSE; reload/history reads use the cooperative SQLite projection and paginated `/api/tickets/:id/logs` route |
 | `.ticket/runtime/state.yaml` | Derived runtime projection for the active non-terminal ticket | Rebuilt from ticket state on startup; convenient to inspect, but not the only source of truth |
 | `.ticket/runtime/execution-setup-profile.json` | Concrete execution environment profile produced after approved setup runs | Separate from the reviewable execution setup plan artifact |
-| `.ticket/opencode-steps-restore.json` | Recovery sidecar for temporarily capped `opencode.json` | Lets startup restore the exact pre-run bytes only when the run-owned `opencode.json` is still unchanged |
+| `.ticket/opencode-steps-restore.json` | Recovery sidecar for temporarily capped `opencode.json` | Lets startup restore the exact pre-run bytes only when the run-owned `opencode.json` is still unchanged; a conflicting file stays visible with its marker, and a missing marker supplies no ownership evidence |
+| `.ticket/runtime/hook-validation-restore.json` | Identity-bound restore marker for protected Git-hook validation | Records the worktree and Git-directory identities, index/worktree trees, and initial untracked set; invalid or escaped markers fail before recovery writes, while unknown additions stay intact |
 | Known config and ticket temp sidecars (`.proof`, `.recovery`, `.recovery.write-*`, and retained `.remove-*`) | Write-completeness, fallback ownership, and private cleanup records | Unproved orphan YAML/whole-file JSONL temps stay in place with a warning; an unresolved in-progress fallback marker can block startup, and cleanup has a separate scope |
 | `.ticket/runtime/execution-setup/**`, especially `tool-cache/` | Ticket-owned temp roots, wrapper outputs, execution-only toolchains, and reusable caches | Preserved across setup-plan rewinds when safe so retries do not throw away valid tool caches |
 | `.ticket/manual-qa/**` | Versioned checklists/results/coverage, evidence binaries, generation/operation receipts, clean baselines, and workspace-drift decisions | Outside CLEANING_ENV's selected transient roots and excluded from bead commits, candidate diffs, and PRs; explicit Delete Worktrees removes the containing worktree; evidence index locking uses a persistent SQLite database |
@@ -104,6 +112,15 @@ Structured output is a hard boundary. `server/structuredOutput/*` and `server/ph
 
 Human approval gates are content-addressed. The API exposes the current artifact hash for interview, PRD, beads, and execution setup plan views; approval requests must send `expectedContentSha256`; stale approvals return `409` instead of approving bytes the user did not review. Approval snapshots and receipts keep the reviewed raw content plus `content_sha256`, and interview/PRD receipts also record the post-stamp stored hash when approval metadata changes the YAML.
 
+Interview and PRD raw or structured saves use the same loaded hash as a
+precondition. A missing baseline returns `428`; a stale baseline returns the
+typed `409` conflict before the authoritative artifact changes. Post-approval
+restart edits hold the existing durable ticket claim through the write and
+awaited restart, then recheck its exact token before invalidation, so a
+competing writer is refused before destructive planning effects. The browser
+keeps an unconfirmed dirty draft separate from the server revision, and a
+best-effort leaving flush never becomes an unload-delivery guarantee.
+
 ## 6. Execution Flow
 
 Execution is built around beads, not around one monolithic coding prompt.
@@ -112,11 +129,11 @@ Execution is built around beads, not around one monolithic coding prompt.
 2. `GENERATING_EXECUTION_SETUP_PLAN` performs read-only setup-plan generation in a versioned attempt. A valid candidate and report remain in drafting history and are copied into a fresh approval attempt. Exhausted structured repairs preserve rejected output and diagnostics, then still hand off to approval; unexpected operational failures use `BLOCKED_ERROR`.
 3. `WAITING_EXECUTION_SETUP_APPROVAL` pauses for review of the separate approval copy composed from the AI proposal plus backend-owned current-host, identity, locked project policy, and hook evidence. The policy is read-only; raw or structured attempts to change it are normalized back to the ticket-start snapshot. Malformed generation disables Approve/Edit while preserving diagnostics and Regenerate.
 4. `PREPARING_EXECUTION_ENV` validates and materializes approved non-reproducible workspace inputs without replacing tracked ticket source, then follows repository evidence and the approved plan without assuming a programming language, build system, or project layout. Direct processes and explicitly named POSIX, Command Prompt, or PowerShell scripts run with repository-relative working directories and structured environment data. One Execution Setup Timeout deadline covers all active work in an attempt; each genuine retry receives a fresh budget.
-5. `CODING` selects the next runnable bead from the scheduler.
+5. `CODING` selects the next runnable bead from the scheduler and records its start `HEAD` before publishing `in_progress`; a failed checkpoint leaves the bead pending.
 6. `executeBead()` starts or reattaches to the owned OpenCode session for that bead attempt.
 7. The model must emit the expected structured bead status markers. Missing or malformed markers trigger a structured retry path instead of silently progressing.
 8. The coding agent runs the smallest appropriate bead-scoped checks, adapting planned commands when repository evidence requires it, and returns a structured `done/pass` marker. LoopTroop validates that marker and proceeds to local finalization without independently rerunning frozen bead commands; ticket-level Final Testing remains backend executed and mandatory.
-9. If the shared coding/verification deadline expires, LoopTroop appends a structured Failed Iteration Note, abandons the session, resets the worktree to the bead start commit, and retries in fresh context.
+9. If the shared coding/verification deadline expires, LoopTroop appends a structured Failed Iteration Note, abandons the session, and attempts a safe reset to the bead start commit before retrying in fresh context. A conflicting OpenCode step-cap marker can refuse that destructive reset while preserving the edited root config and sidecar; a later bead may continue without a fresh cap when no reset is needed, with valid marker evidence excluding the root config from delivery.
 10. Only after all declared commands pass does LoopTroop finalize the bead locally. Changed work must be committed, true no-op work may complete without a commit, push failures are warnings, and fatal finalization failures append a separate ANSI-free Finalization Failure Note before routing to manual `BLOCKED_ERROR` recovery.
 11. `RUNNING_FINAL_TEST`, optional Manual QA, `INTEGRATING_CHANGES`, and `CREATING_PULL_REQUEST` package the result for delivery. The project's saved Observe, Check, Require, or Run choice is snapshotted at ticket Start and remains authoritative. Setup approval may edit validation commands but not that policy. Integration refreshes drift evidence and applies the locked advisory, required, or native-hook behavior.
 12. During all non-terminal execution states, runtime projections and execution logs are updated so a restarted backend or reloaded browser can restore the ticket from durable state rather than from memory.
@@ -130,18 +147,20 @@ Recovery is a first-class architectural concern.
 | Failure type | Recovery strategy |
 | --- | --- |
 | Browser reload, close, or reconnect gap | REST state remains canonical; the browser keeps the last SSE event id, restores best-effort log cache detail, replays buffered live events, and on an SSE `replay_gap` clears the saved cursor and refetches tickets, artifacts, bead state, interview state, Manual QA/AI-detail views, and matching server logs |
-| Frontend crash or tab close | Interview drafts, approval drafts, and browser-cached logs are persisted locally and flushed on unload with best-effort keepalive behavior |
-| Concurrent/stale autosave | Server serializes each ticket/scope and compare-and-set rejects revision conflicts with the latest state; Manual QA keeps its five-second debounce/unload keepalive and derives its last-save age/exact timestamp from acknowledged saves |
+| Frontend crash or tab close | Interview drafts, approval drafts, and browser-cached logs are persisted locally and flushed on leaving with best-effort keepalive/beacon behavior; browser unload delivery is not guaranteed, and an optimistic retained draft is not a confirmed server save |
+| Concurrent/stale autosave | Approval editors retain the loaded content hash across refetch/remount; missing baselines fail with `428`, stale baselines with typed `409`, and failed saves remain retryable. UI-state writes use per-ticket/scope compare-and-set revisions and latest-wins ordering, retaining failed local drafts while fencing retries against the server revision |
 | Crash during atomic write or append | Startup scans canonical roots and known artifact allowlists. It promotes recognized JSON only after parsing, YAML only with a matching byte-length/SHA-256 `.proof`, and whole-file JSONL only when complete; an unproved orphan YAML or torn whole-file JSONL is warned about and left unpromoted, while append logs may receive bounded trailing-line repair. Fallback copies require a complete matching `.recovery` ownership marker and an exclusive no-follow target. An unresolved in-progress fallback marker raises `RecoveryBlockedError` before projections, hydration, or timers; unknown or legacy temps and symlink temps remain visible with diagnostics, and cleanup has a separate scope |
 | Invalid model output | Retry with repair or explicit re-prompt, depending on phase |
-| Bead execution deadline | Append a Failed Iteration Note, reset worktree, abandon the session, and retry in fresh context |
+| Bead execution deadline | Append a Failed Iteration Note, abandon the session, and attempt a safe reset before retrying in fresh context. A conflicting valid OpenCode step-cap marker can refuse the destructive reset and preserve the edited config and sidecar. |
+| Interrupted OpenCode step-cap restore | Preserve the edited root config and valid sidecar, refuse a destructive reset that would overwrite it, and let a later bead continue without a fresh cap when no reset is needed. A missing sidecar after restart supplies no ownership evidence. |
+| Interrupted protected Git-hook validation | Reuse the identity-bound marker. Invalid or escaped markers fail before recovery writes; unknown untracked additions remain intact and reentry is refused until attribution is resolved. |
 | OpenCode reconnect gap | Validate the exact project-local owned session against the remote session and the ticket-contained pending-session marker; preserve all centrally classified blocked-error continuations and all temporarily unverifiable records, and abandon only confirmed-missing or stale ownership. If both SQLite and marker storage are unavailable, only the current process guard remains, so restart recovery is not promised |
 | Backend process restart | Reconcile persisted XState snapshots, hydrate ticket actors from durable ticket state, and immediately process restored active snapshots. Drafting setup plans consume a durable regeneration request exactly once rather than duplicating or losing a generation. An interrupted coding attempt without a preserved continuation or current finalization checkpoint consumes a Failed Iteration Note, resets safely, advances its iteration, and receives a fresh configured deadline |
 | User edits approved interview or PRD | Archive the active approved generation and downstream attempts, cancel downstream sessions intentionally, clear stale downstream artifacts/UI state, persist a `user_edit_receipt:*`, and restart from the next drafting phase |
 | User edits or regenerates setup plan during runtime setup | Stop active runtime setup, archive the relevant setup-plan/runtime attempts, preserve the tool cache when safe, and clear stale outputs. Editing returns directly to `WAITING_EXECUTION_SETUP_APPROVAL`; regeneration persists the baseline/commentary and enters `GENERATING_EXECUTION_SETUP_PLAN` before fresh approval |
 | User retries setup with a note after the automatic budget ends | Keep the failed runtime phase attempt and its OpenCode session, send only the user's note to that session, and allow one manual setup attempt beyond the configured budget |
 | User edits the setup plan after a runtime setup block | Ask for confirmation, then archive the failed runtime attempt, return directly to `WAITING_EXECUTION_SETUP_APPROVAL`, and preserve the failed attempt for review. A later Regenerate action enters the drafting status and supplies its cleaned failure |
-| Stale approval | Return `409` with the expected and current SHA-256 hashes, keeping the ticket at the approval gate |
+| Stale approval | Return `409` with the expected and current SHA-256 hashes, keeping the ticket at the approval gate; missing save baselines return `428` before a raw or structured artifact write |
 | Manual QA generation/submission restart | Reuse the reserved checklist version or submission operation journal; deterministic action/origin/bead IDs prevent duplicate child work |
 | Application-created drift during QA | Stay in `WAITING_MANUAL_QA` and require include/discard for exactly audited paths before submit/skip |
 | Bead finalization failure | Append a concise Finalization Failure Note, keep the bead retryable, avoid `bead_complete`, send `BEAD_ERROR` with `BEAD_FINALIZATION_FAILED`, and route to manual `BLOCKED_ERROR` recovery |
@@ -446,7 +465,7 @@ On startup, LoopTroop restores durable state through `server/startup.ts` and `se
 
 1. Initialize the app/project databases and create runtime indexes.
 2. Classify the startup storage state and capture runtime diagnostics such as WSL mounted-drive warnings.
-3. Recover ticket runtime artifacts by finishing interrupted writes it can identify and vouch for, using `.ticket/opencode-steps-restore.json` to restore any run-owned `opencode.json` left capped by an interrupted coding run, repairing trailing JSONL corruption where safe, and rebuilding `.ticket/runtime/state.yaml` projections.
+3. Recover ticket runtime artifacts by finishing interrupted writes it can identify and vouch for, using `.ticket/opencode-steps-restore.json` to restore any run-owned `opencode.json` left capped by an interrupted coding run only when the marker and current bytes match, repairing trailing JSONL corruption where safe, and rebuilding `.ticket/runtime/state.yaml` projections. A missing sidecar provides no ownership evidence, so startup does not guess.
 4. Start the WAL checkpoint timer and probe OpenCode health.
 5. Hydrate XState actors for non-terminal tickets from attached project databases.
 6. Validate and reconnect active OpenCode sessions using project-local ticket identity. Eligible blocked-error continuations are matched through their unresolved occurrence, previous phase, and exact diagnostic session id; transiently unverifiable records remain active, while confirmed-missing or stale records are marked abandoned.

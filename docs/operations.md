@@ -90,9 +90,9 @@ operation — `LOOPTROOP_OPENCODE_MODE=mock` looks around without one.
 `looptroop doctor` reports which of those happened.
 
 > [!NOTE]
-> **Next release behavior.** Confirmed remote-stop cancellation, retryable
-> ownership, and the two-storage restart limit in the following note describe
-> the upcoming release.
+> **Next release behavior.** The following notes describe upcoming confirmed
+> remote-stop cancellation, retryable ownership, the two-storage restart
+> limit, and guarded approval-save/flush behavior.
 
 Cancellation and cleanup use confirmed remote-stop results. A local abort call
 that returns false, throws, or cannot be verified does not prove that OpenCode
@@ -100,6 +100,13 @@ stopped. LoopTroop keeps the session ownership visible and the ticket
 retryable. Startup can replay the ticket marker when the project database has no
 row, but it cannot claim restart recovery when both the database and marker
 storage are unavailable.
+
+Approval editing has the same conservative handoff. Interview and PRD panes
+keep the loaded content hash with a dirty draft; missing baselines fail with
+HTTP `428`, stale baselines with typed HTTP `409`, and failed saves stay
+retryable. Leaving a ticket can flush UI state with keepalive or beacon, but
+browser unload delivery is best-effort and an optimistic retained draft is not
+proof of a durable save.
 
 ---
 
@@ -128,7 +135,9 @@ it up.
 
 > [!NOTE]
 > **Next release behavior.** The ownership marker and unresolved fallback-sidecar
-> behavior in the runtime-storage table describe the upcoming release.
+> behavior in the runtime-storage table describe the upcoming release. The
+> OpenCode step-cap restore sidecar and protected Git-hook recovery marker below
+> are part of the same upcoming behavior.
 
 LoopTroop deliberately separates app-level state from project-level runtime state.
 
@@ -142,6 +151,23 @@ LoopTroop deliberately separates app-level state from project-level runtime stat
 | `<repo>/tmp/dev-preflight-report.json` | Last `npm run dev` preflight result: dependency sync, audit remediation, OpenCode upgrade, and install checks | Rebuilt on successful dev preflight; safe to delete |
 | `<repo>/tmp/dev-maintenance-state.json` | Daily maintenance timestamps and invalidation bookkeeping for dependency sync, audit remediation, and OpenCode upgrade | Lets normal startup defer already-run daily maintenance until relevant inputs change |
 | `~/.local/share/opencode/log/` | Default local OpenCode log directory | Used for managed OpenCode DEBUG logs and generic provider-error enrichment unless `LOOPTROOP_OPENCODE_LOG_DIR` points elsewhere |
+
+When a coding run applies an OpenCode step cap, `.ticket/opencode-steps-restore.json`
+records the exact root `opencode.json` bytes to restore. A valid pending marker
+keeps that temporary root config out of bead and final candidate commits without
+adding an `opencode.json` rule to a common Git exclude. If the current bytes
+conflict with the marker, `CODING` preserves the edited config and sidecar and
+refuses a destructive reset that would overwrite them. A later bead can continue
+without a fresh cap when no reset is needed. If the sidecar is missing after a
+restart, ownership cannot be proven and LoopTroop does not guess. Filesystem-
+equivalent casing follows the actual worktree paths; native Windows/macOS
+equivalent-case behavior is not claimed here.
+
+Protected explicit Git-hook validation uses a separate
+`.ticket/runtime/hook-validation-restore.json` marker bound to the worktree and
+Git directory. An invalid or escaped marker fails before recovery writes. If an
+interrupted validation leaves unknown untracked additions, those paths stay in
+place and reentry waits for safe attribution.
 
 When a project is attached, LoopTroop applies its saved [folder-ignore policy](configuration.md#looptroop-folder-ignore-policy) to `/.looptroop/` and `/.ticket/`. **This clone** (`local`) is the default and appends the rules to the clone's Git exclude file, normally `.git/info/exclude`, without modifying tracked files. **Repository** (`repo`) appends them to the project's tracked `.gitignore`, while **Nowhere** (`skip`) deliberately writes neither destination and leaves a visible warning. Ticket initialization reapplies the saved project policy; for non-skip projects, it uses the shared Git exclude only when a new worktree does not yet see effective rules. Existing rules are never removed automatically.
 

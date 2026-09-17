@@ -266,6 +266,49 @@ blocking point. This process-level startup failure occurs before ticket actors
 exist, so it does not create a `BLOCKED_ERROR` ticket occurrence or expose
 ticket Retry, Continue, or Cancel actions.
 
+#### Coding and integration recovery safeguards
+
+> [!NOTE]
+> **Next release behavior.** The conditional step-cap and Git-hook recovery
+> safeguards in this subsection describe the upcoming release.
+
+When `CODING` reports an OpenCode step-cap restore conflict, LoopTroop keeps the
+edited root `opencode.json` and `.ticket/opencode-steps-restore.json` available
+for review. It refuses a destructive reset only when the current bytes conflict
+with valid marker evidence. Ordinary capped retries continue normally. A later
+bead may continue without a fresh cap when no reset is needed, and the valid
+marker keeps the root config out of bead and final staging. If the sidecar is
+missing after a restart, ownership cannot be proved, so LoopTroop does not guess.
+
+During `INTEGRATING_CHANGES`, protected explicit hook validation can refuse
+reentry when an interrupted restore cannot safely account for unknown untracked
+additions. The persisted marker binds the worktree and Git directory as well as
+the index/worktree trees and initial untracked set. Invalid or escaped markers
+fail before recovery writes. Unknown additions remain intact until their
+attribution is resolved. Normal integration still follows the selected hook
+policy; this guard does not claim that unrelated hook commands are harmless or
+fully transactional.
+
+#### Approval-save and draft diagnostics
+
+> [!NOTE]
+> **Next release behavior.** The approval-save baseline checks, retained drafts,
+> and best-effort leaving flush described in this subsection are upcoming.
+
+Approval panes retain the content hash loaded with a dirty interview or PRD
+draft. A missing baseline is reported as HTTP `428`; a stale baseline is a
+typed HTTP `409` conflict. The server checks that precondition for both raw and
+structured saves before changing the authoritative artifact. A competing
+post-approval writer can also receive `409` before restart or invalidation, so
+the right recovery is to reload or retry the current draft rather than assume
+both saves were accepted.
+
+If a pane leaves or the selected ticket changes, its UI-state flush is
+best-effort. A failed keepalive/beacon leaves the newest draft visibly
+unsaved/error for the existing retry path. A completed GET may remember the
+remote revision while retaining that unconfirmed local payload; it must not be
+read as proof that the browser unload delivered the save.
+
 #### Remote-stop uncertainty and ownership recovery
 
 > [!NOTE]

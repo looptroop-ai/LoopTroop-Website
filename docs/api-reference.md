@@ -381,6 +381,10 @@ Worktree delete response:
 
 Project deletion (`DELETE /api/projects/:id`) returns 409 when any ticket in the project is not in `DRAFT`, `COMPLETED`, or `CANCELED` status. Finish or cancel all active tickets before deleting the project. Worktree deletion is narrower: it only removes completed and canceled ticket worktrees and leaves active ticket worktrees untouched. Before removal, LoopTroop safely restores owner permissions throughout each managed worktree without following symlinks, allowing cleanup of read-only outputs created by project tooling while preserving targets outside the worktree.
 
+> [!NOTE]
+> **Next release behavior.** The guarded approval-save and UI-state draft
+> retention details in the ticket routes below describe the upcoming release.
+
 ## Ticket Routes
 
 Ticket routes are implemented using a modular handler architecture located in `server/routes/ticketHandlers/*`. This splits the broad ticket API into focused domains:
@@ -506,6 +510,13 @@ Example UI-state response:
 ```
 
 The UI-state channel is server-owned compare-and-set storage. Each mutation supplies an `expectedRevision` and unique `actionId`. Saves are serialized per ticket/scope; an exact revision match increments the server revision, while stale, equal-but-conflicting, or otherwise mismatched writes return `409` with the latest state and revision. Reusing the same action id is idempotent. `clientRevision` remains as a response compatibility alias for `revision`.
+
+The browser may keep a pending or failed local draft while a completed `GET`
+records the server revision it observed. That revision is a fence for the next
+retry; it does not rebase the unconfirmed local payload or turn it into a
+confirmed save. A successful mutation publishes its new revision before the
+next queued mutation is sent, and a delayed older response cannot replace a
+newer cache entry.
 
 UI-state `scope` must match `^[a-zA-Z0-9:_-]+$` and be at most 80 characters. Stored UI-state payloads are capped at 2 MiB. A successful `PUT` returns the incremented revision; a conflict response includes `conflict: true`, the latest `data`, and the current revision so the caller can reconcile before retrying.
 
@@ -653,6 +664,17 @@ the ticket remains unchanged.
 | `PATCH` | `/api/tickets/:id/edit-answer` | Edit a previously recorded answer while waiting for interview answers |
 
 Interview responses include `contentSha256` for the reviewed raw interview bytes. PRD file responses from `/api/files/:ticketId/prd` include `contentSha256` for the returned file content.
+
+Raw and structured interview/PRD saves must send the `contentSha256` value that
+was loaded with the draft as `expectedContentSha256`. A missing baseline returns
+HTTP `428`; a baseline that no longer matches returns the typed stale-approval
+HTTP `409` with the expected and current hashes. The same precondition is
+checked before either save mode writes. A post-approval edit holds the existing
+ticket planning claim across the durable write, awaited restart, and downstream
+invalidation. A competing live writer can therefore receive `409` before
+restart work begins; these requests are protected, not all queued for success.
+The claim is renewed only for its exact token after awaited stop work, so an
+expired holder cannot apply side effects to a successor's edit.
 
 `POST /api/tickets/:id/skip` accepts the same fields as `answer-batch` plus `bulkSkipReason`, so the client can persist already entered answers before skipping the remaining questions. Both routes are strict and validate the same things, but they are separate schemas: sharing one is how a field added for a single route gets silently ignored on the other.
 

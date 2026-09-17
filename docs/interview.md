@@ -239,6 +239,31 @@ At the approval step, the user can review the artifact in:
 
 Approval includes the SHA-256 hash of the exact raw content the user reviewed. If the stored artifact changes before approval lands, the server rejects the request with a stale-content `409` instead of approving a different version by mistake.
 
+> [!NOTE]
+> **Next release behavior.** Approval-draft baseline retention and
+> best-effort leaving flushes in this subsection describe the upcoming save
+> safety behavior.
+
+The structured editor and raw YAML editor carry the content hash they loaded
+with a dirty draft. Both save modes send that same baseline, so a missing
+baseline fails closed with HTTP `428` and a stale one returns the typed HTTP
+`409` conflict before the authoritative interview is changed. A successful
+save advances the baseline; a failed save keeps the latest text visibly
+unsaved and retryable. Refetching or remounting does not silently rebase local
+edits onto newer interview content.
+
+When an already approved interview is edited before `PRE_FLIGHT_CHECK`, the
+save holds the ticket's durable planning claim through the write, awaited
+restart, and downstream invalidation. A competing live writer can receive
+`409` before restart work begins, and an expired holder cannot apply side
+effects after a successor takes over. This protects the transition without
+turning every request into a queue or claiming that both writers succeed.
+
+Leaving the interview or changing tickets may start a best-effort UI-state
+flush. Keepalive/beacon delivery has no browser-unload guarantee. If it fails,
+the draft remains marked unsaved/error and follows the existing retry path;
+retaining it in the client cache is not confirmation of a server save.
+
 Editing rules are intentionally strict:
 
 - **At `WAITING_INTERVIEW_APPROVAL`**: saving edits rewrites the interview into canonical form and clears approval state, so the updated artifact must be reviewed and approved again.
