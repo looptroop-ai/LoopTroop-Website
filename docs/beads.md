@@ -187,6 +187,12 @@ The raw read exposes the full repair payload:
 > empty value. Submitted edits reject unknown statuses and invalid dependency
 > edges rather than silently turning them into runnable work.
 
+> [!NOTE]
+> **Next release behavior.** The structured editor gives each process argument
+> its own text field. Spaces, newlines and empty arguments stay literal; the
+> editor does not split them into shell words. List fields have numbered
+> accessible names within their groups.
+
 Unknown top-level and dependency keys are retained during canonicalization and
 save.
 
@@ -212,6 +218,11 @@ diagnostic is present, so damaged data cannot look complete.
 > generation still require a valid authoritative tracker.
 
 Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/beads` requires `X-Content-Sha256` on edits to an existing plan, returns `428` when the header is missing, and returns `409` when the hash is stale. A first write to a missing tracker needs no hash because there is nothing to overwrite. The optional `X-Edit-Surface` request header records whether the save came from the JSONL tab (`jsonl`) or the structured editor (`structured`, including the default when the header is missing or unrecognized). The approval draft keeps its immutable base hash through autosave, refetch, edit, reload, save, and approve; a stale write never retags the open draft.
+
+> [!NOTE]
+> **Next release behavior.** Saves retain the draft's original hash, while
+> approval uses the hash of the current fetched plan. A failed request for
+> optional UI-state data does not prevent approval of a loaded, valid plan.
 
 Input aliases are normalized to the canonical `dependencies.blocked_by` form,
 which is the only dependency spelling written to JSONL.
