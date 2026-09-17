@@ -175,6 +175,35 @@ tickets — and removes them only when asked. It is worktree housekeeping, not
 application-data cleanup: it never touches your configuration, database, logs or
 tickets.
 
+> [!NOTE]
+> **Next release behavior.** The cleanup recheck and safety boundaries below
+> describe the upcoming release. The currently published release and the pinned
+> CLI reference above do not include these process and log-follow fixes yet.
+
+With `--apply`, it repeats the containment, ownership, activity, registration,
+and Git checks immediately before removing each candidate. If a worktree changed
+after the plan was made, it stays in place.
+
+## CLI safety boundaries
+
+Each configuration directory has one `daemon.lock`, held by the running daemon.
+Stale-state cleanup re-reads the recorded instance while holding that same lock,
+so a stopped daemon cannot remove a successor's `daemon.json`. Concurrent
+`start` calls report only the child that owns the ready state; a losing call does
+not claim the winner's daemon.
+
+Process termination requires the captured start identity for the target. Missing,
+changed, or otherwise unverifiable identity refuses the signal. On Windows,
+`taskkill /T /F` is forceful rather than graceful. On platforms without retained
+descendant enumeration, an unknown descendant is not guaranteed to be gone.
+
+Daemon URLs use bracketed IPv6 literals wherever a host and port are combined.
+`logs --follow` registers its watcher before draining the tail handoff, keeping
+the byte offset, partial line, and UTF-8 decoder state continuous across reads;
+rotation or shrink resets the offset and decoder before reading the new file.
+Windows command logs redact profile path prefixes and retain only the final
+visible path segments.
+
 ## Exit codes
 
 | Code | Meaning |

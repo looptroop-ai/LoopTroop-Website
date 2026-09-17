@@ -54,6 +54,12 @@ operator-controlled, add that **absolute** directory to
 `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`; otherwise move or reinstall the tool into a
 location owned by you, root, or the Node runtime owner.
 
+> [!NOTE]
+> **Next release behavior.** When a diagnostic prints an HTTP origin, IPv6 host
+> literals are bracketed before the port, for example `http://[::1]:3000`. The
+> same formatting is used by `status`, `open`, and `setup`, so the displayed
+> origin is a usable URL.
+
 `git` is required and `gh` is not: a missing `git` fails the run, a missing `gh`
 only warns, because `gh` is needed for the pull-request step at the end of a
 ticket and nothing before it. A missing `gh` still prints `✗` — the mark

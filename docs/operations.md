@@ -58,9 +58,25 @@ by cancelled or interrupted tickets, inside your project, and never touches
 configuration, tickets or the database. It refuses to run while the daemon is up,
 because those worktrees may be in use.
 
+> [!NOTE]
+> **Next release behavior.** The cleanup and process-control guarantees below
+> describe the upcoming release. The currently published release does not
+> include these changes yet.
+
+With `--apply`, it repeats containment, ownership, activity, registration, and
+Git checks immediately before each removal and keeps a candidate that changed
+after the plan.
+
 One daemon runs per configuration directory, held by a lock that records which
 process took it rather than only when it last checked in. To run two, give each
-its own `LOOPTROOP_CONFIG_DIR` and port.
+its own `LOOPTROOP_CONFIG_DIR` and port. Stale-state cleanup re-reads the
+instance under that same lock, and a concurrent start cannot claim another
+invocation's ready daemon.
+
+Signals require a captured process start identity. LoopTroop refuses to signal a
+missing, recycled, or unverifiable process. Windows termination uses forceful
+`taskkill /T /F`; platforms without retained descendant enumeration do not
+promise that unknown descendants have exited.
 
 ## OpenCode is managed for you
 

@@ -275,6 +275,19 @@ by `npm run dev` instead.
 | Install channel and update checks | `server/lib/installChannel.ts`, `server/lib/updateCheck.ts` |
 | Standalone executable | `server/lib/isSea.ts`, `server/lib/seaAssets.ts` |
 
+> [!NOTE]
+> **Next release behavior.** The process and log-safety details below describe
+> the upcoming release. The currently published release does not include these
+> changes yet.
+
+Daemon-state cleanup re-reads the instance record under the existing lock before
+removing it. CLI process control carries a captured start identity through
+escalation and refuses missing or recycled identities; Windows uses forceful
+`taskkill /T /F`, and platforms without retained descendant enumeration cannot
+guarantee that unknown descendants have exited. CLI URL construction keeps IPv6
+host literals bracketed, while log-follow handoff preserves byte, partial-line,
+and UTF-8 decoder state.
+
 ## 10. ASCII Overview
 
 ```text
