@@ -75,6 +75,12 @@ its own `LOOPTROOP_CONFIG_DIR` and port. Stale-state cleanup re-reads the
 instance under that same lock, and a concurrent start cannot claim another
 invocation's ready daemon.
 
+In the next release, a start command can also recognize its own still-live
+child through the process handle it holds when Windows' start-time lookup is
+temporarily unavailable. This readiness fallback does not apply to exited
+children or tokenless records found by a later command, and does not authorize
+signalling a process by PID alone.
+
 Signals require a captured process start identity. LoopTroop refuses to signal a
 missing, recycled, or unverifiable process. Windows termination uses forceful
 `taskkill /T /F`; platforms without retained descendant enumeration do not
