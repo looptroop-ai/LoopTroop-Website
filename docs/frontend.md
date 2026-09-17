@@ -484,6 +484,17 @@ unsaved in-memory modal draft is not promised to survive a reload.
 > list when retrying a Git check, and stale navigation cannot cancel a newer
 > check. Modal focus follows the top visible dialog, including rapid reopen.
 
+In the next release, creating a project or ticket while newer edits are present
+keeps the form open and switches it to editing the item returned by the server.
+The next Save updates that same item instead of creating a duplicate. Editable
+fields keep the later draft and its unsaved-change warning. Identity fields
+that cannot change after creation—the project folder and short name, or a
+ticket's project—are locked while creation is pending.
+Create & Start also locks workflow settings during that operation, because
+those settings cannot change once the ticket starts. Title, description, and
+priority remain editable. If starting fails after creation, the form keeps the
+created ticket instead of trying to create it again.
+
 The About modal also consumes `useUpdateStatus`. It shows current/latest
 versions, the install channel and ordered update lifecycle, while its Changelog
 hover/focus card renders the complete latest GitHub release body in a bounded

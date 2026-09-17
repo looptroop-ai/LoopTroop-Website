@@ -61,19 +61,21 @@ port scope of their own.
 
 ### Browser cookies and remote mode
 
-When remote access is explicitly enabled, a request that carries the session
-cookie still has to prove same-origin with the daemon's canonical authority.
-With an `Origin` header, its scheme, host, and effective port must match the
-actual request authority. In local mode, the request Host authority must be
-recognized as loopback; Origin parsing rejects non-canonical hostname spellings,
-including alternate IPv4 forms, and explicit port `0` is rejected. A request
-without `Origin` must carry `Sec-Fetch-Site: same-origin`. Remote opt-in does
-not add a new strict Host-name validator to requests without an Origin, and
-explicit configured development origins retain their configured scheme and
-authority. A bearer-only script request that has no session cookie remains valid
-without that browser header. An invalid bearer header does not turn a
-cookie-bearing request into bearer-only authentication, and forwarded host
-headers do not widen the authority check.
+In the next release, remote browser sessions require an explicit HTTPS
+`LOOPTROOP_PUBLIC_ORIGIN` (or `publicOrigin` in `config.json`) alongside remote
+API opt-in. The backend may use HTTP internally. Cookie-bearing Origins must
+match the configured origin; cookie-bearing requests without Origin require
+`Sec-Fetch-Site: same-origin` and the matching public Host. This includes SSE,
+so a reverse proxy must preserve Host. Forwarded host and scheme headers do not
+establish trust.
+
+The configured browser session uses a Secure cookie. Without the setting,
+remote browser exchange and ambient cookies are refused; bearer-only scripts
+remain supported. A bearer header never bypasses a cookie-origin check. Local
+mode keeps its loopback Host requirement, and explicit development origins
+remain separate. Origin parsing rejects alternate IPv4 spellings and explicit
+port `0`. CLI sign-in links point to the configured public origin, while local
+daemon-control requests still use its internal address.
 
 The same authentication boundary applies to `/api/stream`. Admission reserves
 capacity before the asynchronous stream opens, with six connections per ticket

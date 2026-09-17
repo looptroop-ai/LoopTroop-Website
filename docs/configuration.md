@@ -11,7 +11,8 @@ The singleton profile is the baseline configuration, accessible through the **Co
 > ordinary, non-conflicting run remains the normal restore path; a conflict can
 > refuse destructive recovery while preserving the edited files and markers.
 > The remote-mode cookie enforcement, strict Origin checks, port validation, and
-> configured development-origin behavior described below are also upcoming.
+> configured development-origin behavior described below are also upcoming,
+> as is the explicit-directory rule for unverifiable executable ownership.
 
 ## Where LoopTroop Keeps Its State
 
@@ -65,6 +66,7 @@ one flat list.
 | Log level | `logLevel` | `LOOPTROOP_LOG_LEVEL` | — | `info` |
 | OpenCode address | `opencodeBaseUrl` | `LOOPTROOP_OPENCODE_BASE_URL` | — | `http://127.0.0.1:4096` |
 | OpenCode mode | `opencodeMode` | `LOOPTROOP_OPENCODE_MODE` | — | `live` |
+| Public browser origin (next release) | `publicOrigin` | `LOOPTROOP_PUBLIC_ORIGIN` | — | Unset |
 
 Resolved elsewhere, and **not** through that chain:
 
@@ -91,10 +93,13 @@ a missing one, and `doctor` says it was refused and why.
 
 An extensionless Windows path is resolved through the executable siblings listed
 by `PATHEXT`, in that order, before the normal path trust checks run. The
-extensionless file itself is never run. In a
-container or sandbox that remaps file owners, LoopTroop will also recognise the
-platform's verified unmapped-owner value during this check; an unreadable or
-ambiguous mapping remains refused.
+extensionless file itself is never run.
+
+In the next release, an unmapped Linux owner does not establish trust. The same
+overflow UID can represent host root or a different host user, so LoopTroop
+cannot use it to verify ownership. This also applies when Node's own executable
+has that owner. If you trust the tool's directory, name that absolute directory
+in `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`; otherwise the tool remains refused.
 
 LoopTroop automatically trusts OpenCode in its canonical install directory
 (`~/.opencode/bin`, or custom paths set via `OPENCODE_INSTALL_DIR` or
@@ -105,7 +110,9 @@ trusted owner, the binary and directory chain are not writable by group or
 others, and the binary is protected inside a private directory (such as `/root`
 or `~` with mode `0700` denying group and other traversal; mode `0555` alone or
 sticky directories like `/tmp` are not excused). Sibling binaries in that
-directory must still pass normal ownership checks.
+directory must still pass normal ownership checks. In the next release, this
+exception does not accept an unmapped owner; that still needs an explicit
+trusted-directory setting.
 
 If a tool lives somewhere else on purpose, for example a toolchain owned by a
 service account, name its directory:
@@ -174,18 +181,26 @@ API or browser-session token minted by the daemon and recorded in owner-only
 daemon state. See [API Reference](api-reference.md) for the credentials used by
 callers after the daemon starts.
 
-Remote browser requests that carry a session cookie must prove same-origin with
-the daemon's canonical authority. A request without an `Origin` header must
-instead identify itself as same-origin with `Sec-Fetch-Site: same-origin`.
-Bearer-only scripts remain supported without that browser-cookie proof. An
-invalid bearer value cannot bypass the cookie check. In local mode, the request
-Host authority must be recognized as loopback. Origin parsing rejects
-non-canonical hostname spellings, including alternate IPv4 forms, and an
-explicit port `0` is rejected. A same-authority Origin must match the actual
-request scheme, hostname, and effective port. Remote opt-in does not add a new
-strict Host-name validator to requests without an Origin; explicit configured
-development origins retain their configured scheme and authority. Forwarded
-host headers do not expand the trusted authority.
+In the next release, remote browser sessions require one explicit HTTPS origin
+in `LOOPTROOP_PUBLIC_ORIGIN` or the `publicOrigin` setting. It must be an origin,
+not a URL with credentials, a route, query, or fragment. Enable remote API access
+for the browser-facing deployment; the backend can still bind to loopback and
+use HTTP behind the proxy. Neither setting creates a TLS listener or changes
+the bind address.
+
+Cookie-bearing requests with an `Origin` must match that public origin exactly.
+Without `Origin`, they require `Sec-Fetch-Site: same-origin` and a Host matching
+the configured public authority, so the proxy must preserve the public Host.
+Forwarded host and scheme headers are not trusted. Browser cookies use `Secure`
+for this configuration, and CLI sign-in links use the public origin while
+daemon-control API calls continue to use the internal address.
+
+Without a configured public HTTPS origin, remote access is bearer-token only:
+browser sign-in and session cookies are refused. Adding a bearer header does
+not bypass checks on a cookie-bearing request. Local mode retains its loopback
+Host and same-origin checks. Origin parsing rejects alternate IPv4 spellings
+and explicit port `0`; configured development origins remain a separate
+development-mode exception.
 
 ## Scope And Inheritance
 

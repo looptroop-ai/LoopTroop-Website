@@ -28,6 +28,10 @@ LoopTroop runs OpenCode in `dangerously-skip-permissions` (or YOLO) mode so that
 > **Run LoopTroop inside a disposable VM, cloud dev machine, or sandboxed environment.**
 >
 > Git worktrees protect your repository checkout, but they do not sandbox command execution. A bad generation could delete system folders, corrupt configs, or break your workspace. Worktrees protect code; a VM protects everything else.
+>
+> Only select repositories you trust. Their local Git configuration is honored,
+> including `core.sshCommand`: remote Git operations and connection checks can
+> execute that SSH wrapper with your account's permissions.
 
 ## 2. Installation
 

@@ -71,6 +71,11 @@ operator-controlled, add that **absolute** directory to
 `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`; otherwise move or reinstall the tool into a
 location owned by you, root, or the Node runtime owner.
 
+In the next release, this refusal also applies when a Linux user namespace
+hides ownership behind its overflow UID. That value cannot prove that host
+root owns the tool. An explicitly trusted directory is required in that case;
+the Node executable having the same unverifiable owner does not grant trust.
+
 > [!NOTE]
 > **Next release behavior.** When a diagnostic prints an HTTP origin, IPv6 host
 > literals are bracketed before the port, for example `http://[::1]:3000`. The

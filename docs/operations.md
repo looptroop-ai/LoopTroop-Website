@@ -110,6 +110,8 @@ If writing the marker fails, the current process still blocks startup, but the
 marker cannot provide that protection after a restart. Council cleanup waits
 only a bounded time for a session still being created; a late session is stopped
 when its identity becomes available, and an unconfirmed stop retains ownership.
+Startup recovery recognizes interrupted atomic writes of both the cancellation
+marker and `opencode-pending-sessions.json`, which stores session ownership.
 
 Approval editing has the same conservative handoff. Interview and PRD panes
 keep the loaded content hash with a dirty draft; missing baselines fail with
@@ -143,11 +145,21 @@ daemon startup handoff retains its configured daemon environment. Filtering
 credential propagation is not a process sandbox; commands still run with the
 same user's filesystem access.
 
-The request boundary keeps local-mode Host validation loopback-only. Its Origin
-check uses strict hostname spelling and the actual request scheme, hostname, and
-effective port; an explicit port `0` is rejected. Remote opt-in does not claim a
-new strict Host-name validator for requests without an Origin, and configured
-development origins retain their configured scheme.
+LoopTroop also preserves a repository's `core.sshCommand`. This supports custom
+SSH setups, but Git can execute the configured wrapper with your account's
+permissions during remote operations and connection checks. Only select
+repositories whose code and Git configuration you trust; worktrees do not
+sandbox these commands.
+
+The request boundary keeps local-mode Host validation loopback-only. In the next
+release, remote browser access requires one explicit HTTPS
+`LOOPTROOP_PUBLIC_ORIGIN` alongside remote API opt-in. The proxy may forward over
+HTTP but must preserve the public Host for cookie-bearing requests without an
+Origin, including SSE. Forwarded host and scheme headers do not grant trust.
+Plain-HTTP remote access remains bearer-token only; a bearer header cannot
+bypass checks on an accompanying cookie. Origin parsing uses strict hostname
+spelling and rejects explicit port `0`. The setting does not change the bind
+address or provide TLS itself.
 
 ---
 
@@ -411,6 +423,7 @@ The app database is runtime-bootstrapped by `server/db/init.ts`. The committed m
 | `LOOPTROOP_BACKEND_HOST` | Backend bind host; defaults to `127.0.0.1` |
 | `LOOPTROOP_BACKEND_PORT` | Override backend port |
 | `LOOPTROOP_ALLOW_REMOTE_API=1` | Required before binding the backend to a non-loopback host; remote binds still require `LOOPTROOP_API_TOKEN` |
+| `LOOPTROOP_PUBLIC_ORIGIN` | Next release: one browser-visible HTTPS origin for a reverse proxy; no credentials, path, query, or fragment. Use remote API opt-in and preserve the public Host. Does not change the bind address or trust forwarded headers |
 | `LOOPTROOP_ALLOW_UNAUTHENTICATED=1` | Permit unauthenticated `/api/*` access only when no `LOOPTROOP_API_TOKEN` is configured; intended for local-only troubleshooting, never for use together with `LOOPTROOP_ALLOW_REMOTE_API=1` |
 | `LOOPTROOP_API_TOKEN` | Optional token required by `/api/*`; `npm run dev` generates an ephemeral value when unset and the Vite dev proxy forwards it server-side |
 | `LOOPTROOP_TRUST_PROXY=1` | Trust `x-forwarded-for` / `x-real-ip` for rate-limit buckets; leave unset unless a trusted proxy owns those headers |
