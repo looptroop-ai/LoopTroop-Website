@@ -241,6 +241,11 @@ The only SQL foreign key here is the destination child ticket. The parent submis
 
 ### `interview_batch_claims`
 
+> [!NOTE]
+> **Next release behavior.** Batch-claim lease recovery and the separate
+> non-expiring pending-stop safety marker described below are part of the
+> upcoming release.
+
 This table is the one durable lock that says an interview answer batch is being processed right now.
 
 Columns:
@@ -254,7 +259,8 @@ Operational notes:
 
 - `ticket_id` being the primary key means there can be only one live claim row per ticket
 - `token` identifies the holder, so a stale process cannot release a claim that expired and was reacquired by someone else
-- `expires_at` makes crash recovery self-healing: a dead process can leave the row behind, but once the expiry passes the ticket can be claimed again without manual cleanup
+- `expires_at` makes crash recovery self-healing: a foreign claim can be reclaimed once its ordinary lease expires—the fallback when liveness cannot be checked—and a recorded PID proven gone is a separate conservative reclaim path
+- A live lease protects live, invalid, or otherwise unverified owners. A non-expiring pending-stop marker is separate safety ownership and takes precedence over ordinary lease expiry until the matching remote stop is confirmed, so a delayed timeout cannot reclaim a newer batch.
 
 ### `ticket_phase_attempts`
 
@@ -278,7 +284,15 @@ Operational notes:
 
 ### `opencode_sessions`
 
-This table is what makes restart-safe OpenCode ownership possible.
+> [!NOTE]
+> **Next release behavior.** Ticket-contained OpenCode ownership markers and
+> the two-storage restart limit described below are part of the upcoming
+> release.
+
+This table is the primary durable record for OpenCode ownership. Restart
+recovery is possible when it or the ticket-contained pending-session marker is
+available and the exact remote session still matches. If both storage layers
+are unavailable, only the current process guard remains.
 
 Columns:
 
@@ -298,6 +312,7 @@ Operational notes:
 
 - the ownership slot is the full tuple of ticket + phase + phase attempt + optional member/bead/iteration/step
 - reconnect/continue logic validates the **exact project-local** owned active session record, not just “some session for this ticket”; blocked-error restart recovery also requires the unresolved occurrence, previous phase, and diagnostic session id to match
+- a failed ownership write can use the ticket-contained `runtime/opencode-pending-sessions.json` marker; startup can replay that marker even when this table has no row
 - transient OpenCode verification failures preserve `active`, while only confirmed remote absence or stale ownership changes the row to `abandoned`
 - `state` is currently `active`, `completed`, or `abandoned`
 - `ticket_id` is nullable and becomes `NULL` if a referenced ticket is removed

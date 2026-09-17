@@ -266,6 +266,21 @@ blocking point. This process-level startup failure occurs before ticket actors
 exist, so it does not create a `BLOCKED_ERROR` ticket occurrence or expose
 ticket Retry, Continue, or Cancel actions.
 
+#### Remote-stop uncertainty and ownership recovery
+
+> [!NOTE]
+> **Next release behavior.** Confirmed-stop handling, marker replay, and the
+> two-storage restart limit in this subsection describe the upcoming release.
+
+An abort request that returns false, throws, or cannot be verified is not proof
+that OpenCode stopped. The ticket stays retryable, and the session ownership
+remains visible so Retry or a later reconciliation can try again. Project
+SQLite ownership normally has a ticket-contained fallback marker at
+`.ticket/runtime/opencode-pending-sessions.json`, which startup can replay even
+when the database row is missing. If both SQLite and marker storage are
+unavailable, only the current process guard remains. A restart cannot claim
+recovery in that case.
+
 ### 3.1 OpenCode Provider Error Enrichment
 
 OpenCode sometimes streams only `Provider returned error` even though its local log contains the exact provider failure. LoopTroop best-effort correlates those generic stream errors with recent OpenCode log files by `session.id` and replaces the generic summary with a sanitized provider summary when a match exists.

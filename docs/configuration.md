@@ -906,7 +906,12 @@ When the deadline expires, LoopTroop stops scheduling new setup work and returns
 **Default:** 5  
 **Range:** 0–20
 
-How many fresh-session re-attempts LoopTroop allows for a failing bead before it enters `BLOCKED_ERROR`. The same limit is also used for final-test retries in `RUNNING_FINAL_TEST`.
+> [!NOTE]
+> **Next release behavior.** The automatic bead-response continuation scope and
+> finite/zero semantics below describe the upcoming release. User-facing
+> Continue across workflow phases is separate and is not counted by this cap.
+
+How many iteration attempts LoopTroop allows for a failing bead before it enters `BLOCKED_ERROR`. Within each bead iteration, a finite value separately caps automatic bead-response continuation turns; `0` means unlimited for that automatic path. The same limit is also used for final-test retries in `RUNNING_FINAL_TEST`.
 
 **What "fresh session" means:**
 
@@ -920,13 +925,13 @@ Startup and manual-retry recovery can avoid a fresh attempt when the interrupted
 | --- | --- |
 | Fails fast, lower token cost | More attempts before giving up |
 | Less tolerance for transient model failures | Useful for flaky tests or non-deterministic environments |
-| 0 means zero retries — the first failure immediately blocks | High values can mask persistent coding problems |
+| 0 means unlimited automatic continuation and needs deliberate use | High values can mask persistent coding problems |
 
 **When to change:**
 
 - Lower for tickets in well-understood codebases where repeated failures usually indicate a real problem, not a fluke.
 - Raise for greenfield work, unstable test suites, or providers with high per-call variance.
-- Setting to 0 effectively disables retry: any iteration failure immediately blocks the bead.
+- Set to 0 only when unlimited automatic continuation is intentional; a finite value keeps that path bounded.
 
 **See also:** [Beads & Execution → Max Bead Retries](/beads#max-bead-retries)
 

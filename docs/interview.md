@@ -104,6 +104,36 @@ While a batch is open:
 
 After submit, LoopTroop persists the batch into the session snapshot, updates the canonical interview state, and either prepares the next batch or advances to coverage.
 
+> [!NOTE]
+> **Next release behavior.** Batch identity, durable claim recovery, delayed
+> timeout fencing, and same-tick answer/skip guarding in this section describe
+> the upcoming release.
+
+Every answer and skip submission includes the current positive `batchNumber`.
+The server loads the active batch before claiming it, so a stale tab or missing
+batch identity returns `400` when `batchNumber` is missing or invalid, while a
+valid but stale batch number returns `409`, before mutation. Question IDs,
+option IDs, and skip reasons are checked against that batch before a claim is
+acquired. Generation and answer edits use the same durable claim, so an answer
+edit returns `409` while generation owns the batch. A foreign claim can be
+reclaimed after ordinary lease expiry—the fallback when liveness cannot be
+checked—or when its recorded process is proven gone; a live lease protects
+live, invalid, or otherwise unverified owners. The pending-stop marker is
+separate non-expiring safety ownership and cannot be bypassed by lease expiry.
+The browser uses one in-flight guard for submit and skip, sets it before the
+first await, and clears it in `finally`, so a same-tick double action cannot
+start both mutations.
+
+If answer processing times out while the remote stop is uncertain, LoopTroop
+restores the durable current batch and leaves a non-expiring pending-stop marker
+for retry. Only a confirmed stop matching that exact marker can release the
+batch and promote the retry. A delayed timeout cannot promote a newer batch.
+
+An unanswered compiled question may be refined under its existing ID when its
+answer type and options remain compatible. Once it has an answer, its ID,
+source, round, and answer controls cannot be changed, so later artifacts keep a
+stable link to the user's decision.
+
 When a user mentions an existing component, behavior, path, command, limitation, or architecture detail, the live interview model may inspect the relevant repository area read-only before deciding whether the next batch needs a follow-up. It does not perform a broad survey or use repository contents to decide stakeholder intent: desired behavior, scope, priorities, preferences, and acceptance decisions remain questions for the user.
 
 The progress counter is an estimate, not a hard promise. The current batch number is real, but the total can change because later questions may become unnecessary, be merged, be lightly split, or be replaced by targeted follow-ups.
@@ -176,6 +206,11 @@ The final interview artifact is structured YAML, not a transcript. Its core fiel
 | `follow_up_rounds` | Round-by-round follow-up history with source and question IDs |
 | `summary` | Goals, constraints, non-goals, and final free-form answer |
 | `approval` | Human approval metadata |
+
+Persisted session timestamps are validated rather than repaired: `updatedAt`,
+`completedAt` when present, answer `answeredAt` or `skippedAt` when present, and
+batch-history `submittedAt` must be non-empty and parseable. An invalid value
+rejects the snapshot; LoopTroop does not invent a date.
 
 Each question answer stores:
 

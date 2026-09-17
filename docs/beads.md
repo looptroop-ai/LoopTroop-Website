@@ -356,6 +356,11 @@ If local finalization fails after model success, the bead does **not** become `d
 
 ## 8. Structured Completion And Corrective Prompts
 
+> [!NOTE]
+> **Next release behavior.** The exact completion-marker retry and automatic
+> bead-response continuation boundaries in this section describe the upcoming
+> release.
+
 LoopTroop does not trust plain language like "done" or "tests pass now."
 
 Each bead attempt must end with exactly one `<BEAD_STATUS>...</BEAD_STATUS>` block containing:
@@ -367,7 +372,7 @@ Each bead attempt must end with exactly one `<BEAD_STATUS>...</BEAD_STATUS>` blo
 - `checks.typecheck`
 - `checks.qualitative`
 
-If the output is malformed or missing the marker, LoopTroop does **not** guess. It sends a structured retry reminder that asks for the exact schema again. If the workflow deadline expires before a valid marker is returned, the failure is recorded explicitly as an iteration timeout rather than being reduced to a generic missing-marker message.
+If the output is malformed or missing the marker, LoopTroop does **not** guess. It sends a structured retry reminder that asks for the exact `<BEAD_STATUS>...</BEAD_STATUS>` block and required fields again. If the workflow deadline expires before a valid marker is returned, the failure is recorded explicitly as an iteration timeout rather than being reduced to a generic missing-marker message.
 
 If the marker shape is valid but the bead is still incomplete, LoopTroop sends a continuation reminder instructing the agent to keep editing, rerun the failing checks, and only return once the bead is actually complete. Planned commands are guidance rather than a frozen second gate: the agent may adapt them to facts discovered in the repository, while Final Testing remains the mandatory backend-executed ticket-level gate. A session that cannot repair and verify the repository before the deadline follows the normal Ralph reset and fresh-session path.
 
@@ -426,6 +431,13 @@ If the model cannot produce a good note, LoopTroop falls back to a deterministic
 ### Retry Budget Exhaustion
 
 If the bead reaches the configured retry cap, LoopTroop marks it `error`, attaches `BEAD_RETRY_BUDGET_EXHAUSTED`, and routes the ticket to `BLOCKED_ERROR`.
+
+The separate automatic bead-response continuation loop inside each bead
+iteration is bounded by finite `maxIterations`; `maxIterations: 0` means
+unlimited automatic continuation attempts. User-facing Continue across workflow
+phases is a separate path and does not consume this cap. This is separate from
+the OpenCode provider retry limit and grace window, and a workflow-owned
+iteration timeout still follows the fresh-session reset path.
 
 From the live blocked view, the normal **Retry** action resets and schedules the same failed or paused bead with its accumulated note histories. **Retry with extra note...** opens a multiline dialog for 1 to 20,000 characters of user guidance, then performs the same safe recovery and appends a structured entry to `userRetryNotes`.
 

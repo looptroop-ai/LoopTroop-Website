@@ -139,6 +139,11 @@ They define what gets worked on next, what blocks what, and exactly what context
 
 ## 10. Ralph Loop Recovery
 
+> [!NOTE]
+> **Next release behavior.** The automatic continuation cap, finite/zero
+> semantics, and separate user-facing Continue path described here are part of
+> the upcoming release.
+
 **Summary:** The Ralph Loop is LoopTroop's recovery mechanism for failed bead execution. If a bead fails or times out, LoopTroop does not keep pushing the same polluted session. It writes a compact note about what went wrong, resets the worktree back to the bead start snapshot when possible, starts a fresh execution session, and retries with clean context plus the useful failure note.
 
 Execution work fails in two broad ways: the model produces the wrong code, or the model gets stuck in a bad loop while carrying broken context forward. LoopTroop addresses the second case with a bounded, Ralph-style retry discipline:
@@ -146,11 +151,14 @@ Execution work fails in two broad ways: the model produces the wrong code, or th
 1. Capture what failed in a compact **context-wipe note**.
 2. **Reset the worktree** back to the bead start commit (`beadStartCommit`).
 3. Start a **fresh session** with the bead spec plus the wipe note.
-4. **Stop after the configured retry limit** (`maxIterations`).
+4. **Bound the automatic bead-response continuation loop** with the configured
+   `maxIterations` value within each bead iteration. A finite value is bounded;
+   `0` explicitly means unlimited automatic continuation. User-facing Continue
+   across workflow phases is separate and is not counted by this cap.
 
 This connects directly to the context-engineering philosophy: preserve the lesson, discard the context pollution. It keeps the learning signal while throwing away the poisoned conversational state.
 
-`Ralph-style retry` is a current community term rather than a formal standard. LoopTroop uses it narrowly: fresh-session retry with preserved failure context, not unlimited unattended looping.
+`Ralph-style retry` is a current community term rather than a formal standard. LoopTroop uses it narrowly: fresh-session retry with preserved failure context plus a separate automatic bead-response continuation path. A finite `maxIterations` keeps that automatic path bounded; setting it to `0` explicitly opts into unlimited automatic continuation. User-facing Continue across phases follows its own eligibility rules.
 
 **Read more:** [Beads & Execution](beads.md), especially [Retry, Reset, And Context-Wipe Notes](beads.md#_9-retry-reset-and-context-wipe-notes), and the [Recovery Flow](system-architecture.md#_7-recovery-flow) in System Architecture.
 

@@ -165,6 +165,11 @@ It currently does the following:
 
 `runOpenCodeSessionPrompt()` is the lower-level helper for prompting a known session.
 
+When a prompt has already produced usable streamed text, a failed final
+assistant-message read does not discard that completed reply. The runner falls
+back to the accumulated stream text, while abort errors still propagate so a
+cancelled prompt cannot look successful.
+
 Retry-status handling is driven by OpenCode stream events, not only by log text. The runner watches `session.status` retry events across OpenCode-backed phases and treats matching rate-limit, usage-limit, resource-exhaustion, overload/capacity, temporary-unavailability, timeout/deadline, fetch, network, and socket-reset messages as continuable provider interruptions. The profile's `OpenCode Retry Limit` blocks after a configured number of matching retry events, and `OpenCode Retry Grace Window` blocks when a matching retry state produces no progress for the configured window. A zero retry limit blocks on the first matching retry event; a zero grace window disables the timer.
 
 When a ticket is blocked by a resumable OpenCode/provider interruption, the prompt runner can preserve the active owned session instead of abandoning it. Eligible interruptions include retryable diagnostics, HTTP 402/408/429/500/502/503/504/529, rate or usage limits, overload/capacity messages, timeouts, and transport failures. `HTTP 402 Payment Required` is treated as externally clearable, so Continue can resume the same session after payment or workspace access is restored. Auth, invalid request, request-size, permission, missing API key, model-not-found, and non-402 insufficient-quota signals remain non-continuable.
@@ -184,9 +189,20 @@ Continue does not archive the active phase attempt or create a fresh attempt. Re
 | Control | Effect |
 | --- | --- |
 | `keepActive` | Leaves the owned session active after a successful prompt so a later prompt in the same workflow slot can reuse it |
-| `forceFresh` | Aborts and abandons the currently owned active session before creating a new one for the same workflow slot |
+| `forceFresh` | Requests a remote abort and abandons the currently owned active session only after that stop is confirmed; an unconfirmed stop keeps ownership visible and retryable |
 
 These controls are what let multi-turn phases reuse a durable session when appropriate, while still allowing hard resets for flows that must discard the old transcript.
+
+> [!NOTE]
+> **Next release behavior.** Durable OpenCode ownership, marker fallback, and
+> restart limits in the following sections describe the upcoming release.
+
+Session creation records ownership in the project database before it relies on
+the remote session. If that write is unavailable, LoopTroop records a
+ticket-contained marker at `.ticket/runtime/opencode-pending-sessions.json`
+before compensating the remote session. Startup consumes the marker even when
+the database row is absent. If both SQLite and marker storage are unavailable,
+only the current process guard remains, so a restart cannot prove recovery.
 
 ## 7. Reconnect Behavior
 
@@ -199,9 +215,19 @@ Reconnect is intentionally conservative.
 - the owned active session record still exists in the project DB
 - the same session still exists remotely in OpenCode
 
-Startup resolves ticket ownership inside the project database currently being reconciled because local numeric ticket ids may repeat across projects. It then classifies exact verification as reconnected, confirmed missing, stale ownership, or temporarily unverified. Confirmed missing and stale records are abandoned; timeouts, transport failures, and OpenCode 5xx responses preserve the active record for a later check.
+Startup resolves ticket ownership from the project database and any
+ticket-contained marker in the project currently being reconciled, because
+local numeric ticket ids may repeat across projects. It then classifies exact
+verification as reconnected, confirmed missing, stale ownership, or temporarily
+unverified. Confirmed missing and stale records are abandoned; timeouts,
+transport failures, and OpenCode 5xx responses preserve the active record for a
+later check.
 
-That means LoopTroop can survive restart and resume safely, but it does not try to magically continue any random broken stream from the past.
+When the database record or ticket marker is available and the exact ownership
+checks still match, LoopTroop can recover an eligible session after restart. It
+does not promise restart recovery when both ownership stores are unavailable,
+and it does not try to magically continue any random broken stream from the
+past.
 
 If OpenCode cannot verify an exact session because the server is down or restarting, validation fails closed without abandoning the database record. This applies both to active phases and to every resumable `BLOCKED_ERROR` condition accepted by the central continuation classifier, including eligible limits, payment blocks, overloads, timeouts, and transport failures. The prompt runner then either creates a new owned session when OpenCode is reachable or lets the phase fail into the normal retry/block path. Owned same-session reuse is also revalidated immediately before prompting, so a stale session cannot be prompted after the ticket has moved phases.
 
@@ -219,7 +245,12 @@ For Continue, the route performs one extra live check: if the OpenCode server ca
 - The OpenCode server must still have the session addressable by that exact ID.
 - The error diagnostics must be of a continuable type (retryable provider errors, HTTP 402/408/429/500/502/503/504/529, rate/usage limits, transport failures, timeout-style interruptions).
 
-Backend, OpenCode, WSL, OS, and machine restarts preserve the same eligibility when those exact ownership checks still match. A temporary inability to verify OpenCode leaves the session active rather than removing Continue permanently; a later read or restart may verify it again. Only confirmed remote absence or provably stale ownership abandons the local session record.
+Backend, OpenCode, WSL, OS, and machine restarts preserve the same eligibility
+when those exact ownership checks and a durable database record or ticket marker
+still match. A temporary inability to verify OpenCode leaves the session active
+rather than removing Continue permanently; a later read or restart may verify
+it again. Only confirmed remote absence or provably stale ownership abandons the
+local session record.
 
 **Non-continuable errors:** Auth failures, invalid requests, permission errors, missing API keys, model-not-found, and non-402 insufficient-quota signals are not eligible for Continue.
 
@@ -232,6 +263,10 @@ Blocked execution setup also has a same-session action called **Retry with extra
 OpenCode stream events are consumed server-side and then translated into LoopTroop's own ticket event model.
 
 The SDK adapter subscribes to OpenCode's global event stream, unwraps `{ directory, payload }` frames, and filters them back to the owned session before emitting LoopTroop events. This keeps live model detail working when the directory-scoped OpenCode event endpoint closes early, while still preventing unrelated project/session events from entering the ticket log.
+
+Events without an explicit session ID are not assigned to a per-session stream,
+and events naming a different session are omitted. A directory-only or global
+event therefore cannot appear to belong to the active ticket by inference.
 
 LoopTroop ships a project-level OpenCode plugin at `.opencode/plugins/looptroop-listener-limit.js` that raises the Node/Bun EventTarget listener warning threshold to 20 inside the OpenCode process. This only changes the warning threshold for legitimate parallel stream listeners; it does not create a hard concurrency limit or replace stream cleanup.
 
@@ -257,6 +292,10 @@ The adapter keeps a short step-finish safety window near prompt deadlines so ter
 Step-finish metadata is also used for blocked-error diagnostics. If OpenCode reports a finish reason such as `length`, LoopTroop records the failure as model output truncation, carries through token counts when available, and explains that subsequent structured-output validation errors may be secondary symptoms of an incomplete response.
 
 The frontend never talks directly to OpenCode. It receives normalized ticket events over `/api/stream`.
+
+Terminal completion, abandonment, or confirmed abort releases the session's
+directory mapping. A successful abort is not cached by session ID; each later
+abort request must obtain fresh remote confirmation.
 
 ## 9. Questions And Human Input
 
@@ -290,11 +329,21 @@ A question that nobody answers is an unbounded stop, so `server/workflow/questio
 
 Any human interaction stops the clock permanently through `POST /api/tickets/:id/opencode/question-timer/stop`. Switching model tabs, moving between questions, focusing an answer field, and pressing **Stop timer** all funnel to that one call, which is idempotent and returns the current state rather than an error on a repeat.
 
+Question listing, reply, and rejection resolve the session directory from the
+trusted stored ownership record. A caller-supplied project path cannot redirect
+those operations to another workspace, and a missing stored directory fails
+closed rather than guessing.
+
 Waiting does not consume the step's working time. Attaching a request suspends every work budget on the ticket through `server/workflow/workBudget.ts`, and resolving it credits the elapsed wall time back. The ledger is ticket-scoped rather than session-scoped because there is no single clock to key: PRD drafting runs two prompts in two sessions under one deadline, the council drafter and voter own `Promise.race` timers that never see the prompt timer, and execution had its own copy of the remaining-time helper. Suspension is reference-counted, so a step with two questions outstanding stays held until the second is dealt with.
 
-Live timer state lives in memory; the durable copy is written to phase artifacts under the `opencode_question:` and `opencode_question_timer:` prefixes. On expiry, every request on the timer is rejected with up to three attempts, and a transport failure aborts the session rather than leaving the record pending, because "expiry that cannot reject" recreates the hang the module exists to prevent. Each rejection writes a skip receipt naming the actor (`timeout` for the wait running out, `user` for a manual skip, `system` for a lost session or a restart that could not re-attach), the configured window, the elapsed time, and the sibling requests the same expiry covered.
+> [!NOTE]
+> **Next release behavior.** Question expiry, successful remote rejection,
+> fallback abort, persisted timer restoration, and retryable ownership in this
+> subsection describe the upcoming release.
 
-On startup, `reconcilePendingQuestionsAfterRestart()` runs once per project against a session-to-ticket ownership map covering the whole project, because `listPendingQuestions()` answers per project: reconciling ticket by ticket would show each pass its siblings' questions as ownerless, and a ticket whose sessions had all been abandoned would never be visited at all. A question whose session reconnected is rebuilt from its `opencode_question_timer:` artifact, which is authoritative — `stoppedAt` survives, a live deadline keeps its remaining time, and a deadline already past fires as soon as it is armed. One whose session did not come back is rejected.
+Live timer state lives in memory; the durable copy is written to phase artifacts under the `opencode_question:` and `opencode_question_timer:` prefixes. On expiry, LoopTroop tries remote rejection with up to three attempts. A successful remote rejection clears the question and does not abort the surrounding session. If rejection fails, LoopTroop uses the fallback abort; only when both rejection and fallback abort fail does the pending record and ownership stay visible for retry. A local abort or transport failure that returns false, throws, or cannot be verified is not proof that the remote session stopped. Each rejection writes a skip receipt naming the actor (`timeout` for the wait running out, `user` for a manual skip, `system` for a confirmed lost session), the configured window, the elapsed time, and the sibling requests the same expiry covered.
+
+On startup, `reconcilePendingQuestionsAfterRestart()` runs once per project against a session-to-ticket ownership map covering the whole project, because `listPendingQuestions()` answers per project: reconciling ticket by ticket would show each pass its siblings' questions as ownerless, and a ticket whose sessions had all been abandoned would never be visited at all. A question whose session reconnected is rebuilt from its `opencode_question_timer:` artifact, which is authoritative: `stoppedAt` survives, a live deadline keeps its remaining time, and a deadline already past fires as soon as it is armed. If the session cannot be reattached and neither remote rejection nor fallback abort can be confirmed, the question stays visible for retry rather than being treated as stopped.
 
 ## 10. Health And Model Discovery
 

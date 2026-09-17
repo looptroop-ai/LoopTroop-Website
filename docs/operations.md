@@ -89,6 +89,18 @@ operation — `LOOPTROOP_OPENCODE_MODE=mock` looks around without one.
 
 `looptroop doctor` reports which of those happened.
 
+> [!NOTE]
+> **Next release behavior.** Confirmed remote-stop cancellation, retryable
+> ownership, and the two-storage restart limit in the following note describe
+> the upcoming release.
+
+Cancellation and cleanup use confirmed remote-stop results. A local abort call
+that returns false, throws, or cannot be verified does not prove that OpenCode
+stopped. LoopTroop keeps the session ownership visible and the ticket
+retryable. Startup can replay the ticket marker when the project database has no
+row, but it cannot claim restart recovery when both the database and marker
+storage are unavailable.
+
 ---
 
 # Part 2: The development stack
@@ -114,6 +126,10 @@ it up.
 
 ## 2. Runtime Storage
 
+> [!NOTE]
+> **Next release behavior.** The ownership marker and unresolved fallback-sidecar
+> behavior in the runtime-storage table describe the upcoming release.
+
 LoopTroop deliberately separates app-level state from project-level runtime state.
 
 | Location | Contents | Notes |
@@ -121,7 +137,7 @@ LoopTroop deliberately separates app-level state from project-level runtime stat
 | `~/.config/looptroop/app.sqlite` | App settings, profiles, and attached-project registry | Override with `LOOPTROOP_CONFIG_DIR` or `LOOPTROOP_APP_DB_PATH` |
 | `<project>/.looptroop/db.sqlite` | Project tickets, phase artifacts, attempts, sessions, status history, and error occurrences | Project-local operational database |
 | `<project>/.looptroop/worktrees/<ticket>/` | Ticket-owned Git worktree and `.ticket/**` runtime artifacts | One worktree per ticket |
-| `<ticket-worktree>/.ticket/runtime/` | Execution logs, stream state, session records, temporary files, and state projection | Logs and selected runtime data are preserved or cleaned according to ticket outcome and cleanup scope; startup may leave an unresolved in-progress fallback sidecar at a blocking point, while explicit worktree deletion removes the containing worktree |
+| `<ticket-worktree>/.ticket/runtime/` | Execution logs, stream state, session records, pending OpenCode ownership marker, temporary files, and state projection | Logs and selected runtime data are preserved or cleaned according to ticket outcome and cleanup scope; startup may leave an unresolved in-progress fallback sidecar at a blocking point, while explicit worktree deletion removes the containing worktree; `opencode-pending-sessions.json` can recover ownership when the project database is unavailable; if both storage layers fail, only the current process guard remains and restart recovery is not promised |
 | `<ticket-worktree>/.ticket/manual-qa/vN/evidence/index.json.lock` | Persistent SQLite transaction database for evidence-index locking | The database is not unlinked; SQLite may create adjacent `-journal`, `-wal`, or `-shm` files |
 | `<repo>/tmp/dev-preflight-report.json` | Last `npm run dev` preflight result: dependency sync, audit remediation, OpenCode upgrade, and install checks | Rebuilt on successful dev preflight; safe to delete |
 | `<repo>/tmp/dev-maintenance-state.json` | Daily maintenance timestamps and invalidation bookkeeping for dependency sync, audit remediation, and OpenCode upgrade | Lets normal startup defer already-run daily maintenance until relevant inputs change |

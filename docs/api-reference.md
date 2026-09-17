@@ -204,6 +204,12 @@ Example profile update payload:
 
 Selected validation ranges that are easy to miss when calling the API directly:
 
+> [!NOTE]
+> **Next release behavior.** The `maxIterations` continuation scope described
+> below applies to automatic bead-response continuations within one bead
+> iteration. User-facing Continue across workflow phases is a separate action
+> and is not counted by this cap.
+
 | Field(s) | Accepted values | Notes |
 | --- | --- | --- |
 | `minCouncilQuorum` | `1` to `6` | Must not exceed the practical council size |
@@ -211,7 +217,7 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `coverageFollowUpBudgetPercent` | `0` to `100` | Percentage budget for coverage follow-up questions |
 | `maxCoveragePasses` | `1` to `10` | Shared generic coverage loop |
 | `maxPrdCoveragePasses`, `maxBeadsCoveragePasses` | `2` to `20` | PRD and beads coverage loops have a stricter lower bound |
-| `maxIterations` | `0` to `20` | `0` is allowed for tickets that should not iterate |
+| `maxIterations` | `0` to `20` | Finite values bound automatic bead-response continuation within each bead iteration; `0` means unlimited for that path |
 | `aiQuestionWindow` | `60000` to `3600000` ms | How long an AI question waits before the run carries on; defaults to `300000` |
 | `gitHookPolicy` | `observe_only`, `validate_advisory`, `validate_required`, `use_native_hooks` | Future-project default for LoopTroop-owned Git operations; `validate_advisory` is the built-in default |
 | `ignoreMode` | `repo`, `local`, `skip` | Future-project folder-ignore default; `local` is the built-in default |
@@ -656,8 +662,14 @@ Archived versions are read-only approved planning generations backed by phase at
 
 Current batch-answer payload:
 
+> [!NOTE]
+> **Next release behavior.** Batch identity, durable claim recovery, delayed
+> timeout fencing, and same-tick answer/skip guarding in this section describe
+> the upcoming release.
+
 ```json
 {
+  "batchNumber": 2,
   "answers": {
     "q-auth-1": "Support both password login and SSO."
   },
@@ -676,7 +688,7 @@ Current batch-answer payload:
 
 `selectedOptions` is checked against the question it answers. An option ID the question does not offer, more than one option on a single-choice question, or any selection at all on a free-text question returns `400` listing what was wrong. Repeated IDs are collapsed rather than rejected.
 
-A ticket processes one answer batch at a time. A submission that arrives while one is still in flight returns `409` and changes nothing. This holds for every batch, not only the ones that need a model: a coverage batch or a mock-mode batch is answered synchronously and used to bypass the check entirely, which let it clear the in-flight batch's bookkeeping on its way past. The claim is recorded in the project database rather than in daemon memory, so two daemons opened on one project cannot both accept the same submission and a restart mid-batch does not forget it. It carries its own expiry, derived from the batch's timeout, so a daemon that stops while holding one leaves the ticket answerable again rather than permanently refusing — including at the exact instant the claim expires. `POST /api/tickets/:id/skip` takes the same claim and returns the same `409`: skipping the remaining questions rewrites the interview session and moves the ticket on, so a batch still running underneath would fail and roll back to its own snapshot, undoing the skip entirely.
+A ticket processes one answer batch at a time. Both answer and skip submissions carry a positive `batchNumber` for the active batch. A missing or schema-invalid `batchNumber` returns `400`; a valid but stale batch number returns `409`, both before claim acquisition or mutation. Unknown question, option, or skip-reason IDs return `400`. A submission that arrives while one is still in flight returns `409` and changes nothing. The claim is recorded in the project database rather than daemon memory, so two daemons opened on one project cannot both accept the same submission. A foreign claim can be reclaimed after its ordinary lease expires—the fallback even when liveness cannot be checked—or when its recorded PID is proven gone; a live lease protects live, invalid, or otherwise unverified owners. A pending-stop marker is separate non-expiring safety ownership and cannot be bypassed by lease expiry. A timeout that cannot confirm its remote stop restores the durable current batch and keeps it retryable. The marker carries the exact claim token observed before the remote await, so a delayed callback cannot promote a newer generation. `POST /api/tickets/:id/skip` takes the same claim and returns the same `409`: skipping the remaining questions rewrites the interview session and moves the ticket on, so a batch still running underneath cannot overwrite that transition.
 
 Possible `answer-batch` response shapes:
 

@@ -292,14 +292,26 @@ The current default token budget is `100000`. If assembled context exceeds that 
 
 The most disposable slices disappear first, while the core ticket requirement is protected as long as possible.
 
-The context builder also keeps a lightweight per-ticket cache for reusable slices.
+> [!NOTE]
+> **Next release behavior.** Full-priority context trimming and the
+> project-scoped cache key described below are part of the upcoming release.
+
+Trimming continues through every expendable part at a priority until the
+assembled context fits the budget. It does not remove only the first matching
+part and stop, and mandatory ticket details remain protected.
+
+The context builder also keeps a lightweight project-scoped cache for reusable
+slices. Its key combines the resolved project identity with the ticket's local
+external ID, so numeric aliases from different projects cannot share context.
+External-ID lookup is read-through, and invalidation uses the same canonical
+key.
 
 | Setting | Current value |
 | --- | --- |
 | Cache structure | `Map<string, { content: string; timestamp: number }>` |
 | TTL | `300000` ms |
 | Cached slices | Reusable content like relevant files, interview, and PRD |
-| Invalidation | `clearContextCache(ticketId)` |
+| Invalidation | Canonical project-plus-external-ticket key |
 
 This cache is a performance helper, not a source of truth. Durable artifacts remain authoritative.
 

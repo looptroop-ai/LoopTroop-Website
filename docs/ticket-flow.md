@@ -102,9 +102,15 @@ The underlying state machine enforces valid state transitions and recovery hooks
 ![Error recovery and cancellation state diagram](./media/ticket-flow/07-3-6-error-recovery-cancellation.svg)
 
 **Recovery semantics:**
+
+> [!NOTE]
+> **Next release behavior.** Confirmed remote-stop cancellation, retryable
+> ownership, durable marker fallback, and the continuation distinctions below
+> describe the upcoming release.
+
 - `RETRY`: Re-enters `previousStatus`; non-implementation phases archive the failed attempt and create a fresh version first, while `CODING` resets the active bead/checkpoint path instead.
 - `CONTINUE`: Appears only when a preserved OpenCode session is still live and eligible; LoopTroop re-enters the interrupted phase and sends exactly `continue please`.
-- `CANCEL`: Moves a cancelable ticket to the terminal canceled state after aborting active work. Once `CLEANING_ENV` starts, or a verified merge checkpoint already exists in `WAITING_PR_REVIEW`, Cancel is no longer available.
+- `CANCEL`: Requests cancellation and moves a cancelable ticket to the terminal canceled state only after active remote work is confirmed stopped. A false, thrown, or unverified stop leaves ownership visible and the ticket retryable. Once `CLEANING_ENV` starts, or a verified merge checkpoint already exists in `WAITING_PR_REVIEW`, Cancel is no longer available.
 
 Manual QA adds a deliberate reverse transition rather than treating a reported product failure as a workflow error. Any explicit Fail—required or optional—first generates and persists a complete validated `fix-beads.yaml` candidate, then creates pending `qa-fix` beads, archives the current final-test/generation/waiting attempts, and returns to `CODING`. Improvements from the same submission are independent Draft tickets with their chosen priority and Manual QA setting. If bead generation, required read-only repository inspection, or validation fails, no child work is created and the ticket enters recoverable `BLOCKED_ERROR`; Retry resumes the exact submission action. After successful fixes, LoopTroop creates a fresh final-test attempt and allocates the next checklist version.
 
@@ -341,6 +347,7 @@ When a phase encounters a fatal block, it routes to `BLOCKED_ERROR` while storin
 ### The Continue Path (`CONTINUE`)
 - Resumes an in-progress session without resetting or creating new attempts.
 - Used for continuable, transient errors (HTTP 402, rate/usage limits, overload capacity, provider timeouts) where the remote OpenCode session is still active and addressable.
+- User-facing Continue across workflow phases is separate from the automatic bead-response continuation loop inside each bead iteration, so it does not consume `maxIterations`. That automatic path is bounded by finite `maxIterations`; `0` leaves its cap unlimited. A local cancellation request is not treated as a confirmed remote stop.
 - LoopTroop locks onto the preserved session and sends exactly:
   ```text
   continue please
@@ -363,7 +370,7 @@ LoopTroop is designed to survive crashes, restarts, and disconnects. The table b
 | **Browser Closes / SSE Disconnects** | The next UI mount requests the Hono server REST state. SSE reconnects pass `Last-Event-ID` to replay stream indicators without reloading active panels. |
 | **Frontend Crashes** | Active draft forms and interview inputs are written to local ticket UI-state files on page unload. |
 | **Backend Process Restarts** | LoopTroop validates the serialized XState snapshot on startup: valid snapshots are rehydrated and immediately processed, resuming the active task; corrupt states trigger `BLOCKED_ERROR`. |
-| **OpenCode Server, WSL, OS, or Machine Restarts** | LoopTroop verifies exact project-local `opencode_sessions` ownership. Active phases reconnect normally; eligible `BLOCKED_ERROR` continuations reconnect through their unresolved occurrence, previous phase, and diagnostic session id. Confirmed-missing or stale sessions are abandoned, while temporary verification failures remain active for a later check. |
+| **OpenCode Server, WSL, OS, or Machine Restarts** | LoopTroop verifies exact project-local `opencode_sessions` ownership or the ticket-contained pending-session marker. Active phases reconnect normally when those durable records and the exact remote session still match; eligible `BLOCKED_ERROR` continuations reconnect through their unresolved occurrence, previous phase, and diagnostic session id. Confirmed-missing or stale sessions are abandoned, while temporary verification failures remain active for a later check. If both SQLite and marker storage are unavailable, only the current process guard remains and restart recovery is not promised. |
 | **Model Fails / Returns Garbage** | Planning phases run automatic structured retries; rejected attempts are saved as Raw attempts for inspection. |
 
 ---
