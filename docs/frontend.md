@@ -18,7 +18,7 @@ In development, same-origin `/api/*` calls go through the Vite proxy. When `npm 
 
 > [!NOTE]
 > **Next release behavior.** The resolved-question, replay-recovery, bounded
-> auth-probe, startup-only model-retry, and guarded approval-draft/leave-flush
+> auth-probe, coded model-discovery retries, and guarded approval-draft/leave-flush
 > details below describe upcoming client changes. The same notice covers
 > server-advertised recovery actions, click-time Manual QA snapshots, and
 > action-triggered complete log drains with cursor-expiry recovery, and actual-
@@ -258,7 +258,7 @@ A request that fails is reported, not swallowed. Every error the frontend shows 
 
 `installSessionWatch()` treats a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes an ordinary API route instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe has a five-second deadline, shares one in-flight request across a reconnect burst, and is armed once per failed connection and re-armed after a stream opens.
 
-Model queries and the manual model refresh use the same narrow retry rule: they retry only the exact startup response ``OpenCode server is not reachable. Start it with `opencode serve`.``. A different error, including an HTTP 500 response, keeps the existing normalized error and request count.
+Model queries and the manual model refresh use the same bounded retry rule: `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` responses may retry, regardless of message wording. Unrelated errors, including HTTP 500 responses, keep their normalized error and do not use this retry path.
 
 ### Live Updates
 
@@ -399,6 +399,13 @@ cold or unseen session, and upstream-deleted files cannot be recovered.
 > size is reindexed when its modification time changes; existing cursors keep
 > their original snapshot.
 
+> [!NOTE]
+> **Next release behavior.** History drains and older-page requests belong to
+> their ticket, phase, attempt and filter. Switching scope cannot show the
+> previous scope's frozen rows or error. A failed newer question poll no longer
+> suppresses an earlier successful snapshot; resolved-question tombstones stay
+> hidden without preventing the rest of a successful snapshot from updating.
+
 Artifact raw tabs show line, character, and tokenizer counts. Coverage report cards intentionally omit line-count details because JSON envelopes and escaped multiline payloads can make a displayed card total misleading. Coverage result summaries show status, gap counts, termination/budget notes, open coverage gaps, and interview follow-up questions; the underlying model output and retry attempts remain available in Raw. Versioned coverage reports list normal transition tabs in version order, include user-triggered approval fixes as `Extra Fix N` tabs in the same history, keep `Latest Check` last but selected by default, and suppress open-gap lists when the latest candidate has no remaining gaps; transition tabs still show the gaps found in that specific earlier version.
 
 Structured artifacts that include `rawAttempts` expose those attempts as Raw variants. Single-model attempt views group the attempts under a passive source label that includes the model when known and the mode/substep, then show only concrete attempt buttons in numeric order, such as `Attempt 1 Output - Rejected` followed by `Attempt 2 Output - Accepted`; they do not add a separate stored artifact JSON shortcut. Future attempts may also include an `Initial Prompt` variant before the attempt buttons when the original model prompt was persisted; this shows only the first prompt sent for that model run, never retry prompts or inferred legacy log content. Normalized validated draft/vote selectors include the accepted retry number when known, such as `Attempt 2 Validated`, while preserving the surrounding attempt order. Log-derived rejected retry shortcuts also use the inferred rejected attempt number, such as `Attempt 1 Output - Rejected`, when raw attempt records are unavailable. Diagnostic attempts without model text show the captured error/failure class instead of fabricated raw content. Grouped Raw selectors show model names as passive labels and keep only concrete variants clickable, so model labels do not duplicate an attempt tab. When two variants render the same payload, the viewer shows it once and prefers the more specific retry/validated attempt tab over generic shortcuts such as `Raw Output`, `Model Output`, `Accepted Output`, `Validated`, or `Rejected`; `Initial Prompt` is kept separate even if its text matches another variant. Parser/retry intervention notices stay on the primary artifact tab rather than Raw/Diff diagnostics, and full malformed model text remains confined to Raw output panes and execution logs. Council draft/vote artifacts can still fall back to existing phase model-output logs scoped by phase, model, and PRD sub-stage where needed. Draft raw-log fallback is limited to draft-producing phases; voting-phase winner artifacts never use vote scorecard logs as draft Raw output, so both Raw and validated winner views stay scoped to the selected draft. After a drafting phase, previous draft artifacts shown in voting/refining views expose only the validated draft in Raw, matching the canonical content consumed downstream.
@@ -465,6 +472,12 @@ the baseline, but it does not mark clean fields dirty or replace values already
 being edited. A successful save advances the submitted snapshot, while a failed
 save, later edit, or background refetch keeps the newer draft visible. An
 unsaved in-memory modal draft is not promised to survive a reload.
+
+> [!NOTE]
+> **Next release behavior.** Project Back and Cancel use the same unsaved-change
+> warning as closing the modal. Folder-picker retries keep the current folder
+> list when retrying a Git check, and stale navigation cannot cancel a newer
+> check. Modal focus follows the top visible dialog, including rapid reopen.
 
 The About modal also consumes `useUpdateStatus`. It shows current/latest
 versions, the install channel and ordered update lifecycle, while its Changelog

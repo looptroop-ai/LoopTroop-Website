@@ -13,7 +13,10 @@ LoopTroop implements only part of the broader "beads" idea popularized by Steve 
 > **Next release behavior.** The start-checkpoint ordering and restart/retry
 > recovery described on this page are upcoming. LoopTroop records the bead's
 > reset anchor before publishing `in_progress`; if that checkpoint cannot be
-> persisted, the bead stays pending and execution does not begin. Ordinary
+> persisted, the bead stays pending and execution does not begin.
+> Retry can reattempt that pending bead without a reset because no execution
+> started. An already-started bead still needs its recorded reset anchor.
+> Ordinary
 > recovery resets only when safe, while a step-cap conflict can refuse a
 > destructive reset and leave the bead blocked with its edited config and
 > sidecar intact. A later bead can continue without a fresh cap when no

@@ -126,11 +126,11 @@ API routes use a global per-client rate limit, with separate buckets for read re
 `POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but always refreshes the provider catalog first and returns the connected-model view rather than the optional `scope=all` catalog.
 
 > [!NOTE]
-> **Next release behavior.** While OpenCode is starting, the browser retries
-> model discovery only when the response carries the exact startup message
-> ``OpenCode server is not reachable. Start it with `opencode serve`.``. Other
-> failures, including HTTP 500 responses, keep their existing error and are not
-> retried by the model query or its manual refresh.
+> **Next release behavior.** Model-discovery failures carry a machine-readable
+> `code`: `OPENCODE_UNREACHABLE` when the server cannot be reached, or
+> `OPENCODE_DISCOVERY_FAILED` when it is reachable but its catalog lookup fails.
+> The browser retries either condition within its fixed retry budget. It does
+> not match English message text or retry unrelated HTTP failures.
 
 `/api/stream` accepts an optional replay cursor from either the `Last-Event-ID` header or the `lastEventId` query parameter; the header wins when both are present. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible.
 

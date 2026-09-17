@@ -530,6 +530,8 @@ transient roots and is not unlinked by cleanup or recovery code.
 > content gets an action-specific retry destination, recorded in the receipt
 > and event. Comparison uses bounded buffers so large files do not need to fit
 > in memory. Existing backup content is preserved.
+> The opened file identity is checked before and after comparison; replacing a
+> path during the check cannot make a different file count as an identical backup.
 
 ## 10. Diagnostics
 
