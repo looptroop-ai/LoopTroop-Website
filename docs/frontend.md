@@ -148,6 +148,12 @@ workspace summary show a repair warning and suppress completion percentages
 until the tracker is trustworthy. The approval navigator keeps damaged lines
 visible for repair and does not create anchors for rows it cannot represent.
 
+The upcoming runtime projection also reports an unreadable or unsafe tracker
+through `runtime.beadsDiagnostics.readError`; the ticket stays visible with a
+warning rather than disappearing with the failed read. The next release also
+gives bead and command-list controls item-specific accessible names so repeated
+inputs can be told apart.
+
 The live bead countdown uses the runtime bead's attempt-level `updatedAt` as its deadline anchor and falls back to the first-attempt `startedAt` only for legacy data. Restart recovery advances `updatedAt` when the replacement attempt begins, so the displayed clock and backend-owned per-iteration deadline both restart from the new attempt instead of remaining at `00:00`. Preparing Workspace Runtime uses the same compact remaining/total clock, anchored to the latest setup-attempt start log and the effective project/profile workspace-setup timeout; every automatic setup retry starts a fresh clock.
 
 QA-origin beads receive a **Manual QA Fix** badge and keep their version, source items, observations, expected behavior, and evidence thumbnails/references visible across Coding, Details, selected-bead, artifact, and log surfaces. Normal retry notes are presented separately.

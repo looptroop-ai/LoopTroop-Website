@@ -176,21 +176,40 @@ The raw read exposes the full repair payload:
 
 `content` is the exact JSONL as stored. `items` contains only the rows that parsed. This matters because rebuilding the file from `items` alone would silently delete damaged or unrepresentable lines instead of letting a person repair them in place.
 
-The JSONL editor may send `X-Source-Lines` with one comma-separated file line for
-each edited row. The server requires exactly one strictly increasing positive
-safe integer per row, then treats this mapping as diagnostic metadata only; it
-never uses it to invent or rewrite a source line. Unknown top-level and
-dependency keys are retained during canonicalization and save.
+> [!NOTE]
+> **Next release behavior.** The JSONL editor sends `{ beads, sourceLines }` in
+> the request body instead of putting source positions in `X-Source-Lines`.
+> This keeps large plans within HTTP header limits. `sourceLines` contains one
+> strictly increasing positive safe integer per row. The server uses these
+> positions only for diagnostics, never to invent or rewrite source text.
+> Structured clients may still send a bead array without source positions.
+> Canonical fields take precedence over their aliases, including an explicit
+> empty value. Submitted edits reject unknown statuses and invalid dependency
+> edges rather than silently turning them into runnable work.
+
+Unknown top-level and dependency keys are retained during canonicalization and
+save.
 
 The canonical dependency edge is `dependencies.blocked_by`. The server derives
 `blocks` from those authoritative edges and validates missing references and
 cycles before writing. The input alias `dependencies.blockedBy` is normalized
 into the canonical shape without creating a second stored contract.
 
+> [!NOTE]
+> **Next release behavior.** Cycle errors name the dependency path. Readers
+> fill missing nested collection fields before checking a stored row, while
+> submitted edits must still supply their authoritative dependency list.
+
 Read-only runtime projections keep valid rows when a tracker is damaged and
 expose the affected lines in `runtime.beadsDiagnostics`. The board and
 workspace show a repair warning and suppress completion percentages while that
 diagnostic is present, so damaged data cannot look complete.
+
+> [!NOTE]
+> **Next release behavior.** An unreadable or unsafe tracker adds a `readError`
+> to `runtime.beadsDiagnostics` instead of hiding the whole ticket board. The
+> warning also suppresses completion percentages. Execution and checklist
+> generation still require a valid authoritative tracker.
 
 Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/beads` requires `X-Content-Sha256` on edits to an existing plan, returns `428` when the header is missing, and returns `409` when the hash is stale. A first write to a missing tracker needs no hash because there is nothing to overwrite. The optional `X-Edit-Surface` request header records whether the save came from the JSONL tab (`jsonl`) or the structured editor (`structured`, including the default when the header is missing or unrecognized). The approval draft keeps its immutable base hash through autosave, refetch, edit, reload, save, and approve; a stale write never retags the open draft.
 
