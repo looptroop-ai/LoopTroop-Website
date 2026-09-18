@@ -290,8 +290,10 @@ prefix and upstream-deleted files cannot be recovered.
 
 > [!NOTE]
 > **Next release behavior.** Same-size native file rewrites with a changed
-> modification time produce a fresh history snapshot. Retained cursors keep
-> their old rows, while fresh views include the updated native logs.
+> modification time, and larger rewrites with a changed indexed prefix, produce
+> a fresh history snapshot. Retained cursors keep their old rows, while fresh
+> views include the updated native logs. Prefix verification reads the indexed
+> bytes when a file grows; unchanged files reuse their index.
 
 - **Ephemeral auth:** if `OPENCODE_SERVER_PASSWORD` is not set and a new local OpenCode server is about to start, `npm run dev` generates a random credential and sets `OPENCODE_SERVER_USERNAME` to `opencode`. This credential is propagated automatically to all child processes — backend and watcher — for the duration of the session.
 - **Ephemeral API token:** if `LOOPTROOP_API_TOKEN` is not set, `npm run dev` generates one for the backend and Vite dev proxy so local same-origin `/api/*` calls are protected without embedding the token in the frontend bundle.
@@ -538,6 +540,10 @@ Use the UI cleanup flow:
 > This protects `.env` files and also keeps ignored dependencies and build output.
 > Move or remove those files manually before retrying. An inspection failure
 > also blocks removal. Explicit ticket or project deletion remains destructive.
+
+In the next release, a pre-start directory containing only LoopTroop's `.ticket`
+skeleton is checked directly, so unrelated ignored files in the parent repository
+do not block it. Any other entry in that directory keeps it in place.
 
 LoopTroop restores owner removal permissions before deleting each eligible worktree. This handles project-agnostic read-only outputs such as dependency caches, downloaded toolchains, generated directories, and language package caches without requiring ecosystem-specific cleanup settings. Symlinks are removed without changing or traversing their external targets. Files owned by another operating-system user or protected by ACLs, immutable flags, or equivalent platform controls may still require the underlying ownership or protection to be corrected.
 

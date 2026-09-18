@@ -62,6 +62,9 @@ when the desktop layout appears; hidden controls are skipped when focus wraps.
 > [!NOTE]
 > **Next release behavior.** The directory picker layers above the Projects
 > dialog. An unrelated tooltip does not block Escape on the active dialog.
+> A failed initial ticket load no longer blocks later modal navigation after
+> Back or Forward. An unresolved ticket URL is preserved until loading succeeds
+> or the user chooses another destination.
 
 ### Ticket Dashboard Coordination
 
@@ -284,6 +287,10 @@ Current behavior:
 - lets the dashboard trigger the guarded recovery reload once the visible live-update reconnecting episode has cleared
 - returns `{ lastEventIdRef, connectionState }`
 
+In the next release, reconnecting without a usable event cursor also refreshes
+ticket snapshots. There is no cursor for the server to replay across that
+outage, including an outage after a replay gap cleared the previous cursor.
+
 Current `connectionState` values are:
 
 - `connecting`
@@ -435,6 +442,10 @@ current request; a result from an older prompt or draft is ignored. The folder p
 a retryable error rather than a genuine non-Git result, and stale navigation
 responses cannot replace the current directory.
 
+In the next release, **Reset all prompts** also resets the open editor after
+the server confirms the reset and refreshes its value. Edits typed after the
+reset started stay visible; a failed reset keeps the draft and shows an error.
+
 Long single-line diffs use a bounded fine-grained comparison and fall back to a
 full replacement when the safe budget is exceeded, so the viewer stays
 responsive without dropping text. Expansion views use one pairing rule for
@@ -483,8 +494,10 @@ save, later edit, or background refetch keeps the newer draft visible. An
 unsaved in-memory modal draft is not promised to survive a reload.
 
 > [!NOTE]
-> **Next release behavior.** Project Back and Cancel use the same unsaved-change
-> warning as closing the modal. Folder-picker retries keep the current folder
+> **Next release behavior.** Project Back and Cancel, configuration Cancel, and
+> ticket Cancel use the same unsaved-change warning as closing the modal.
+> Clicking a dirty modal's backdrop also asks before discarding the draft.
+> Folder-picker retries keep the current folder
 > list when retrying a Git check, and stale navigation cannot cancel a newer
 > check. Modal focus follows the top visible dialog, including rapid reopen.
 
@@ -498,6 +511,10 @@ Create & Start also locks workflow settings during that operation, because
 those settings cannot change once the ticket starts. Title, description, and
 priority remain editable. If starting fails after creation, the form keeps the
 created ticket instead of trying to create it again.
+After Create & Start, a later successful Save opens the created ticket only
+when no newer edits remain. A delayed repository restore check also leaves
+newer project form edits intact. After project creation, the form shows the
+repository root returned by the server, even when a subfolder was selected.
 
 The About modal also consumes `useUpdateStatus`. It shows current/latest
 versions, the install channel and ordered update lifecycle, while its Changelog

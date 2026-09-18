@@ -1107,6 +1107,12 @@ recovered. Returned native rows are bounded by the page `LIMIT`, while lineage
 visibility checks grow with ancestry depth; the route does not promise constant
 total query work or a bounded archive.
 
+In the next release, file growth is treated as an append only after verifying
+the previously indexed prefix. A larger rewrite creates a fresh generation;
+retained cursors keep their earlier rows. This verification reads the indexed
+prefix, so its cost grows with that prefix even though returned pages remain
+bounded. Unchanged files reuse their existing index.
+
 The newest-page response includes `modelIds`: sorted distinct model IDs across the requested ticket, phase, attempt, and bead scope, independent of `view`, `modelId`, and the page limit. Older pages omit this metadata with the totals. AI history includes attributed system milestones and matches source-only model identity when no explicit model ID exists. Missing audience and kind fields are inferred before indexing with the same rules used by raw log reads, so plain model output remains in ALL counts, pages, and exports. Sparse OpenCode session rows retain their session kind for activity detection. Explicit source, audience, and kind fields take precedence. AI history also recovers entries saved only in the AI file when the normal-file append was interrupted, deduplicating mirrored copies before pagination, counts, and exports. Repeated anonymous appends remain distinct; canonical updates use the latest surviving revision. AI history sorts by timestamp with a stable logical-entry tie-breaker; other views retain file order. Cursors remain opaque and must be reused with the same scope and filter.
 
 `GET /api/tickets/:id/ai-details` accepts `scope=phase|lifecycle` and an optional `modelId`. Phase scope requires `phase`; `phaseAttempt` selects an archived attempt or defaults to the active attempt using the same resolver as phase logs. Lifecycle scope ignores phase boundaries. The response contains completed turn/session counts, nullable cost and token aggregates, nullable total/average/longest duration, per-metric reporting coverage, and `updatedAt`. A nullable aggregate means OpenCode did not report that metric; it is not equivalent to zero.
