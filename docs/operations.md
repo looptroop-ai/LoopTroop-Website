@@ -106,6 +106,8 @@ while that ownership remains unresolved.
 If HTTP has already closed, the daemon retries runtime cleanup internally;
 a later CLI stop does not force-kill that pending generation. Stale-state
 cleanup also leaves its pending ownership record intact.
+Shutdown closes live browser event streams before waiting for HTTP requests
+to finish, so an open LoopTroop tab does not hold the daemon open.
 
 If startup itself fails after launching OpenCode, a retained cleanup record
 also blocks a later start. Cleanup must confirm that the owned process tree is
