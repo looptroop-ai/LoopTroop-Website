@@ -182,7 +182,14 @@ tickets.
 
 With `--apply`, it repeats the containment, ownership, activity, registration,
 and Git checks immediately before removing each candidate. If a worktree changed
-after the plan was made, it stays in place.
+after the plan was made, it stays in place. A failed or empty Git registration
+listing also keeps the directories in place, whether it happens during planning
+or the final check. Project paths containing newlines remain distinct records.
+Ignored files outside LoopTroop's `.ticket` and `.looptroop` runtime roots also
+block cleanup, including `.env`, dependency folders and build output. Remove or
+move those files yourself before retrying; cleanup does not decide which ignored
+files are disposable. It checks again before removal, and a failed inspection
+keeps the worktree.
 
 ## CLI safety boundaries
 
@@ -201,6 +208,11 @@ Daemon URLs use bracketed IPv6 literals wherever a host and port are combined.
 `logs --follow` registers its watcher before draining the tail handoff, keeping
 the byte offset, partial line, and UTF-8 decoder state continuous across reads;
 rotation or shrink resets the offset and decoder before reading the new file.
+The directory watcher detects rename-and-create rotation, including a larger
+replacement file, and changes generations after an active read finishes.
+Daemon health checks require the recorded instance ID. A failed start can stop
+its own live child through the retained process handle when the platform's
+start-time probe is unavailable; a stored PID alone never grants that authority.
 Windows command logs redact profile path prefixes and retain only the final
 visible path segments.
 

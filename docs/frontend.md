@@ -59,6 +59,10 @@ Escape and focus inside their popup while open. On narrow screens, the navigatio
 drawer behaves like a dialog, traps focus, returns focus to its opener, and closes
 when the desktop layout appears; hidden controls are skipped when focus wraps.
 
+> [!NOTE]
+> **Next release behavior.** The directory picker layers above the Projects
+> dialog. An unrelated tooltip does not block Escape on the active dialog.
+
 ### Ticket Dashboard Coordination
 
 `TicketDashboard.tsx` is the live-ticket coordinator rather than a passive wrapper.
@@ -639,7 +643,7 @@ When a search has no matches, the board shows an explicit empty search-results s
 
 Shortcut toggling and dashboard-search focusing are suppressed when focus is inside an `<input>`, `<textarea>`, `<select>`, or another textbox-like editable control.
 
-`Escape` belongs to whatever is open on top. `src/lib/overlays.ts` holds the one rule: an event that has already been handled, or whose target sits inside a dialog, alert dialog, menu, listbox, combo box, focused `<select>`, or any Radix popper, belongs to that overlay and not to the surface behind it. The ticket dashboard, `CenteredModal` and `FullScreenModal` all consult it, each excluding its own panel — so dismissing a confirmation no longer leaves the ticket, dismissing the folder picker no longer closes the Projects window, and dismissing the model list no longer closes Configuration.
+`Escape` belongs to whatever is open on top. `src/lib/overlays.ts` holds the one rule: an event that has already been handled, or whose target sits inside a dialog, alert dialog, menu, listbox, expanded combo box, focused `<select>`, or interactive Radix popper, belongs to that overlay and not to the surface behind it. The ticket dashboard, `CenteredModal` and `FullScreenModal` all consult it, each excluding its own panel — so dismissing a confirmation no longer leaves the ticket, dismissing the folder picker no longer closes the Projects window, and dismissing the model list no longer closes Configuration. The upcoming release excludes unrelated informational tooltip wrappers from this ownership check.
 
 Popups drawn outside the page cannot be seen by that rule, so they stop the key themselves. `DropdownPicker` and `ModelPicker` both close on `Escape`, stop it propagating, and return focus to the control that opened them. `DropdownPicker`'s trigger describes itself as a disclosure — `aria-expanded`, plus `aria-controls` naming the popup while it exists — and deliberately does not claim `aria-haspopup`: the popup holds whatever the calling screen puts in it, so there is no menu, listbox or dialog to advertise.
 

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 /**
- * `curl -fsSL https://www.looptroop.ovh/install | sh` is a documented command
+ * `curl --proto '=https' --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh` is a documented command
  * in the LoopTroop README, and these three redirects are the only thing that
  * makes it work. Nothing else on this site would notice if they were removed,
  * renamed, or pointed somewhere that does not exist — the pages would all still
@@ -13,6 +13,15 @@ const RELEASE_DOWNLOADS = 'https://github.com/looptroop-ai/LoopTroop/releases/la
 
 const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'))
 const redirects = config.redirects ?? []
+
+test('published POSIX installer recipes require HTTPS throughout redirects', async () => {
+  for (const file of ['docs/installation.md', 'docs/index.md', 'docs/getting-started.md', 'web.html']) {
+    const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8')
+    const recipes = source.match(/curl [^\n]*https:\/\/www\.looptroop\.ovh\/install/g) ?? []
+    assert.ok(recipes.length > 0, `${file} has no POSIX recipe`)
+    for (const recipe of recipes) assert.ok(recipe.startsWith("curl --proto '=https' --tlsv1.2 -fsSL "), file)
+  }
+})
 
 function redirectFor(source) {
   return redirects.find((redirect) => redirect.source === source)

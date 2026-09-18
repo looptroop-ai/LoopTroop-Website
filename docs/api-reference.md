@@ -433,6 +433,13 @@ Worktree delete response:
 Project deletion (`DELETE /api/projects/:id`) returns 409 when any ticket in the project is not in `DRAFT`, `COMPLETED`, or `CANCELED` status. Finish or cancel all active tickets before deleting the project. Worktree deletion is narrower: it only removes completed and canceled ticket worktrees and leaves active ticket worktrees untouched. Before removal, LoopTroop safely restores owner permissions throughout each managed worktree without following symlinks, allowing cleanup of read-only outputs created by project tooling while preserving targets outside the worktree.
 
 > [!NOTE]
+> **Next release behavior.** The worktree housekeeping endpoint also refuses
+> removal when ignored files outside `.ticket` and `.looptroop` would be lost,
+> or when their presence cannot be checked. This includes ignored configuration,
+> dependency folders and build output. Explicit ticket and project deletion do
+> not use this housekeeping protection.
+
+> [!NOTE]
 > **Next release behavior.** The guarded approval-save and UI-state draft
 > retention details in the ticket routes below describe the upcoming release.
 
@@ -943,6 +950,10 @@ Execution setup plan read response:
 Execution setup plan reads may select archived versions with `phaseAttempt`. Drafting attempts preserve the generated candidate, generation report, and diagnostics; approval attempts hold the separately published, potentially user-edited copy used by runtime setup. Archived reads stay available, but explicit writes to non-current phase attempts return `409` because archived versions are read-only. Invalid `phaseAttempt` values return `400`. Successful manual saves write `user_edit_receipt:execution_setup_plan`.
 
 Successful `PUT /execution-setup-plan` responses return the saved `raw`, normalized `plan`, `contentSha256`, and current route state (`status`, `state`, `ticket`) so the client does not need an immediate follow-up fetch.
+
+In the next release, approval-time and runtime evidence refreshes also compare
+the loaded plan's hash before writing. A concurrent user edit is preserved;
+the approval request returns `409` and requires the current plan to be reloaded.
 
 > [!NOTE]
 > **Next release behavior.** Raw and structured setup-plan saves include

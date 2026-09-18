@@ -67,7 +67,10 @@ because those worktrees may be in use.
 
 With `--apply`, it repeats containment, ownership, activity, registration, and
 Git checks immediately before each removal and keeps a candidate that changed
-after the plan.
+after the plan. A failed Git registration listing or ignored files outside
+LoopTroop's `.ticket` and `.looptroop` roots keep the worktree in place. This
+includes `.env`, dependency directories, and build output; move or remove them
+yourself before retrying.
 
 One daemon runs per configuration directory, held by a lock that records which
 process took it rather than only when it last checked in. To run two, give each
@@ -118,6 +121,10 @@ only a bounded time for a session still being created; a late session is stopped
 when its identity becomes available, and an unconfirmed stop retains ownership.
 Startup recovery recognizes interrupted atomic writes of both the cancellation
 marker and `opencode-pending-sessions.json`, which stores session ownership.
+Pending cancellation blocks every workflow phase. Cleanup retries use bounded
+backoff; a failed stop remains visible and can be retried. Coding Retry requires
+a confirmed remote stop before resetting bead state. A partial failure while
+polling OpenCode questions preserves the existing local question windows.
 
 Approval editing has the same conservative handoff. Interview and PRD panes
 keep the loaded content hash with a dirty draft; missing baselines fail with
@@ -524,6 +531,13 @@ Use the UI cleanup flow:
 4. Click **Delete Worktrees** to remove worktrees for completed and canceled tickets.
 
 **Deleted:** temporary directories at `.looptroop/worktrees/<ticket>/` for tickets in the Completed or Canceled column, including code checkouts, execution logs, and AI-generated file artifacts.
+
+> [!NOTE]
+> **Next release behavior.** Both **Free Disk Space** and CLI cleanup refuse to
+> remove a worktree containing ignored files outside `.ticket` and `.looptroop`.
+> This protects `.env` files and also keeps ignored dependencies and build output.
+> Move or remove those files manually before retrying. An inspection failure
+> also blocks removal. Explicit ticket or project deletion remains destructive.
 
 LoopTroop restores owner removal permissions before deleting each eligible worktree. This handles project-agnostic read-only outputs such as dependency caches, downloaded toolchains, generated directories, and language package caches without requiring ecosystem-specific cleanup settings. Symlinks are removed without changing or traversing their external targets. Files owned by another operating-system user or protected by ACLs, immutable flags, or equivalent platform controls may still require the underlying ownership or protection to be corrected.
 

@@ -226,7 +226,9 @@ async function verifyLandingInstallOrder() {
   for (const [channelId, label] of requiredChannels) {
     const channel = installCatalog.channels.find((entry) => entry.id === channelId && entry.live)
     if (!channel) fail(`Install catalog does not provide the live ${channelId} channel.`)
-    const command = channel.documentedInstall
+    // Transport restrictions work with the released installer too; do not
+    // advance the immutable CLI source pin just to strengthen its download.
+    const command = channel.documentedInstall.replace(/^curl -fsSL\b/, "curl --proto '=https' --tlsv1.2 -fsSL")
     const at = gettingStarted.indexOf(command)
     if (at === -1) throw new Error(`Getting Started never shows how to install LoopTroop with ${label}.`)
     installedAt = Math.min(installedAt, at)

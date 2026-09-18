@@ -231,12 +231,19 @@ Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/bead
 > approval uses the hash of the current fetched plan. A failed request for
 > optional UI-state data does not prevent approval of a loaded, valid plan.
 > Editing stays disabled until the artifact hash has loaded, and a draft
-> without that baseline cannot be saved.
+> without that baseline cannot be saved. Successful saves return the canonical
+> records and JSONL with their matching hash, so the editor shows what was
+> actually written rather than retaining the pre-normalized draft. Approval
+> checks the acceptance-criteria, test and target-file arrays used during coding.
+> Authoritative reads reject duplicate bead IDs and malformed nested Manual QA
+> evidence; unknown command metadata is retained.
 
 > [!NOTE]
 > **Next release behavior.** YAML formatting repairs preserve valid canonical
 > answers beside aliases and leave literal text inside list-item block scalars
-> unchanged. Repairs do not choose one answer over another or invent text.
+> unchanged, including nested sequences and standalone scalar markers. A valid
+> folded answer keeps its text when a sibling needs repair. Repairs do not choose
+> one answer over another or invent text.
 
 Input aliases are normalized to the canonical `dependencies.blocked_by` form,
 which is the only dependency spelling written to JSONL.
