@@ -103,6 +103,9 @@ stopped stays alive, keeps its ownership records, and accepts another stop
 request. The stop command reports incomplete cleanup instead of forcing an
 exit after an accepted shutdown request. A new daemon cannot take its place
 while that ownership remains unresolved.
+If HTTP has already closed, the daemon retries runtime cleanup internally;
+a later CLI stop does not force-kill that pending generation. Stale-state
+cleanup also leaves its pending ownership record intact.
 
 If startup itself fails after launching OpenCode, a retained cleanup record
 also blocks a later start. Cleanup must confirm that the owned process tree is
