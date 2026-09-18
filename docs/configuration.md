@@ -95,6 +95,10 @@ An extensionless Windows path is resolved through the executable siblings listed
 by `PATHEXT`, in that order, before the normal path trust checks run. The
 extensionless file itself is never run.
 
+In the next release, that search uses only `.exe`, `.com`, `.cmd` and `.bat`
+entries. Scripts that need another interpreter, such as `.ps1` or `.vbs`, no
+longer hide a supported executable later in `PATHEXT`.
+
 In the next release, an unmapped Linux owner does not establish trust. The same
 overflow UID can represent host root or a different host user, so LoopTroop
 cannot use it to verify ownership. This also applies when Node's own executable
@@ -899,6 +903,10 @@ Execution setup shows the locked project policy and detected hooks as read-only,
 Check and Require run their approved commands under a snapshot of the worktree and the Git index, and put both back the mutations that run introduced. If the snapshot cannot be taken, validation is refused rather than run unprotected: Require reports it as a blocking error and Check as a warning, and the commands do not run at all. If validation is interrupted, the persisted marker binds the worktree, Git directory, index/worktree trees, and initial untracked set. Invalid or escaped markers fail before recovery writes; unknown untracked additions stay intact and reentry is refused until they can be attributed safely. If the restore itself fails, that is reported alongside whatever validation found, and blocks under either choice, because the next step would otherwise start from hook output nobody asked for. This protection applies to the approved validation path and does not promise that unrelated hook commands are harmless or fully transactional.
 
 This policy affects only LoopTroop's internal Git operations. It does not alter the repository's hook configuration for your own Git commands. The `?` beside each control opens this section.
+
+In the next release, an unresolved restore from a previous validation blocks
+both Check and Require. The refusal includes the retained recovery marker's
+location and explains which worktree changes need attention before retrying.
 
 ---
 

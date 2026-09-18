@@ -38,7 +38,8 @@ loses it. The directory is `0700` and the files in it `0600`.
 | `app.sqlite` | App settings, profiles, and the attached-project registry |
 | `daemon.json` | The running daemon's record: pid, port, instance id, and the API token it minted at startup. Also records *why* the last start was refused |
 | `daemon.lock` | Held by the running daemon, so a second one cannot start against the same directory |
-| `logs/daemon.log` | What `looptroop logs` reads. Rotated at each start |
+| `logs/daemon.log` | What `looptroop logs` reads. Rotated when oversized, at startup or while the daemon runs |
+| `logs/daemon.log.rotation` (next release) | Private pending/completed rotation marker used by log followers |
 
 **Backing up** is copying that directory with the daemon stopped. Your projects
 are not in it: LoopTroop works in git worktrees under `<project>/.looptroop/`,
@@ -78,6 +79,14 @@ its own `LOOPTROOP_CONFIG_DIR` and port. Stale-state cleanup re-reads the
 instance under that same lock, and a concurrent start cannot claim another
 invocation's ready daemon.
 
+In the next release, log following recognizes a completed live rotation even
+when the same file has already grown beyond the previous read offset. It waits
+while copying and truncation are in progress, then reads the new generation
+from its beginning. A read window interrupted by rotation is not treated as
+verified output; earlier lines remain in the rotated log files. Copying and
+truncating still has its existing writer race: bytes written between the copy
+and truncation can be lost.
+
 In the next release, a start command can also recognize its own still-live
 child through the process handle it holds when Windows' start-time lookup is
 temporarily unavailable. This readiness fallback does not apply to exited
@@ -88,6 +97,17 @@ Signals require a captured process start identity. LoopTroop refuses to signal a
 missing, recycled, or unverifiable process. Windows termination uses forceful
 `taskkill /T /F`; platforms without retained descendant enumeration do not
 promise that unknown descendants have exited.
+
+In the next release, a daemon that cannot confirm its owned OpenCode process
+stopped stays alive, keeps its ownership records, and accepts another stop
+request. The stop command reports incomplete cleanup instead of forcing an
+exit after an accepted shutdown request. A new daemon cannot take its place
+while that ownership remains unresolved.
+
+If startup itself fails after launching OpenCode, a retained cleanup record
+also blocks a later start. Cleanup must confirm that the owned process tree is
+gone before removing that record; an unknown process identity is not permission
+to signal a PID or discard ownership.
 
 ## OpenCode is managed for you
 
@@ -122,9 +142,13 @@ when its identity becomes available, and an unconfirmed stop retains ownership.
 Startup recovery recognizes interrupted atomic writes of both the cancellation
 marker and `opencode-pending-sessions.json`, which stores session ownership.
 Pending cancellation blocks every workflow phase. Cleanup retries use bounded
-backoff; a failed stop remains visible and can be retried. Coding Retry requires
-a confirmed remote stop before resetting bead state. A partial failure while
+backoff, including when a failed Cancel left the ticket in its previous phase.
+The ticket becomes Canceled only after cleanup confirms the stop. Coding Retry
+clears a pending cancellation only after the previous session stop and bead
+recovery succeed. A partial failure while
 polling OpenCode questions preserves the existing local question windows.
+If Retry supersedes an older cancellation attempt, that cleanup leaves the new
+run and its question windows alone.
 
 Approval editing has the same conservative handoff. Interview and PRD panes
 keep the loaded content hash with a dirty draft; missing baselines fail with
@@ -163,6 +187,10 @@ SSH setups, but Git can execute the configured wrapper with your account's
 permissions during remote operations and connection checks. Only select
 repositories whose code and Git configuration you trust; worktrees do not
 sandbox these commands.
+
+In the next release, asynchronous Git operations read that setting without
+blocking the server's event loop. The value is checked for each operation, so
+editing the repository's SSH configuration does not require a daemon restart.
 
 The request boundary keeps local-mode Host validation loopback-only. In the next
 release, remote browser access requires one explicit HTTPS
@@ -211,6 +239,7 @@ LoopTroop deliberately separates app-level state from project-level runtime stat
 | --- | --- | --- |
 | `~/.config/looptroop/app.sqlite` | App settings, profiles, and attached-project registry | Override with `LOOPTROOP_CONFIG_DIR` or `LOOPTROOP_APP_DB_PATH` |
 | `<app-config>/hook-validation/<worktree-hash>.json` | Interrupted Git-hook validation snapshot | Stored outside the project so a hook cannot remove it by cleaning project files; bound to the canonical worktree and Git directory |
+| `<app-config>/opencode-steps/<ticket-directory-hash>.json` | OpenCode step-cap recovery record | Owner-only original config bytes and applied-content hash, stored outside the worktree |
 | `<project>/.looptroop/db.sqlite` | Project tickets, phase artifacts, attempts, sessions, status history, and error occurrences | Project-local operational database |
 | `<project>/.looptroop/worktrees/<ticket>/` | Ticket-owned Git worktree and `.ticket/**` runtime artifacts | One worktree per ticket |
 | `<ticket-worktree>/.ticket/runtime/` | Execution logs, stream state, session records, pending OpenCode ownership marker, temporary files, and state projection | Logs and selected runtime data are preserved or cleaned according to ticket outcome and cleanup scope; startup may leave an unresolved in-progress fallback sidecar at a blocking point, while explicit worktree deletion removes the containing worktree; `opencode-pending-sessions.json` can recover ownership when the project database is unavailable; if both storage layers fail, only the current process guard remains and restart recovery is not promised |
@@ -219,16 +248,21 @@ LoopTroop deliberately separates app-level state from project-level runtime stat
 | `<repo>/tmp/dev-maintenance-state.json` | Daily maintenance timestamps and invalidation bookkeeping for dependency sync, audit remediation, and OpenCode upgrade | Lets normal startup defer already-run daily maintenance until relevant inputs change |
 | `~/.local/share/opencode/log/` | Default local OpenCode log directory | Used for managed OpenCode DEBUG logs and generic provider-error enrichment unless `LOOPTROOP_OPENCODE_LOG_DIR` points elsewhere |
 
-When a coding run applies an OpenCode step cap, `.ticket/opencode-steps-restore.json`
-records the exact root `opencode.json` bytes to restore. A valid pending marker
+When a coding run applies an OpenCode step cap, its application-owned record
+under `<app-config>/opencode-steps/` stores the exact root `opencode.json` bytes
+to restore. Removing files inside the worktree cannot erase this recovery
+authority. A valid pending marker
 keeps that temporary root config out of bead and final candidate commits without
 adding an `opencode.json` rule to a common Git exclude. If the current bytes
 conflict with the marker, `CODING` preserves the edited config and sidecar and
 refuses a destructive reset that would overwrite them. A malformed LoopTroop-owned
 sidecar also blocks reset and staging rather than treating the temporary config
 as an ordinary project file. A later bead can continue
-without a fresh cap when no reset is needed. If the sidecar is missing after a
-restart, ownership cannot be proven and LoopTroop does not guess. Filesystem-
+without a fresh cap when no reset is needed. If the current config is already
+the exact original, or is absent when none existed before, recovery settles
+the marker without rewriting user data. If the application-owned record is
+missing after a restart, ownership cannot be proven and LoopTroop does not
+guess from the config's shape or a worktree-local copy. Filesystem-
 equivalent casing follows the actual worktree paths; native Windows/macOS
 equivalent-case behavior is not claimed here.
 
@@ -240,6 +274,10 @@ recovery writes. Recovery checks for changed tracked files, staged work, and
 unknown untracked additions before restoring anything. Ambiguous work stays in
 place and reentry waits for it to be resolved. A completed restore removes the
 marker so a later retry cannot replay it over newer edits.
+
+In the next release, a refused recovery reports the retained marker's location
+and the worktree changes that need attention. It blocks both Check and Require;
+Check treats ordinary command failures as warnings, not unresolved recovery.
 
 When a project is attached, LoopTroop applies its saved [folder-ignore policy](configuration.md#looptroop-folder-ignore-policy) to `/.looptroop/` and `/.ticket/`. **This clone** (`local`) is the default and appends the rules to the clone's Git exclude file, normally `.git/info/exclude`, without modifying tracked files. **Repository** (`repo`) appends them to the project's tracked `.gitignore`, while **Nowhere** (`skip`) deliberately writes neither destination and leaves a visible warning. Ticket initialization reapplies the saved project policy; for non-skip projects, it uses the shared Git exclude only when a new worktree does not yet see effective rules. Existing rules are never removed automatically.
 
@@ -294,6 +332,11 @@ prefix and upstream-deleted files cannot be recovered.
 > a fresh history snapshot. Retained cursors keep their old rows, while fresh
 > views include the updated native logs. Prefix verification reads the indexed
 > bytes when a file grows; unchanged files reuse their index.
+> A scan uses the file boundary captured when it starts. Ordinary appends beyond
+> that boundary do not fail the request; a later refresh reads them. Verification
+> checks the complete bytes actually indexed and any reused prefix. Rewriting
+> those bytes during the scan still fails rather than publishing mixed history,
+> and an unfinished final line is reread on the next scan.
 
 - **Ephemeral auth:** if `OPENCODE_SERVER_PASSWORD` is not set and a new local OpenCode server is about to start, `npm run dev` generates a random credential and sets `OPENCODE_SERVER_USERNAME` to `opencode`. This credential is propagated automatically to all child processes — backend and watcher — for the duration of the session.
 - **Ephemeral API token:** if `LOOPTROOP_API_TOKEN` is not set, `npm run dev` generates one for the backend and Vite dev proxy so local same-origin `/api/*` calls are protected without embedding the token in the frontend bundle.
@@ -548,7 +591,10 @@ the size preview includes protected worktrees and is not a promise of freed spac
 
 In the next release, a pre-start directory containing only LoopTroop's `.ticket`
 skeleton is checked directly, so unrelated ignored files in the parent repository
-do not block it. Any other entry in that directory keeps it in place.
+do not block it. The same check runs immediately before removal. Any other
+entry in that directory keeps it in place. A timed-out Git removal is reported
+as incomplete, without recursively deleting a directory that Git may still be
+using.
 
 LoopTroop restores owner removal permissions before deleting each eligible worktree. This handles project-agnostic read-only outputs such as dependency caches, downloaded toolchains, generated directories, and language package caches without requiring ecosystem-specific cleanup settings. Symlinks are removed without changing or traversing their external targets. Files owned by another operating-system user or protected by ACLs, immutable flags, or equivalent platform controls may still require the underlying ownership or protection to be corrected.
 

@@ -16,7 +16,8 @@ LoopTroop implements only part of the broader "beads" idea popularized by Steve 
 > persisted, the bead stays pending and execution does not begin.
 > Retry can reattempt that pending bead without a reset because no execution
 > started. An already-started bead still needs its recorded reset anchor.
-> Ordinary
+> If the start timestamp and anchor were saved but the status write failed,
+> Retry can reset that checkpointed pending bead before trying again. Ordinary
 > recovery resets only when safe, while a step-cap conflict can refuse a
 > destructive reset and leave the bead blocked with its edited config and
 > sidecar intact. A later bead can continue without a fresh cap when no
@@ -192,6 +193,8 @@ The raw read exposes the full repair payload:
 > Unknown statuses already stored in the tracker also block approval and
 > structured saves. Their original values remain available in the JSONL tab
 > for repair; recognised aliases still normalize normally.
+> Approval also rejects records missing `status` or `priority`; it does not
+> invent defaults for incomplete executable work.
 
 > [!NOTE]
 > **Next release behavior.** The structured editor gives each process argument
