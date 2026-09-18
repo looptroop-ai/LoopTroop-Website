@@ -188,6 +188,10 @@ for the browser-facing deployment; the backend can still bind to loopback and
 use HTTP behind the proxy. Neither setting creates a TLS listener or changes
 the bind address.
 
+Setting a public origin without `LOOPTROOP_ALLOW_REMOTE_API=1` rejects startup
+with a configuration error. Remove the public origin for a local-only session,
+or enable remote API access for the proxy deployment.
+
 Cookie-bearing requests with an `Origin` must match that public origin exactly.
 Without `Origin`, they require `Sec-Fetch-Site: same-origin` and a Host matching
 the configured public authority, so the proxy must preserve the public Host.
@@ -201,6 +205,10 @@ not bypass checks on a cookie-bearing request. Local mode retains its loopback
 Host and same-origin checks. Origin parsing rejects alternate IPv4 spellings
 and explicit port `0`; configured development origins remain a separate
 development-mode exception.
+
+Remote bearer-token support does not enable browser CORS access from arbitrary
+websites. Requests carrying an `Origin` must still satisfy the origin policy,
+even when they carry a bearer token. Scripts that omit `Origin` are unaffected.
 
 ## Scope And Inheritance
 

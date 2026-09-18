@@ -529,7 +529,7 @@ Use the UI cleanup flow:
 
 1. Open **Settings -> Projects** and click **Edit** on the project you want to clean up.
 2. Click **Free Disk Space...** at the bottom-left, next to **Delete Project**.
-3. Click **Calculate Size** to see how much space can be freed.
+3. Click **Calculate Size** to see the total size of the worktrees considered for cleanup.
 4. Click **Delete Worktrees** to remove worktrees for completed and canceled tickets.
 
 **Deleted:** temporary directories at `.looptroop/worktrees/<ticket>/` for tickets in the Completed or Canceled column, including code checkouts, execution logs, and AI-generated file artifacts.
@@ -540,6 +540,11 @@ Use the UI cleanup flow:
 > This protects `.env` files and also keeps ignored dependencies and build output.
 > Move or remove those files manually before retrying. An inspection failure
 > also blocks removal. Explicit ticket or project deletion remains destructive.
+
+In the next release, Free Disk Space continues with eligible worktrees when
+another worktree is protected or cannot be removed. The dialog stays open with
+the skipped ticket IDs and reasons. Its result counts only removed worktrees;
+the size preview includes protected worktrees and is not a promise of freed space.
 
 In the next release, a pre-start directory containing only LoopTroop's `.ticket`
 skeleton is checked directly, so unrelated ignored files in the parent repository

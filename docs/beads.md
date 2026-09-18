@@ -226,6 +226,14 @@ diagnostic is present, so damaged data cannot look complete.
 
 Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/beads` requires `X-Content-Sha256` on edits to an existing plan, returns `428` when the header is missing, and returns `409` when the hash is stale. A first write to a missing tracker needs no hash because there is nothing to overwrite. The optional `X-Edit-Surface` request header records whether the save came from the JSONL tab (`jsonl`) or the structured editor (`structured`, including the default when the header is missing or unrecognized). The approval draft keeps its immutable base hash through autosave, refetch, edit, reload, save, and approve; a stale write never retags the open draft.
 
+In the next release, `X-Edit-Surface` is optional only for clean plans. Repairing
+a stored plan with malformed or unrepresentable rows requires
+`X-Edit-Surface: jsonl` and the current content hash. Other surfaces receive
+`422` with `error: "Damaged bead plan must be repaired in JSONL mode"`,
+`details: "The structured editor cannot preserve every stored row."`, and
+the `malformedLines` and `unrepresentableLines` arrays. No file is written.
+Use the JSONL editor to repair every reported row before saving again.
+
 > [!NOTE]
 > **Next release behavior.** Saves retain the draft's original hash, while
 > approval uses the hash of the current fetched plan. A failed request for

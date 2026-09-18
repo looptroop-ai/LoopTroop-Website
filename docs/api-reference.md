@@ -69,6 +69,10 @@ match the configured origin; cookie-bearing requests without Origin require
 so a reverse proxy must preserve Host. Forwarded host and scheme headers do not
 establish trust.
 
+A public origin without `LOOPTROOP_ALLOW_REMOTE_API=1` is a startup
+configuration error. Remove that origin for local-only access or enable the
+remote API opt-in for the proxy deployment.
+
 The configured browser session uses a Secure cookie. Without the setting,
 remote browser exchange and ambient cookies are refused; bearer-only scripts
 remain supported. A bearer header never bypasses a cookie-origin check. Local
@@ -76,6 +80,10 @@ mode keeps its loopback Host requirement, and explicit development origins
 remain separate. Origin parsing rejects alternate IPv4 spellings and explicit
 port `0`. CLI sign-in links point to the configured public origin, while local
 daemon-control requests still use its internal address.
+
+Bearer authentication does not enable arbitrary browser CORS clients. A
+request with an `Origin` must pass the origin policy even without a cookie;
+command-line scripts that omit that header can still authenticate by token.
 
 The same authentication boundary applies to `/api/stream`. Admission reserves
 capacity before the asynchronous stream opens, with six connections per ticket
@@ -438,6 +446,12 @@ Project deletion (`DELETE /api/projects/:id`) returns 409 when any ticket in the
 > or when their presence cannot be checked. This includes ignored configuration,
 > dependency folders and build output. Explicit ticket and project deletion do
 > not use this housekeeping protection.
+
+In the next release, this endpoint returns HTTP `200` after processing eligible
+worktrees, with `skipped: [{ "externalId": "PROJECT-1", "reason": "..." }]`
+for entries it kept. `skipped` is empty when no entries failed or were protected.
+`freedBytes` counts only successfully removed worktrees. A failure to inspect
+the managed root itself still returns an error before removal starts.
 
 > [!NOTE]
 > **Next release behavior.** The guarded approval-save and UI-state draft
@@ -1309,6 +1323,24 @@ an explicit `mode`, `program`, and `args`; a shell command carries an explicit
 and timeout fields. A bare command string is not inferred into a shell command.
 
 `PUT /api/tickets/:id/beads` rewrites the tracker atomically only while the ticket is in `WAITING_BEADS_APPROVAL`. On the first write to a missing tracker no concurrency hash is required. When a tracker already exists, the request must include `X-Content-Sha256` from the read it was built on; missing it returns `428`, and a stale hash returns `409` with both the expected and current hashes. Manual saves write `user_edit_receipt:beads`, record `X-Edit-Surface` as `jsonl` only when the client sent exactly that value, and otherwise record the `structured` surface. The input alias `dependencies.blockedBy` is normalized to canonical `dependencies.blocked_by`; the server derives `blocks` from those authoritative edges and rejects dangling references or cycles before writing. `GET /api/tickets/:id/beads/:beadId/diff` returns `{ "diff": "", "captured": false }` when no diff artifact exists yet.
+
+> [!NOTE]
+> **Next release behavior.** Repairing a stored plan with malformed or
+> unrepresentable rows requires `X-Edit-Surface: jsonl`, as well as the existing
+> plan's `X-Content-Sha256`. Omitting the surface header or supplying another
+> value returns `422` without writing the file. The surface header remains
+> optional for a clean plan. Malformed JSON or an empty PUT body returns `400`.
+
+The damaged-plan `422` response is:
+
+```json
+{
+  "error": "Damaged bead plan must be repaired in JSONL mode",
+  "details": "The structured editor cannot preserve every stored row.",
+  "malformedLines": [2],
+  "unrepresentableLines": []
+}
+```
 
 Read-only ticket projections retain valid bead rows when the JSONL file is
 damaged and expose the affected lines through `runtime.beadsDiagnostics`. The
