@@ -7,8 +7,8 @@
  *
  * The commands and options in `docs/cli.md` are not transcribed by hand. They
  * are the `USAGE` string from `server/cli/cli.ts` in the application repository,
- * read at a pinned immutable Git ref over HTTPS — a public repo, so no token —
- * and substituted into the fenced block below the marker.
+ * read at the latest merged application commit over HTTPS — a public repo, so no
+ * token — and substituted into the fenced block below the marker.
  *
  * `--check` is the point. A generator nobody remembers to run is a hand
  * transcription with extra steps: the page drifts and the build stays green. It
@@ -23,14 +23,13 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 /**
- * The application revision the documentation describes — an immutable ref, never
- * a moving branch name.
+ * The latest merged application revision the documentation describes — an
+ * immutable ref, never a moving branch name.
  *
- * When the website needs to track latest behavior before the next release tag,
- * pinning the exact commit is safer than following `main`: the documentation can
- * move forward deliberately, but never silently.
+ * Update this to the latest application `main` commit whenever CLI behavior
+ * changes, including before the next release tag, so published docs stay current.
  */
-export const CLI_SOURCE_REF = 'f784f055b45854016c245a2d902d6799b7e8265c'
+export const CLI_SOURCE_REF = '10888081de5a4ac46af30810ede613b56d83fda4'
 
 const PAGE = path.join(process.cwd(), 'docs', 'cli.md')
 const MARKER = '<!-- generated from server/cli/cli.ts; run npm run sync:cli -->'
@@ -47,8 +46,8 @@ function fail(message) {
 }
 
 /**
- * The `USAGE` template literal, with or without `export` — releases before the
- * page existed did not export it, and pinning to one of those must still work.
+ * The `USAGE` template literal, with or without `export` — older revisions did
+ * not export it, and those revisions must still work when selected explicitly.
  */
 export async function fetchSourceText(relativePath) {
   let source

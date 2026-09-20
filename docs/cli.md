@@ -13,13 +13,14 @@ only when a newer version exists. The check never installs anything.
 The block below is generated from the CLI's own usage text, so it cannot drift
 from what the command prints.
 
-Every command also documents itself. `looptroop <command> --help` prints that
-command's own options, what it does with them, and which commands to reach for
-instead — more than fits in the summary below:
+Every command also documents itself. `looptroop <command> --help`,
+`looptroop <command> help`, and `looptroop <command> "?"` print that command's
+own options, what it does with them, and which commands to reach for instead —
+more than fits in the summary below:
 
 ```bash
 looptroop open --help
-looptroop doctor --help
+looptroop doctor "?"
 ```
 
 <!-- generated from server/cli/cli.ts; run npm run sync:cli -->
@@ -54,7 +55,9 @@ Options:
   --version      Print the version
   --help         Print this message
 
-Run `looptroop <command> --help` for what a single command does and takes.
+Run `looptroop <command> --help`, `looptroop <command> help`, or
+`looptroop <command> "?"` (double quotes keep `?` literal in every shell)
+for what a single command does and takes.
 ```
 
 ## `start`, `stop`, `restart` — running as a service
