@@ -138,7 +138,7 @@ This trust policy comes from the **daemon's own environment**, not from
 cannot widen trust by setting its own `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`.
 
 For the npm install and upgrade path, the current runtime floor is **Node
-24.18.1 or newer and npm 12.0.2 or newer**. The launcher, Doctor, install
+24.21.0 or newer and npm 12.0.2 or newer**. The launcher, Doctor, install
 scripts, and package channels enforce the same floor.
 
 ### Runtime markers

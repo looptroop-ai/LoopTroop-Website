@@ -15,11 +15,12 @@ const OUTPUT_PATH = 'THIRD-PARTY-NOTICES.md'
 const LICENSE_FILENAMES = /^(LICENSE|LICENCE|COPYING|NOTICE)(\.(md|txt))?$/i
 const PIPE_REGEX = /\|/g
 
-// khroma@2.1.0 omits the package.json licence field but ships the complete MIT
-// licence in its npm tarball. Keep this exact-version exception narrow so a
-// future metadata or licence change must be reviewed explicitly.
+// These packages omit the package.json licence field but npm metadata declares
+// the complete MIT licence. Keep exact-version exceptions narrow so a future
+// metadata or licence change must be reviewed explicitly.
 const LICENSE_ID_OVERRIDES = new Map([
   ['khroma@2.1.0', 'MIT'],
+  ['fdir@6.4.4', 'MIT'],
 ])
 
 /**
@@ -65,7 +66,7 @@ function resolveLicenseId(manifest) {
 
 /** Upstream licence files vary in line endings; the text itself is unchanged. */
 function readNormalized(filePath) {
-  return readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n').trim()
+  return readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').trim()
 }
 
 function findLicenseText(packageDir) {
@@ -270,11 +271,14 @@ const checkOnly = process.argv.includes('--check')
 const packages = collectProductionPackages().map((entry) => {
   const packageDir = findPackageDir(entry.name)
   const manifest = packageDir ? readManifest(packageDir) : null
-  if (!manifest) return { ...entry, license: 'UNKNOWN', copyright: null, licenseText: null, noticeText: null }
+  const licenseOverride = LICENSE_ID_OVERRIDES.get(`${entry.name}@${entry.version}`)
+  if (!manifest) {
+    return { ...entry, license: licenseOverride ?? 'UNKNOWN', copyright: null, licenseText: null, noticeText: null }
+  }
   const licenseText = findLicenseText(packageDir)
   return {
     ...entry,
-    license: LICENSE_ID_OVERRIDES.get(`${entry.name}@${entry.version}`) ?? resolveLicenseId(manifest),
+    license: licenseOverride ?? resolveLicenseId(manifest),
     copyright: resolveCopyright(licenseText, manifest),
     licenseText,
     noticeText: findNoticeText(packageDir),

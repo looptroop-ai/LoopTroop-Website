@@ -13,22 +13,22 @@ import {
 } from '../scripts/verify-site.mjs'
 
 test('extracts and compares version floors at patch level', () => {
-  assert.equal(extractFloorVersion('>=24.18.1'), '24.18.1')
-  assert.equal(compareSemverTriples('24.18.2', '24.18.1') > 0, true)
-  assert.equal(compareSemverTriples('24.18.1', '24.18.1'), 0)
-  assert.equal(compareSemverTriples('24.18.0', '24.18.1') < 0, true)
+  assert.equal(extractFloorVersion('>=24.21.0'), '24.21.0')
+  assert.equal(compareSemverTriples('24.21.1', '24.21.0') > 0, true)
+  assert.equal(compareSemverTriples('24.21.0', '24.21.0'), 0)
+  assert.equal(compareSemverTriples('24.18.0', '24.21.0') < 0, true)
 })
 
 test('accepts Getting Started prerequisite versions at or above the CLI floor', () => {
   const gettingStarted = `
 | Channel | What it needs first |
 | --- | --- |
-| curl | Node 24.18.1+, npm 12.0.2+, git, gh |
-| npm | Node 24.18.2+, npm 12.0.2+, git, gh |
+| curl | Node 24.21.0+, npm 12.0.2+, git, gh |
+| npm | Node 24.21.1+, npm 12.0.2+, git, gh |
 `
 
   assert.doesNotThrow(() => assertDocumentedPrerequisiteFloors(gettingStarted, {
-    engines: { node: '>=24.18.1', npm: '>=12.0.2' },
+    engines: { node: '>=24.21.0', npm: '>=12.0.2' },
   }))
 })
 
@@ -37,7 +37,7 @@ test('reports documented prerequisite versions below the CLI floor', () => {
 
   assert.throws(
     () => assertDocumentedPrerequisiteFloors(gettingStarted, {
-      engines: { node: '>=24.18.1', npm: '>=12.0.2' },
+      engines: { node: '>=24.21.0', npm: '>=12.0.2' },
     }),
     /below the CLI floor/,
   )

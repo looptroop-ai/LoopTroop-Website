@@ -44,7 +44,7 @@ It checks the machine rather than a ticket. In a normal CLI run that means a
 leading `version` update check plus machine checks named `node`, `npm`, `git`,
 `gh`, `gh auth`, `config dir`, `install`, `schema`, `last start`,
 `project ignores`, `opencode cli`, `opencode`, `port`, and `daemon`. Each
-failing check prints what to do about it. The current floor is **Node 24.18.1
+failing check prints what to do about it. The current floor is **Node 24.21.0
 or newer and npm 12.0.2 or newer**.
 
 **Versions are shown against the newest published one** — `v26.7.0 (latest

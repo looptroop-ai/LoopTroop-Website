@@ -97,8 +97,8 @@ Everything else differs by channel, so read the row you are actually using.
 
 | Channel | Node | git | `gh` |
 | --- | --- | --- | --- |
-| **Installer script** | you provide **24.18.1+** (and npm **12.0.2+**) — the installer is a Node program, never installs Node, and hands the package to npm | you provide it | you provide it |
-| **npm, bun, pnpm, Yarn** | you provide **24.18.1+** (and npm **12.0.2+**) | you provide it | you provide it |
+| **Installer script** | you provide **24.21.0+** (and npm **12.0.2+**) — the installer is a Node program, never installs Node, and hands the package to npm | you provide it | you provide it |
+| **npm, bun, pnpm, Yarn** | you provide **24.21.0+** (and npm **12.0.2+**) | you provide it | you provide it |
 | **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
 | **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
 | **Chocolatey** ⏳ | installed for you (`nodejs-lts`) | installed for you | installed for you |
@@ -156,7 +156,7 @@ arm64) and Windows (x64) on the
 Standalone release archives are built with Node `v26.9.0`'s native
 `--build-sea` builder and carry that runtime in the executable, so they do not
 need Node on the host to run. This embedded runtime is separate from the
-application floor: application and package channels retain Node `24.18.1`,
+application floor: application and package channels retain Node `24.21.0`,
 and the container uses that same floor for its application runtime.
 
 The installer will place one for you, into `~/.looptroop` unless you say
