@@ -23,11 +23,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Checkout the pinned LoopTroop source
+      - name: Checkout the latest merged LoopTroop source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: looptroop-ai/LoopTroop
-          ref: f784f055b45854016c245a2d902d6799b7e8265c
+          ref: 10888081de5a4ac46af30810ede613b56d83fda4
           path: .source/LoopTroop
           persist-credentials: false
           sparse-checkout: |
