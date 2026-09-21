@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 5
     env:
       COLLECTOR_URL: https://www.looptroop.ovh/api/cron/project-stats
+      # The same value has to exist in the Vercel production environment, which
+      # is what the endpoint checks this bearer token against.
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
     steps:
       - name: Request snapshot

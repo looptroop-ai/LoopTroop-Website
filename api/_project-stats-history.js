@@ -104,7 +104,8 @@ export function createRedisClientFromEnv(env = process.env, fetchImpl = globalTh
   // The current Upstash Marketplace integration on Vercel provisions the
   // KV_REST_API_* names. Direct Upstash connections use the UPSTASH_* names.
   // Keep both pairs supported, but never mix a URL from one pair with a token
-  // from the other.
+  // from the other. The token must be read-write: the hourly collector stores
+  // snapshots, so Upstash's read-only token fails at the first write.
   const credentials = [
     [env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN],
     [env.KV_REST_API_URL, env.KV_REST_API_TOKEN],
