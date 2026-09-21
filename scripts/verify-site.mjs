@@ -269,11 +269,45 @@ async function verifyDocumentationIsLive() {
   }
 }
 
+/**
+ * Every channel whose publish joins somebody else's queue says so on the page.
+ *
+ * Chocolatey and WinGet install the previous release for a few days after each
+ * release, because a human reviews every submission. That is a promise about
+ * how LoopTroop publishes, and the source repository states it in the install
+ * catalog — so the page is checked against that rather than against a list kept
+ * by hand here, which is how those two channels stayed marked as unavailable
+ * for weeks after they went live.
+ *
+ * The catalog comes from the pinned source ref, so this checks nothing until a
+ * release carries the field. That is the right way round: the page is verified
+ * against the version people can install, not against an unreleased contract.
+ */
+async function verifyModeratedChannelsAreExplained() {
+  const [installation, catalog] = await Promise.all([
+    readFile('site/docs/installation.html', 'utf8').then(decodeHtmlText),
+    readInstallCatalog(),
+  ])
+
+  for (const channel of catalog.channels) {
+    if (!channel.live || !channel.moderated) continue
+    if (!installation.includes(channel.documentedInstall)) {
+      fail(`The installation page never shows ${channel.documentedInstall}, which the catalog lists as a live channel.`)
+    }
+    // The wording is the page's to choose; what it must not do is present a
+    // moderated channel as though it published like every other one.
+    if (!/arrives? later|reviews? every version|days after/i.test(installation)) {
+      fail(`The installation page does not say that ${channel.id} reaches its feed later than the other channels.`)
+    }
+  }
+}
+
 export async function verifySite() {
   await Promise.all(requiredFiles.map((file) => access(file)))
   await verifyDocumentationIsLive()
   await verifyLandingInstallOrder()
   await verifyLandingPrerequisiteFloors()
+  await verifyModeratedChannelsAreExplained()
 
   const indexHtml = await readFile('site/index.html', 'utf8')
   if (indexHtml.includes('{{VERSION}}')) throw new Error('Marketing output still contains a build-time version placeholder.')
