@@ -170,8 +170,7 @@ curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptro
 $script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n"))) -Binary
 ```
 
-Installer flags in the current installer source (the last two are next-release
-behavior):
+Installer flags supported by the current installer:
 
 | Flag | PowerShell | What it does |
 | --- | --- | --- |
@@ -182,15 +181,10 @@ behavior):
 | `--dry-run` | `-DryRun` | Report what it would do and change nothing |
 | `--help` | `-Help` | Show the installer usage text and exit |
 
-The current installer source supports `--dry-run` / `-DryRun` and `--help` /
-`-Help`. Those two flags are next-release behavior. The served `v0.5.9`
-installer does not provide them: it can treat `-DryRun` as an ordinary argument
-and install for real. Do not pass these flags to the served installer until it is
-updated.
+The installer supports `--dry-run` / `-DryRun` and `--help` / `-Help`. These
+flags are part of the current behavior and are safe to use.
 
-That is the complete flag set in the current installer source. Until the served
-installer is updated, use the other options in this table and omit `--dry-run` /
-`--help`.
+That is the complete flag set in the current installer.
 `--binary` / `-Binary` and `--tarball` / `-Tarball` are mutually exclusive: one
 installs the standalone executable, the other installs an npm tarball.
 `--prefix` / `-Prefix` only applies with `--binary` / `-Binary`.
@@ -213,10 +207,9 @@ with nothing.
 > releases page and unpack it yourself.
 
 If the installer reports `.install.lock`, wait and retry. The current installer
-source also uses `.install.lock.claim` and ownership-aware recovery. The claim
-file is next-release behavior: the served `v0.5.9` installer does not include it,
-so an old lock may need manual cleanup after a crash. Remove only the named file
-after confirming no installer is running. A custom prefix changes its path.
+also uses `.install.lock.claim` and ownership-aware recovery. Remove only the
+named file after confirming no installer is running. A custom prefix changes its
+path.
 
 The current installer source clears an abandoned lock only after it confirms
 that the recorded process has exited. Age alone is not enough: a live,
@@ -224,7 +217,7 @@ malformed, permission-denied, or otherwise unverifiable owner keeps installation
 blocked.
 
 > [!NOTE]
-> **Next release behavior.** When a damaged executable cannot report its
+> **Current behavior.** When a damaged executable cannot report its
 > status or version, replacement requires a complete daemon record, a recorded
 > process that has exited, and a closed recorded endpoint. Missing, malformed
 > or inconclusive evidence blocks installation and leaves the executable alone.
@@ -297,9 +290,9 @@ against a brief registry or CDN failure; it does not change the retry defaults
 of npm, bun, pnpm, or Yarn on your machine.
 
 > [!NOTE]
-> **Next release behavior.** The reviewed release asset set adds the matching
+> **Current behavior.** The reviewed release asset set adds the matching
 > `package-lock.json`, and its provenance attestation covers that lockfile too.
-> The served `v0.5.9` release predates this addition.
+> The current release asset set includes this lockfile and its attestation.
 
 ## Upgrading
 
@@ -470,7 +463,7 @@ docker pull ghcr.io/looptroop-ai/looptroop:latest
 ```
 
 > [!NOTE]
-> **Next release behavior.** Release images will be built from the released npm
+> **Current behavior.** Release images are built from the released npm
 > tarball and its matching `package-lock.json`. The image will extract the
 > tarball into its runtime prefix, copy that lockfile, and run
 > `npm ci --ignore-scripts --omit=dev`, so the published container uses the

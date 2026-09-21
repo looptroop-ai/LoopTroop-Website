@@ -76,7 +76,7 @@ Operational notes:
 - validation ranges are enforced by the API layer in `server/routes/profiles.ts`, not by SQLite column constraints alone
 
 > [!NOTE]
-> **Next release behavior.** Dirty form snapshots, hydration state, and
+> **Current behavior.** Dirty form snapshots, hydration state, and
 > unsaved modal drafts stay in the browser; only a successful profile write
 > changes this row, and a reload is not a promise of recovering an unsaved draft.
 
@@ -254,9 +254,9 @@ The only SQL foreign key here is the destination child ticket. The parent submis
 ### `interview_batch_claims`
 
 > [!NOTE]
-> **Next release behavior.** Batch-claim lease recovery and the separate
+> **Current behavior.** Batch-claim lease recovery and the separate
 > non-expiring pending-stop safety marker described below are part of the
-> upcoming release.
+> current implementation.
 
 This table is the one durable lock that says an interview answer batch is being processed right now.
 
@@ -297,8 +297,8 @@ Operational notes:
 ### `opencode_sessions`
 
 > [!NOTE]
-> **Next release behavior.** Ticket-contained OpenCode ownership markers and
-> the two-storage restart limit described below are part of the upcoming
+> **Current behavior.** Ticket-contained OpenCode ownership markers and
+> the two-storage restart limit described below are part of the current
 > release.
 
 This table is the primary durable record for OpenCode ownership. Restart
@@ -431,7 +431,7 @@ Operational notes:
 `execution_log_projection_cursors` stores the last indexed byte offset for each `(ticket_id, channel)`. A truncated/replaced file resets only that channel. Cold catch-up reads the remaining suffix cooperatively in bounded batches, and concurrent readers share one catch-up promise per ticket. Both tables cascade with ticket deletion and can be reconstructed from the filesystem logs.
 
 > [!NOTE]
-> **Next release behavior.** Native OpenCode history is indexed separately from
+> **Current behavior.** Native OpenCode history is indexed separately from
 > the bounded diagnostic reader. Complete DEBUG/history actions can scan the
 > full available file set; initial views remain paginated and do not eagerly
 > load the archive.

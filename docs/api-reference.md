@@ -8,9 +8,9 @@ All backend routes are mounted under `/api`.
 This page documents the current HTTP surface exposed by `server/index.ts` and the route handlers in `server/routes/*`.
 
 > [!NOTE]
-> **Next release behavior.** Remote-mode cookie enforcement, strict Origin
+> **Current behavior.** Remote-mode cookie enforcement, strict Origin
 > checks, configured development-origin exceptions, and SSE admission
-> reservations described below are upcoming. The installed daemon’s credential
+> reservations described below are current. The installed daemon’s credential
 > mechanisms remain unchanged.
 
 ## Reaching An Installed Daemon
@@ -61,7 +61,7 @@ port scope of their own.
 
 ### Browser cookies and remote mode
 
-In the next release, remote browser sessions require an explicit HTTPS
+Now, remote browser sessions require an explicit HTTPS
 `LOOPTROOP_PUBLIC_ORIGIN` (or `publicOrigin` in `config.json`) alongside remote
 API opt-in. The backend may use HTTP internally. Cookie-bearing Origins must
 match the configured origin; cookie-bearing requests without Origin require
@@ -136,7 +136,7 @@ API routes use a global per-client rate limit, with separate buckets for read re
 `POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but always refreshes the provider catalog first and returns the connected-model view rather than the optional `scope=all` catalog.
 
 > [!NOTE]
-> **Next release behavior.** Model-discovery failures carry a machine-readable
+> **Current behavior.** Model-discovery failures carry a machine-readable
 > `code`: `OPENCODE_UNREACHABLE` when the server cannot be reached, or
 > `OPENCODE_DISCOVERY_FAILED` when it is reachable but its catalog lookup fails.
 > The browser retries either condition within its fixed retry budget. It does
@@ -147,7 +147,7 @@ API routes use a global per-client rate limit, with separate buckets for read re
 Unsafe cursor values fail the request before the stream opens: control characters or values longer than 128 characters return `400` with `{ "error": "Invalid lastEventId" }`. A bounded but invalid cursor instead opens the stream and emits `replay_gap` with `reason: "invalid_cursor"`. A well-formed cursor that is no longer available in the replay buffer emits `replay_gap` with `reason: "cursor_unavailable"`. In both replay-gap cases the event is sent with an empty SSE `id:` so the browser resets its native last-event-id state.
 
 > [!NOTE]
-> **Next release behavior.** On the first `open` after a reload with a stored
+> **Current behavior.** On the first `open` after a reload with a stored
 > cursor, the browser refreshes the affected ticket caches but keeps the cursor
 > and live subscription. A `replay_gap` clears the in-memory and durable cursor,
 > refreshes the affected caches when that connection has not already recovered,
@@ -196,8 +196,8 @@ LoopTroop uses a singleton profile, not a collection.
 `POST /api/profile` returns `409` when the profile already exists. `PATCH /api/profile` returns `404` when no profile has been created yet.
 
 > [!NOTE]
-> **Next release behavior.** The browser form snapshot and prompt preview
-> handling described in this section are upcoming client behavior.
+> **Current behavior.** The browser form snapshot and prompt preview
+> handling described in this section are current client behavior.
 
 The browser forms keep a snapshot of the actual values they are editing. A
 successful profile, project, or ticket write advances only the submitted
@@ -253,7 +253,7 @@ Example profile update payload:
 Selected validation ranges that are easy to miss when calling the API directly:
 
 > [!NOTE]
-> **Next release behavior.** The `maxIterations` continuation scope described
+> **Current behavior.** The `maxIterations` continuation scope described
 > below applies to automatic bead-response continuations within one bead
 > iteration. User-facing Continue across workflow phases is a separate action
 > and is not counted by this cap.
@@ -441,21 +441,21 @@ Worktree delete response:
 Project deletion (`DELETE /api/projects/:id`) returns 409 when any ticket in the project is not in `DRAFT`, `COMPLETED`, or `CANCELED` status. Finish or cancel all active tickets before deleting the project. Worktree deletion is narrower: it only removes completed and canceled ticket worktrees and leaves active ticket worktrees untouched. Before removal, LoopTroop safely restores owner permissions throughout each managed worktree without following symlinks, allowing cleanup of read-only outputs created by project tooling while preserving targets outside the worktree.
 
 > [!NOTE]
-> **Next release behavior.** The worktree housekeeping endpoint also refuses
+> **Current behavior.** The worktree housekeeping endpoint also refuses
 > removal when ignored files outside `.ticket` and `.looptroop` would be lost,
 > or when their presence cannot be checked. This includes ignored configuration,
 > dependency folders and build output. Explicit ticket and project deletion do
 > not use this housekeeping protection.
 
-In the next release, this endpoint returns HTTP `200` after processing eligible
+Now, this endpoint returns HTTP `200` after processing eligible
 worktrees, with `skipped: [{ "externalId": "PROJECT-1", "reason": "..." }]`
 for entries it kept. `skipped` is empty when no entries failed or were protected.
 `freedBytes` counts only successfully removed worktrees. A failure to inspect
 the managed root itself still returns an error before removal starts.
 
 > [!NOTE]
-> **Next release behavior.** The guarded approval-save and UI-state draft
-> retention details in the ticket routes below describe the upcoming release.
+> **Current behavior.** The guarded approval-save and UI-state draft
+> retention details in the ticket routes below describe the current implementation.
 
 ## Ticket Routes
 
@@ -751,7 +751,7 @@ The cancel endpoint accepts an optional JSON request body to trigger cleanup or 
 
 The body is validated strictly. A malformed or oversized field returns `400` and the ticket is left running. It previously fell back to defaults and cancelled anyway, which silently dropped the rejected field while still performing the destructive part of the request.
 
-In the next release, the cancel endpoint will return `409` while the ticket is
+Now, the cancel endpoint will return `409` while the ticket is
 in `CLEANING_ENV` and after a verified merge has been recorded. In either case,
 the ticket remains unchanged.
 
@@ -789,9 +789,9 @@ Archived versions are read-only approved planning generations backed by phase at
 Current batch-answer payload:
 
 > [!NOTE]
-> **Next release behavior.** Batch identity, durable claim recovery, delayed
+> **Current behavior.** Batch identity, durable claim recovery, delayed
 > timeout fencing, and same-tick answer/skip guarding in this section describe
-> the upcoming release.
+> the current implementation.
 
 ```json
 {
@@ -868,7 +868,7 @@ Structured interview-answer approval payload:
 Edit-answer payload:
 
 > [!NOTE]
-> **Next release behavior.** Answer edits must also include the active positive
+> **Current behavior.** Answer edits must also include the active positive
 > `batchNumber`. A missing or invalid identity returns `400`; a stale batch or
 > concurrent edit returns `409`. The answer is written only while its claim
 > and saved session version still match.
@@ -965,12 +965,12 @@ Execution setup plan reads may select archived versions with `phaseAttempt`. Dra
 
 Successful `PUT /execution-setup-plan` responses return the saved `raw`, normalized `plan`, `contentSha256`, and current route state (`status`, `state`, `ticket`) so the client does not need an immediate follow-up fetch.
 
-In the next release, approval-time and runtime evidence refreshes also compare
+Now, approval-time and runtime evidence refreshes also compare
 the loaded plan's hash before writing. A concurrent user edit is preserved;
 the approval request returns `409` and requires the current plan to be reloaded.
 
 > [!NOTE]
-> **Next release behavior.** Raw and structured setup-plan saves include
+> **Current behavior.** Raw and structured setup-plan saves include
 > `expectedContentSha256` from the plan the draft was built on. Replacing an
 > existing plan without that hash returns `428`; a stale hash returns `409`.
 > The route serializes edits and, when runtime setup must stop, checks the hash
@@ -1034,7 +1034,7 @@ Regeneration payload:
 Both list routes reconcile against OpenCode before answering. A poll that succeeds prunes anything OpenCode no longer lists and arms a countdown for anything OpenCode has that LoopTroop is not yet tracking. A poll that fails prunes nothing, because an unreachable server is not evidence that a question went away.
 
 > [!NOTE]
-> **Next release behavior.** After the browser receives a resolution for a
+> **Current behavior.** After the browser receives a resolution for a
 > question, it keeps that `(sessionId, requestId)` identity closed until a
 > successful snapshot omits it. A stale successful response containing the same
 > identity cannot reopen the question; a later request with a new identity can
@@ -1106,7 +1106,7 @@ The manifest route accepts the same filters and returns `{ "artifacts": [...] }`
 The projected log route accepts `scope=phase|lifecycle`, `view=overview|system|command|ai|error|debug`, optional `phase`, `phaseAttempt`, and `modelId`, `limit=1..500`, and an opaque `before` cursor. When `limit` is omitted, it defaults to 20 so ticket and status views can paint the latest activity quickly; the frontend then requests older cursor pages in batches of up to 250 as the user scrolls upward. Overview excludes command-classified rows before applying the page limit because commands have their own view and are not rendered in ALL. The newest-page response returns chronological `entries`, `olderCursor`, `hasOlder`, cursor-independent `totalEntries`, and `totalTextLines` for the complete matching filter; older cursor pages omit the unchanged totals to avoid repeating the aggregate work. Empty content contributes zero text lines; non-empty content contributes one plus its newline count. These totals are aggregated in SQLite and do not load historical entry bodies into the application or browser. The AI channel includes model-scoped error rows so provider recovery information is also visible beside that model; the same durable event remains available from the ERROR view. Projection catch-up reads unindexed JSONL suffixes cooperatively and deduplicates concurrent catch-up requests; it does not change the live SSE or durable log-writing paths.
 
 > [!NOTE]
-> **Next release behavior.** Complete `DEBUG` history and export use the full
+> **Current behavior.** Complete `DEBUG` history and export use the full
 > available native OpenCode history, including older files beyond the bounded
 > diagnostic defaults. Initial pages remain bounded; Go to top, bead navigation,
 > and complete exports perform action-triggered full drains. A native cursor
@@ -1121,7 +1121,7 @@ recovered. Returned native rows are bounded by the page `LIMIT`, while lineage
 visibility checks grow with ancestry depth; the route does not promise constant
 total query work or a bounded archive.
 
-In the next release, file growth is treated as an append only after verifying
+Now, file growth is treated as an append only after verifying
 the previously indexed prefix. A larger rewrite creates a fresh generation;
 retained cursors keep their earlier rows. This verification reads the indexed
 prefix, so its cost grows with that prefix even though returned pages remain
@@ -1325,7 +1325,7 @@ and timeout fields. A bare command string is not inferred into a shell command.
 `PUT /api/tickets/:id/beads` rewrites the tracker atomically only while the ticket is in `WAITING_BEADS_APPROVAL`. On the first write to a missing tracker no concurrency hash is required. When a tracker already exists, the request must include `X-Content-Sha256` from the read it was built on; missing it returns `428`, and a stale hash returns `409` with both the expected and current hashes. Manual saves write `user_edit_receipt:beads`, record `X-Edit-Surface` as `jsonl` only when the client sent exactly that value, and otherwise record the `structured` surface. The input alias `dependencies.blockedBy` is normalized to canonical `dependencies.blocked_by`; the server derives `blocks` from those authoritative edges and rejects dangling references or cycles before writing. `GET /api/tickets/:id/beads/:beadId/diff` returns `{ "diff": "", "captured": false }` when no diff artifact exists yet.
 
 > [!NOTE]
-> **Next release behavior.** Repairing a stored plan with malformed or
+> **Current behavior.** Repairing a stored plan with malformed or
 > unrepresentable rows requires `X-Edit-Surface: jsonl`, as well as the existing
 > plan's `X-Content-Sha256`. Omitting the surface header or supplying another
 > value returns `422` without writing the file. The surface header remains

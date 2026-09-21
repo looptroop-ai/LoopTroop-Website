@@ -179,9 +179,8 @@ application-data cleanup: it never touches your configuration, database, logs or
 tickets.
 
 > [!NOTE]
-> **Next release behavior.** The cleanup recheck and safety boundaries below
-> describe the upcoming release. The currently published release and the pinned
-> CLI reference above do not include these process and log-follow fixes yet.
+> **Current behavior.** The cleanup recheck, safety boundaries, and process
+> and log-follow fixes below are part of the current implementation.
 
 With `--apply`, it repeats the containment, ownership, activity, registration,
 and Git checks immediately before removing each candidate. If a worktree changed

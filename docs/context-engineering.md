@@ -293,8 +293,8 @@ The current default token budget is `100000`. If assembled context exceeds that 
 The most disposable slices disappear first, while the core ticket requirement is protected as long as possible.
 
 > [!NOTE]
-> **Next release behavior.** Full-priority context trimming and the
-> project-scoped cache key described below are part of the upcoming release.
+> **Current behavior.** Full-priority context trimming and the
+> project-scoped cache key described below are part of the current implementation.
 
 Trimming continues through every expendable part at a priority until the
 assembled context fits the budget. It does not remove only the first matching

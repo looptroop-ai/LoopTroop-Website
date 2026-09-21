@@ -17,7 +17,7 @@ This page covers the diagnostics that help explain slow local behavior, blocked 
 ### Complete DEBUG history and bounded diagnostics
 
 > [!NOTE]
-> **Next release behavior.** Complete DEBUG/history reads use the full
+> **Current behavior.** Complete DEBUG/history reads use the full
 > available native OpenCode file set. Provider-error diagnostics retain their
 > bounded defaults: the ten newest candidate files and at most 5 MiB per file.
 > Diagnostic reads remain best effort; complete metadata, read, and index
@@ -71,13 +71,13 @@ operator-controlled, add that **absolute** directory to
 `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`; otherwise move or reinstall the tool into a
 location owned by you, root, or the Node runtime owner.
 
-In the next release, this refusal also applies when a Linux user namespace
+Now, this refusal also applies when a Linux user namespace
 hides ownership behind its overflow UID. That value cannot prove that host
 root owns the tool. An explicitly trusted directory is required in that case;
 the Node executable having the same unverifiable owner does not grant trust.
 
 > [!NOTE]
-> **Next release behavior.** When a diagnostic prints an HTTP origin, IPv6 host
+> **Current behavior.** When a diagnostic prints an HTTP origin, IPv6 host
 > literals are bracketed before the port, for example `http://[::1]:3000`. The
 > same formatting is used by `status`, `open`, and `setup`, so the displayed
 > origin is a usable URL.
@@ -179,7 +179,7 @@ help, because `looptroop open` signs you in at `127.0.0.1` and a `localhost`
 bookmark still has no cookie. Use the `127.0.0.1` address.
 
 > [!NOTE]
-> **Next release behavior.** A brief SSE disconnect does not by itself sign the
+> **Current behavior.** A brief SSE disconnect does not by itself sign the
 > browser out. The client asks an ordinary API route with a five-second deadline
 > after a failed stream connection; only an HTTP 401 response marks the session
 > signed out. An unreachable daemon leaves the session state unchanged while the
@@ -291,8 +291,8 @@ ticket Retry, Continue, or Cancel actions.
 #### Coding and integration recovery safeguards
 
 > [!NOTE]
-> **Next release behavior.** The conditional step-cap and Git-hook recovery
-> safeguards in this subsection describe the upcoming release.
+> **Current behavior.** The conditional step-cap and Git-hook recovery
+> safeguards in this subsection describe the current implementation.
 
 When `CODING` reports an OpenCode step-cap restore conflict, LoopTroop keeps the
 edited root `opencode.json` and `.ticket/opencode-steps-restore.json` available
@@ -314,8 +314,8 @@ fully transactional.
 #### Approval-save and draft diagnostics
 
 > [!NOTE]
-> **Next release behavior.** The approval-save baseline checks, retained drafts,
-> and best-effort leaving flush described in this subsection are upcoming.
+> **Current behavior.** The approval-save baseline checks, retained drafts,
+> and best-effort leaving flush described in this subsection are current.
 
 Approval panes retain the content hash loaded with a dirty interview or PRD
 draft. A missing baseline is reported as HTTP `428`; a stale baseline is a
@@ -334,8 +334,8 @@ read as proof that the browser unload delivered the save.
 #### Configuration, project, and prompt form diagnostics
 
 > [!NOTE]
-> **Next release behavior.** Form dirty-state and preview handling described in
-> this subsection are upcoming client behavior.
+> **Current behavior.** Form dirty-state and preview handling described in
+> this subsection are current client behavior.
 
 Form close warnings compare actual current values with the saved or initial
 snapshot, including custom model/profile controls; typing and then restoring a
@@ -348,8 +348,8 @@ draft. A stale preview response is ignored rather than displayed as current.
 #### Remote-stop uncertainty and ownership recovery
 
 > [!NOTE]
-> **Next release behavior.** Confirmed-stop handling, marker replay, and the
-> two-storage restart limit in this subsection describe the upcoming release.
+> **Current behavior.** Confirmed-stop handling, marker replay, and the
+> two-storage restart limit in this subsection describe the current implementation.
 
 An abort request that returns false, throws, or cannot be verified is not proof
 that OpenCode stopped. The ticket stays retryable, and the session ownership

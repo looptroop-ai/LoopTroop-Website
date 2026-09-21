@@ -10,8 +10,8 @@ The canonical bead model lives in `server/phases/beads/types.ts`. Runtime schedu
 LoopTroop implements only part of the broader "beads" idea popularized by Steve Yegge. Its implementation is intentionally pragmatic: deterministic scheduling, small coding slices, strong retry/reset semantics, and durable workflow artifacts.
 
 > [!NOTE]
-> **Next release behavior.** The start-checkpoint ordering and restart/retry
-> recovery described on this page are upcoming. LoopTroop records the bead's
+> **Current behavior.** The start-checkpoint ordering and restart/retry
+> recovery described on this page are current. LoopTroop records the bead's
 > reset anchor before publishing `in_progress`; if that checkpoint cannot be
 > persisted, the bead stays pending and execution does not begin.
 > Retry can reattempt that pending bead without a reset because no execution
@@ -181,7 +181,7 @@ The raw read exposes the full repair payload:
 `content` is the exact JSONL as stored. `items` contains only the rows that parsed. This matters because rebuilding the file from `items` alone would silently delete damaged or unrepresentable lines instead of letting a person repair them in place.
 
 > [!NOTE]
-> **Next release behavior.** The JSONL editor sends `{ beads, sourceLines }` in
+> **Current behavior.** The JSONL editor sends `{ beads, sourceLines }` in
 > the request body instead of putting source positions in `X-Source-Lines`.
 > This keeps large plans within HTTP header limits. `sourceLines` contains one
 > strictly increasing positive safe integer per row. The server uses these
@@ -197,7 +197,7 @@ The raw read exposes the full repair payload:
 > invent defaults for incomplete executable work.
 
 > [!NOTE]
-> **Next release behavior.** The structured editor gives each process argument
+> **Current behavior.** The structured editor gives each process argument
 > its own text field. Spaces, newlines and empty arguments stay literal; the
 > editor does not split them into shell words. List fields have numbered
 > accessible names within their groups.
@@ -212,7 +212,7 @@ cycles before writing. The input alias `dependencies.blockedBy` is normalized
 into the canonical shape without creating a second stored contract.
 
 > [!NOTE]
-> **Next release behavior.** Cycle errors name the dependency path. Readers
+> **Current behavior.** Cycle errors name the dependency path. Readers
 > fill missing nested collection fields before checking a stored row, while
 > submitted edits must still supply their authoritative dependency list.
 
@@ -222,14 +222,14 @@ workspace show a repair warning and suppress completion percentages while that
 diagnostic is present, so damaged data cannot look complete.
 
 > [!NOTE]
-> **Next release behavior.** An unreadable or unsafe tracker adds a `readError`
+> **Current behavior.** An unreadable or unsafe tracker adds a `readError`
 > to `runtime.beadsDiagnostics` instead of hiding the whole ticket board. The
 > warning also suppresses completion percentages. Execution and checklist
 > generation still require a valid authoritative tracker.
 
 Saving is hash-guarded once a tracker already exists. `PUT /api/tickets/:id/beads` requires `X-Content-Sha256` on edits to an existing plan, returns `428` when the header is missing, and returns `409` when the hash is stale. A first write to a missing tracker needs no hash because there is nothing to overwrite. The optional `X-Edit-Surface` request header records whether the save came from the JSONL tab (`jsonl`) or the structured editor (`structured`, including the default when the header is missing or unrecognized). The approval draft keeps its immutable base hash through autosave, refetch, edit, reload, save, and approve; a stale write never retags the open draft.
 
-In the next release, `X-Edit-Surface` is optional only for clean plans. Repairing
+Now, `X-Edit-Surface` is optional only for clean plans. Repairing
 a stored plan with malformed or unrepresentable rows requires
 `X-Edit-Surface: jsonl` and the current content hash. Other surfaces receive
 `422` with `error: "Damaged bead plan must be repaired in JSONL mode"`,
@@ -238,7 +238,7 @@ the `malformedLines` and `unrepresentableLines` arrays. No file is written.
 Use the JSONL editor to repair every reported row before saving again.
 
 > [!NOTE]
-> **Next release behavior.** Saves retain the draft's original hash, while
+> **Current behavior.** Saves retain the draft's original hash, while
 > approval uses the hash of the current fetched plan. A failed request for
 > optional UI-state data does not prevent approval of a loaded, valid plan.
 > Editing stays disabled until the artifact hash has loaded, and a draft
@@ -250,7 +250,7 @@ Use the JSONL editor to repair every reported row before saving again.
 > evidence; unknown command metadata is retained.
 
 > [!NOTE]
-> **Next release behavior.** YAML formatting repairs preserve valid canonical
+> **Current behavior.** YAML formatting repairs preserve valid canonical
 > answers beside aliases and leave literal text inside list-item block scalars
 > unchanged, including nested sequences and standalone scalar markers. A valid
 > folded answer keeps its text when a sibling needs repair. Repairs do not choose
@@ -430,9 +430,9 @@ If local finalization fails after model success, the bead does **not** become `d
 ## 8. Structured Completion And Corrective Prompts
 
 > [!NOTE]
-> **Next release behavior.** The exact completion-marker retry and automatic
-> bead-response continuation boundaries in this section describe the upcoming
-> release.
+> **Current behavior.** The exact completion-marker retry and automatic
+> bead-response continuation boundaries in this section describe the current
+> implementation.
 
 LoopTroop does not trust plain language like "done" or "tests pass now."
 

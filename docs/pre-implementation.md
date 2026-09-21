@@ -185,7 +185,7 @@ If an attempt fails:
 The final report keeps the retry notes and per-attempt history so the user can see how setup evolved and why it eventually succeeded or blocked.
 
 > [!NOTE]
-> **Next release behavior.** When both a setup prompt and its fresh-session
+> **Current behavior.** When both a setup prompt and its fresh-session
 > fallback fail, both failures remain in the attempt report after their remote
 > sessions are confirmed stopped. An unconfirmed stop blocks further recovery.
 > The server also advertises setup-plan editing for a blocked runtime-setup

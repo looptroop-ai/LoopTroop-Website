@@ -105,9 +105,9 @@ While a batch is open:
 After submit, LoopTroop persists the batch into the session snapshot, updates the canonical interview state, and either prepares the next batch or advances to coverage.
 
 > [!NOTE]
-> **Next release behavior.** Batch identity, durable claim recovery, delayed
+> **Current behavior.** Batch identity, durable claim recovery, delayed
 > timeout fencing, and same-tick answer/skip guarding in this section describe
-> the upcoming release.
+> the current implementation.
 
 Every answer and skip submission includes the current positive `batchNumber`.
 The server loads the active batch before claiming it, so a stale tab or missing
@@ -125,7 +125,7 @@ first await, and clears it in `finally`, so a same-tick double action cannot
 start both mutations.
 
 > [!NOTE]
-> **Next release behavior.** Editing a recorded answer also sends the active
+> **Current behavior.** Editing a recorded answer also sends the active
 > `batchNumber`. The edit takes the same claim as generation and compares the
 > saved session before writing; stale or competing edits return `409`.
 > Interrupted follow-up generation keeps a durable in-flight marker. Recovery
@@ -248,8 +248,8 @@ At the approval step, the user can review the artifact in:
 Approval includes the SHA-256 hash of the exact raw content the user reviewed. If the stored artifact changes before approval lands, the server rejects the request with a stale-content `409` instead of approving a different version by mistake.
 
 > [!NOTE]
-> **Next release behavior.** Approval-draft baseline retention and
-> best-effort leaving flushes in this subsection describe the upcoming save
+> **Current behavior.** Approval-draft baseline retention and
+> best-effort leaving flushes in this subsection describe the current save
 > safety behavior.
 
 The structured editor and raw YAML editor carry the content hash they loaded

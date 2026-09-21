@@ -27,7 +27,7 @@ import { pathToFileURL } from 'node:url'
  * immutable ref, never a moving branch name.
  *
  * Update this to the latest application `main` commit whenever CLI behavior
- * changes, including before the next release tag, so published docs stay current.
+ * changes, including before a release tag, so published docs stay current.
  */
 export const CLI_SOURCE_REF = '10888081de5a4ac46af30810ede613b56d83fda4'
 

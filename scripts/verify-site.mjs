@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process'
-import { access, readFile } from 'node:fs/promises'
+import { access, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { CLI_SOURCE_REF, fetchSourceText } from './sync-cli-reference.mjs'
@@ -28,6 +28,7 @@ const SSE_EVENT_ROW = /^\| `([^`]+)` \| /gm
 const RESERVED_ROUTE_ROW = /\b(?:deprecated|tombstone)\b/i
 const INTERNAL_PR_LABEL = /\bPR\d+\b(?:\s*\(unreleased\))?/g
 const RELEASE_MARKER = /<!--\s*release[- ]marker\b[^>]*-->/gi
+const FUTURE_RELEASE_LANGUAGE = /\b(?:next|upcoming)\s+release\b|\bnext-release\b|\bcurrently published (?:release|client)\b/gi
 const SOURCE_REPO_ROOT = path.resolve(
   process.env.LOOPTROOP_SOURCE_ROOT || path.resolve(process.cwd(), '..', 'LoopTroop'),
 )
@@ -155,6 +156,10 @@ export function findReleaseLeakage(markdown) {
   return [...new Set(findings)].sort()
 }
 
+export function findFutureReleaseLanguage(markdown) {
+  return [...new Set([...markdown.matchAll(FUTURE_RELEASE_LANGUAGE)].map(([match]) => match))].sort()
+}
+
 async function pathExists(file) {
   try {
     await access(file)
@@ -249,8 +254,24 @@ async function verifyLandingPrerequisiteFloors() {
   assertDocumentedPrerequisiteFloors(gettingStartedMarkdown, sourcePackageManifest)
 }
 
+async function verifyDocumentationIsLive() {
+  const files = (await readdir('docs', { withFileTypes: true }))
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+  const findings = []
+
+  for (const file of files) {
+    const language = findFutureReleaseLanguage(await readFile(path.join('docs', file.name), 'utf8'))
+    for (const phrase of language) findings.push(`${file.name}: ${phrase}`)
+  }
+
+  if (findings.length > 0) {
+    fail(`Published documentation contains forward-looking release wording: ${findings.join(', ')}`)
+  }
+}
+
 export async function verifySite() {
   await Promise.all(requiredFiles.map((file) => access(file)))
+  await verifyDocumentationIsLive()
   await verifyLandingInstallOrder()
   await verifyLandingPrerequisiteFloors()
 

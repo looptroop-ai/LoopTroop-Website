@@ -6,12 +6,12 @@
 The singleton profile is the baseline configuration, accessible through the **Configuration** button in the LoopTroop UI. You do not need to restart the server after editing it, but settings are not all consumed at the same moment: some are frozen when a ticket starts, while others are read later at phase or session boundaries.
 
 > [!NOTE]
-> **Next release behavior.** The OpenCode step-cap restore/conflict rules and
-> protected Git-hook recovery marker described on this page are upcoming. The
+> **Current behavior.** The OpenCode step-cap restore/conflict rules and
+> protected Git-hook recovery marker described on this page are current. The
 > ordinary, non-conflicting run remains the normal restore path; a conflict can
 > refuse destructive recovery while preserving the edited files and markers.
 > The remote-mode cookie enforcement, strict Origin checks, port validation, and
-> configured development-origin behavior described below are also upcoming,
+> configured development-origin behavior described below are also current,
 > as is the explicit-directory rule for unverifiable executable ownership.
 
 ## Where LoopTroop Keeps Its State
@@ -66,7 +66,7 @@ one flat list.
 | Log level | `logLevel` | `LOOPTROOP_LOG_LEVEL` | — | `info` |
 | OpenCode address | `opencodeBaseUrl` | `LOOPTROOP_OPENCODE_BASE_URL` | — | `http://127.0.0.1:4096` |
 | OpenCode mode | `opencodeMode` | `LOOPTROOP_OPENCODE_MODE` | — | `live` |
-| Public browser origin (next release) | `publicOrigin` | `LOOPTROOP_PUBLIC_ORIGIN` | — | Unset |
+| Public browser origin (current behavior) | `publicOrigin` | `LOOPTROOP_PUBLIC_ORIGIN` | — | Unset |
 
 Resolved elsewhere, and **not** through that chain:
 
@@ -95,11 +95,11 @@ An extensionless Windows path is resolved through the executable siblings listed
 by `PATHEXT`, in that order, before the normal path trust checks run. The
 extensionless file itself is never run.
 
-In the next release, that search uses only `.exe`, `.com`, `.cmd` and `.bat`
+Now, that search uses only `.exe`, `.com`, `.cmd` and `.bat`
 entries. Scripts that need another interpreter, such as `.ps1` or `.vbs`, no
 longer hide a supported executable later in `PATHEXT`.
 
-In the next release, an unmapped Linux owner does not establish trust. The same
+Now, an unmapped Linux owner does not establish trust. The same
 overflow UID can represent host root or a different host user, so LoopTroop
 cannot use it to verify ownership. This also applies when Node's own executable
 has that owner. If you trust the tool's directory, name that absolute directory
@@ -114,7 +114,7 @@ trusted owner, the binary and directory chain are not writable by group or
 others, and the binary is protected inside a private directory (such as `/root`
 or `~` with mode `0700` denying group and other traversal; mode `0555` alone or
 sticky directories like `/tmp` are not excused). Sibling binaries in that
-directory must still pass normal ownership checks. In the next release, this
+directory must still pass normal ownership checks. Now, this
 exception does not accept an unmapped owner; that still needs an explicit
 trusted-directory setting.
 
@@ -185,7 +185,7 @@ API or browser-session token minted by the daemon and recorded in owner-only
 daemon state. See [API Reference](api-reference.md) for the credentials used by
 callers after the daemon starts.
 
-In the next release, remote browser sessions require one explicit HTTPS origin
+Now, remote browser sessions require one explicit HTTPS origin
 in `LOOPTROOP_PUBLIC_ORIGIN` or the `publicOrigin` setting. It must be an origin,
 not a URL with credentials, a route, query, or fragment. Enable remote API access
 for the browser-facing deployment; the backend can still bind to loopback and
@@ -281,14 +281,14 @@ The docs links on each control point back to this page, but the UI itself also h
 - **The reload button performs a strong provider/model refresh.** It spins and remains disabled until the refresh finishes, disposes only LoopTroop's OpenCode catalog/root instance, then fetches the provider catalog again and replaces the cached model query. Use it after adding or changing OpenCode provider credentials, or when the catalog was empty during startup. This does not restart `opencode serve` or interrupt active ticket worktree instances.
 
 > [!NOTE]
-> **Next release behavior.** Configuration and related form snapshot handling
-> described below is upcoming client behavior.
+> **Current behavior.** Configuration and related form snapshot handling
+> described below is current client behavior.
 
 - **Dirty state follows actual values.** The dialog compares its current profile values with the saved or initial snapshot, including model variants and other custom controls. Closing warns only while those values differ; typing and then restoring the snapshot clears the warning. During profile loading, or when no profile exists yet, values typed in the gap are not absorbed into a clean baseline when hydration arrives.
 - **Saves keep the right draft.** A successful save acknowledges the snapshot sent by that request. A failed save leaves the draft dirty, and edits made while the request completes or while a background refetch runs remain visible. An unsaved in-memory modal draft is not promised to survive a reload.
 
 > [!NOTE]
-> **Next release behavior.** Model discovery retries only while OpenCode is
+> **Current behavior.** Model discovery retries only while OpenCode is
 > starting. The initial catalog query and the manual reload retry the exact
 > startup response ``OpenCode server is not reachable. Start it with `opencode serve`.``. Other failures, including HTTP 500 responses, keep their existing
 > error and are not retried by these model queries.
@@ -904,7 +904,7 @@ Check and Require run their approved commands under a snapshot of the worktree a
 
 This policy affects only LoopTroop's internal Git operations. It does not alter the repository's hook configuration for your own Git commands. The `?` beside each control opens this section.
 
-In the next release, an unresolved restore from a previous validation blocks
+Now, an unresolved restore from a previous validation blocks
 both Check and Require. The refusal includes the retained recovery marker's
 location and explains which worktree changes need attention before retrying.
 
@@ -983,8 +983,8 @@ When the deadline expires, LoopTroop stops scheduling new setup work and returns
 **Range:** 0–20
 
 > [!NOTE]
-> **Next release behavior.** The automatic bead-response continuation scope and
-> finite/zero semantics below describe the upcoming release. User-facing
+> **Current behavior.** The automatic bead-response continuation scope and
+> finite/zero semantics below describe the current implementation. User-facing
 > Continue across workflow phases is separate and is not counted by this cap.
 
 How many iteration attempts LoopTroop allows for a failing bead before it enters `BLOCKED_ERROR`. Within each bead iteration, a finite value separately caps automatic bead-response continuation turns; `0` means unlimited for that automatic path. The same limit is also used for final-test retries in `RUNNING_FINAL_TEST`.

@@ -39,7 +39,7 @@ loses it. The directory is `0700` and the files in it `0600`.
 | `daemon.json` | The running daemon's record: pid, port, instance id, and the API token it minted at startup. Also records *why* the last start was refused |
 | `daemon.lock` | Held by the running daemon, so a second one cannot start against the same directory |
 | `logs/daemon.log` | What `looptroop logs` reads. Rotated when oversized, at startup or while the daemon runs |
-| `logs/daemon.log.rotation` (next release) | Private pending/completed rotation marker used by log followers |
+| `logs/daemon.log.rotation` (current behavior) | Private pending/completed rotation marker used by log followers |
 
 **Backing up** is copying that directory with the daemon stopped. Your projects
 are not in it: LoopTroop works in git worktrees under `<project>/.looptroop/`,
@@ -60,11 +60,10 @@ configuration, tickets or the database. It refuses to run while the daemon is up
 because those worktrees may be in use.
 
 > [!NOTE]
-> **Next release behavior.** The cleanup and process-control guarantees below
-> describe the upcoming release. The currently published release does not
-> include these changes yet.
+> **Current behavior.** The cleanup and process-control guarantees below
+> describe the current implementation. These guarantees are live.
 > The child-process credential filtering and request-boundary changes described
-> below are also upcoming.
+> below are also current.
 
 With `--apply`, it repeats containment, ownership, activity, registration, and
 Git checks immediately before each removal and keeps a candidate that changed
@@ -79,7 +78,7 @@ its own `LOOPTROOP_CONFIG_DIR` and port. Stale-state cleanup re-reads the
 instance under that same lock, and a concurrent start cannot claim another
 invocation's ready daemon.
 
-In the next release, log following recognizes a completed live rotation even
+Now, log following recognizes a completed live rotation even
 when the same file has already grown beyond the previous read offset. It waits
 while copying and truncation are in progress, then reads the new generation
 from its beginning. A read window interrupted by rotation is not treated as
@@ -87,7 +86,7 @@ verified output; earlier lines remain in the rotated log files. Copying and
 truncating still has its existing writer race: bytes written between the copy
 and truncation can be lost.
 
-In the next release, a start command can also recognize its own still-live
+Now, a start command can also recognize its own still-live
 child through the process handle it holds when Windows' start-time lookup is
 temporarily unavailable. This readiness fallback does not apply to exited
 children or tokenless records found by a later command, and does not authorize
@@ -98,7 +97,7 @@ missing, recycled, or unverifiable process. Windows termination uses forceful
 `taskkill /T /F`; platforms without retained descendant enumeration do not
 promise that unknown descendants have exited.
 
-In the next release, a daemon that cannot confirm its owned OpenCode process
+Now, a daemon that cannot confirm its owned OpenCode process
 stopped stays alive, keeps its ownership records, and accepts another stop
 request. The stop command reports incomplete cleanup instead of forcing an
 exit after an accepted shutdown request. A new daemon cannot take its place
@@ -126,7 +125,7 @@ operation — `LOOPTROOP_OPENCODE_MODE=mock` looks around without one.
 `looptroop doctor` reports which of those happened.
 
 > [!NOTE]
-> **Next release behavior.** The following notes describe upcoming confirmed
+> **Current behavior.** The following notes describe confirmed
 > remote-stop cancellation, retryable ownership, the two-storage restart
 > limit, guarded approval-save/flush behavior, and actual-value form snapshots.
 
@@ -193,12 +192,12 @@ permissions during remote operations and connection checks. Only select
 repositories whose code and Git configuration you trust; worktrees do not
 sandbox these commands.
 
-In the next release, asynchronous Git operations read that setting without
+Now, asynchronous Git operations read that setting without
 blocking the server's event loop. The value is checked for each operation, so
 editing the repository's SSH configuration does not require a daemon restart.
 
-The request boundary keeps local-mode Host validation loopback-only. In the next
-release, remote browser access requires one explicit HTTPS
+The request boundary keeps local-mode Host validation loopback-only. Now, remote
+browser access requires one explicit HTTPS
 `LOOPTROOP_PUBLIC_ORIGIN` alongside remote API opt-in. The proxy may forward over
 HTTP but must preserve the public Host for cookie-bearing requests without an
 Origin, including SSE. Forwarded host and scheme headers do not grant trust.
@@ -233,10 +232,10 @@ it up.
 ## 2. Runtime Storage
 
 > [!NOTE]
-> **Next release behavior.** The ownership marker and unresolved fallback-sidecar
-> behavior in the runtime-storage table describe the upcoming release. The
+> **Current behavior.** The ownership marker and unresolved fallback-sidecar
+> behavior in the runtime-storage table describe the current implementation. The
 > cancellation-pending marker, OpenCode step-cap restore sidecar, and protected Git-hook recovery marker below
-> are part of the same upcoming behavior.
+> are part of the same current behavior.
 
 LoopTroop deliberately separates app-level state from project-level runtime state.
 
@@ -280,7 +279,7 @@ unknown untracked additions before restoring anything. Ambiguous work stays in
 place and reentry waits for it to be resolved. A completed restore removes the
 marker so a later retry cannot replay it over newer edits.
 
-In the next release, a refused recovery reports the retained marker's location
+Now, a refused recovery reports the retained marker's location
 and the worktree changes that need attention. It blocks both Check and Require;
 Check treats ordinary command failures as warnings, not unresolved recovery.
 
@@ -332,7 +331,7 @@ work grows with ancestry depth; a cold or unseen session still scans its needed
 prefix and upstream-deleted files cannot be recovered.
 
 > [!NOTE]
-> **Next release behavior.** Same-size native file rewrites with a changed
+> **Current behavior.** Same-size native file rewrites with a changed
 > modification time, and larger rewrites with a changed indexed prefix, produce
 > a fresh history snapshot. Retained cursors keep their old rows, while fresh
 > views include the updated native logs. Prefix verification reads the indexed
@@ -486,7 +485,7 @@ The app database is runtime-bootstrapped by `server/db/init.ts`. The committed m
 | `LOOPTROOP_BACKEND_HOST` | Backend bind host; defaults to `127.0.0.1` |
 | `LOOPTROOP_BACKEND_PORT` | Override backend port |
 | `LOOPTROOP_ALLOW_REMOTE_API=1` | Required before binding the backend to a non-loopback host; remote binds still require `LOOPTROOP_API_TOKEN` |
-| `LOOPTROOP_PUBLIC_ORIGIN` | Next release: one browser-visible HTTPS origin for a reverse proxy; no credentials, path, query, or fragment. Use remote API opt-in and preserve the public Host. Does not change the bind address or trust forwarded headers |
+| `LOOPTROOP_PUBLIC_ORIGIN` | Current behavior: one browser-visible HTTPS origin for a reverse proxy; no credentials, path, query, or fragment. Use remote API opt-in and preserve the public Host. Does not change the bind address or trust forwarded headers |
 | `LOOPTROOP_ALLOW_UNAUTHENTICATED=1` | Permit unauthenticated `/api/*` access only when no `LOOPTROOP_API_TOKEN` is configured; intended for local-only troubleshooting, never for use together with `LOOPTROOP_ALLOW_REMOTE_API=1` |
 | `LOOPTROOP_API_TOKEN` | Optional token required by `/api/*`; `npm run dev` generates an ephemeral value when unset and the Vite dev proxy forwards it server-side |
 | `LOOPTROOP_TRUST_PROXY=1` | Trust `x-forwarded-for` / `x-real-ip` for rate-limit buckets; leave unset unless a trusted proxy owns those headers |
@@ -583,18 +582,18 @@ Use the UI cleanup flow:
 **Deleted:** temporary directories at `.looptroop/worktrees/<ticket>/` for tickets in the Completed or Canceled column, including code checkouts, execution logs, and AI-generated file artifacts.
 
 > [!NOTE]
-> **Next release behavior.** Both **Free Disk Space** and CLI cleanup refuse to
+> **Current behavior.** Both **Free Disk Space** and CLI cleanup refuse to
 > remove a worktree containing ignored files outside `.ticket` and `.looptroop`.
 > This protects `.env` files and also keeps ignored dependencies and build output.
 > Move or remove those files manually before retrying. An inspection failure
 > also blocks removal. Explicit ticket or project deletion remains destructive.
 
-In the next release, Free Disk Space continues with eligible worktrees when
+Now, Free Disk Space continues with eligible worktrees when
 another worktree is protected or cannot be removed. The dialog stays open with
 the skipped ticket IDs and reasons. Its result counts only removed worktrees;
 the size preview includes protected worktrees and is not a promise of freed space.
 
-In the next release, a pre-start directory containing only LoopTroop's `.ticket`
+Now, a pre-start directory containing only LoopTroop's `.ticket`
 skeleton is checked directly, so unrelated ignored files in the parent repository
 do not block it. The same check runs immediately before removal. Any other
 entry in that directory keeps it in place. A timed-out Git removal is reported
@@ -621,14 +620,14 @@ worktree. The persistent Manual QA SQLite lock database is outside those
 transient roots and is not unlinked by cleanup or recovery code.
 
 > [!NOTE]
-> **Next release behavior.** Whole-file JSONL recovery requires a matching
+> **Current behavior.** Whole-file JSONL recovery requires a matching
 > byte-length and SHA-256 proof, including for an empty collection. Unproved
 > temporary files remain available for inspection. Recovery checks every path
 > component before filesystem operations and reports paths in the spelling
 > supplied by the caller, including platform-specific path aliases.
 
 > [!NOTE]
-> **Next release behavior.** Manual QA workspace decisions serialize their Git
+> **Current behavior.** Manual QA workspace decisions serialize their Git
 > mutations. A repeated quarantine copy reuses an identical backup; different
 > content gets an action-specific retry destination, recorded in the receipt
 > and event. Comparison uses bounded buffers so large files do not need to fit
@@ -639,7 +638,7 @@ transient roots and is not unlinked by cleanup or recovery code.
 ## 10. Diagnostics
 
 > [!NOTE]
-> **Next release behavior.** The Node check in the doctor's JSON report includes
+> **Current behavior.** The Node check in the doctor's JSON report includes
 > `node.version`. Automation can read the embedded runtime version from that
 > field without parsing the human-readable detail. Existing check names stay
 > unchanged.
@@ -671,7 +670,7 @@ npm run diagnose:stall -- --ticket-path /path/to/worktree/.ticket
 For the full diagnostics guide, including the runtime report plus blocked-error and structured-retry surfaces, see [Runtime Diagnostics](diagnostics.md).
 
 > [!NOTE]
-> **Next release behavior.** The diagnostic command and provider-error
+> **Current behavior.** The diagnostic command and provider-error
 > enrichment remain bounded diagnostic surfaces. Complete DEBUG/history reads
 > are separate, action-triggered operations and report native cursor expiry or
 > complete-read failures instead of silently returning a partial or empty

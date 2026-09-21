@@ -17,13 +17,13 @@ An **installed** LoopTroop serves this bundle from the daemon, so the interface 
 In development, same-origin `/api/*` calls go through the Vite proxy. When `npm run dev` generates or receives `LOOPTROOP_API_TOKEN`, the proxy supplies the token to the backend server-side so the browser bundle does not contain the secret. This includes native `EventSource` connections to `/api/stream`; the API does not accept the token in a query parameter. When the frontend is reached through another same-origin address, such as an HTTPS Tailscale URL, Vite also normalizes the request `Origin` to the loopback backend origin before forwarding it—but only when the browser identifies the request as same-origin and the `Origin` authority exactly matches the incoming frontend `Host`. Origins from unrelated sites remain unchanged for the backend to reject. Vite completes one explicit optimization pass for every production browser dependency, including `react-virtuoso`, before accepting requests; it also warms the lightweight ticket dashboard, active-workspace router, phase-review shell, and log panel. Dev resources use `Cache-Control: no-store`. This prevents a restored tab from combining cached React/React Query modules from an earlier server process with a newly loaded workspace module.
 
 > [!NOTE]
-> **Next release behavior.** The resolved-question, replay-recovery, bounded
+> **Current behavior.** The resolved-question, replay-recovery, bounded
 > auth-probe, coded model-discovery retries, and guarded approval-draft/leave-flush
-> details below describe upcoming client changes. The same notice covers
+> details below describe current client behavior. The same notice covers
 > server-advertised recovery actions, click-time Manual QA snapshots, and
 > action-triggered complete log drains with cursor-expiry recovery, and actual-
 > value form snapshots that preserve edits through hydration and save races. The
-> currently published client does not include them yet.
+> The current client includes them.
 
 The app shell also polls `/api/health` for the global reconnecting banner. Health probes have a dedicated five-second deadline; after the backend has been reached once, a failed probe is retried once after 1.5 seconds before the banner appears. A `429` probe still proves that the backend is reachable, and the basic liveness route does not consume the normal read-rate budget. Backend reconnects retain the mounted workspace and recover through normal query/SSE retries instead of forcing a page reload, so native file pickers, hidden tabs, workspace-module transformation, and transient proxy pressure cannot discard the active screen. Guarded reloads remain limited to sustained post-initial ticket-data recovery, recoverable lazy-chunk failures, and the development-only null hook dispatcher produced when restored React and React DOM dependency generations differ.
 
@@ -60,7 +60,7 @@ drawer behaves like a dialog, traps focus, returns focus to its opener, and clos
 when the desktop layout appears; hidden controls are skipped when focus wraps.
 
 > [!NOTE]
-> **Next release behavior.** The directory picker layers above the Projects
+> **Current behavior.** The directory picker layers above the Projects
 > dialog. An unrelated tooltip does not block Escape on the active dialog.
 > A failed initial ticket load no longer blocks later modal navigation after
 > Back or Forward. An unresolved ticket URL is preserved until loading succeeds
@@ -155,9 +155,9 @@ workspace summary show a repair warning and suppress completion percentages
 until the tracker is trustworthy. The approval navigator keeps damaged lines
 visible for repair and does not create anchors for rows it cannot represent.
 
-The upcoming runtime projection also reports an unreadable or unsafe tracker
+The current runtime projection also reports an unreadable or unsafe tracker
 through `runtime.beadsDiagnostics.readError`; the ticket stays visible with a
-warning rather than disappearing with the failed read. The next release also
+warning rather than disappearing with the failed read. The current implementation also
 gives bead and command-list controls item-specific accessible names so repeated
 inputs can be told apart.
 
@@ -287,7 +287,7 @@ Current behavior:
 - lets the dashboard trigger the guarded recovery reload once the visible live-update reconnecting episode has cleared
 - returns `{ lastEventIdRef, connectionState }`
 
-In the next release, reconnecting without a usable event cursor also refreshes
+Now, reconnecting without a usable event cursor also refreshes
 ticket snapshots. There is no cursor for the server to replay across that
 outage, including an outage after a replay gap cleared the previous cursor.
 
@@ -332,7 +332,7 @@ Approval panes use the same success-aware debounced UI-state pattern for editor 
 
 Approval autosave protects the editor draft across reloads; it does not update the authoritative interview, PRD, blueprint, or execution setup artifact. The user must still click **Save** to apply the draft, including any downstream invalidation or workflow effects.
 
-In the next release, a dirty workspace setup draft keeps the content hash it
+Now, a dirty workspace setup draft keeps the content hash it
 was based on, including across reloads. Background refreshes do not replace that
 baseline. If another writer changes the authoritative plan, Save reports a
 conflict rather than applying the draft over the newer plan.
@@ -411,12 +411,12 @@ grows with ancestry depth. Native history still scans the needed prefix for a
 cold or unseen session, and upstream-deleted files cannot be recovered.
 
 > [!NOTE]
-> **Next release behavior.** A native file rewritten in place with the same
+> **Current behavior.** A native file rewritten in place with the same
 > size is reindexed when its modification time changes; existing cursors keep
 > their original snapshot.
 
 > [!NOTE]
-> **Next release behavior.** History drains and older-page requests belong to
+> **Current behavior.** History drains and older-page requests belong to
 > their ticket, phase, attempt and filter. Switching scope cannot show the
 > previous scope's frozen rows or error. A failed newer question poll no longer
 > suppresses an earlier successful snapshot; resolved-question tombstones stay
@@ -442,7 +442,7 @@ current request; a result from an older prompt or draft is ignored. The folder p
 a retryable error rather than a genuine non-Git result, and stale navigation
 responses cannot replace the current directory.
 
-In the next release, **Reset all prompts** also resets the open editor after
+Now, **Reset all prompts** also resets the open editor after
 the server confirms the reset and refreshes its value. Edits typed after the
 reset started stay visible; a failed reset keeps the draft and shows an error.
 
@@ -494,14 +494,14 @@ save, later edit, or background refetch keeps the newer draft visible. An
 unsaved in-memory modal draft is not promised to survive a reload.
 
 > [!NOTE]
-> **Next release behavior.** Project Back and Cancel, configuration Cancel, and
+> **Current behavior.** Project Back and Cancel, configuration Cancel, and
 > ticket Cancel use the same unsaved-change warning as closing the modal.
 > Clicking a dirty modal's backdrop also asks before discarding the draft.
 > Folder-picker retries keep the current folder
 > list when retrying a Git check, and stale navigation cannot cancel a newer
 > check. Modal focus follows the top visible dialog, including rapid reopen.
 
-In the next release, creating a project or ticket while newer edits are present
+Now, creating a project or ticket while newer edits are present
 keeps the form open and switches it to editing the item returned by the server.
 The next Save updates that same item instead of creating a duplicate. Editable
 fields keep the later draft and its unsaved-change warning. Identity fields
@@ -660,7 +660,7 @@ When a search has no matches, the board shows an explicit empty search-results s
 
 Shortcut toggling and dashboard-search focusing are suppressed when focus is inside an `<input>`, `<textarea>`, `<select>`, or another textbox-like editable control.
 
-`Escape` belongs to whatever is open on top. `src/lib/overlays.ts` holds the one rule: an event that has already been handled, or whose target sits inside a dialog, alert dialog, menu, listbox, expanded combo box, focused `<select>`, or interactive Radix popper, belongs to that overlay and not to the surface behind it. The ticket dashboard, `CenteredModal` and `FullScreenModal` all consult it, each excluding its own panel — so dismissing a confirmation no longer leaves the ticket, dismissing the folder picker no longer closes the Projects window, and dismissing the model list no longer closes Configuration. The upcoming release excludes unrelated informational tooltip wrappers from this ownership check.
+`Escape` belongs to whatever is open on top. `src/lib/overlays.ts` holds the one rule: an event that has already been handled, or whose target sits inside a dialog, alert dialog, menu, listbox, expanded combo box, focused `<select>`, or interactive Radix popper, belongs to that overlay and not to the surface behind it. The ticket dashboard, `CenteredModal` and `FullScreenModal` all consult it, each excluding its own panel — so dismissing a confirmation no longer leaves the ticket, dismissing the folder picker no longer closes the Projects window, and dismissing the model list no longer closes Configuration. The current implementation excludes unrelated informational tooltip wrappers from this ownership check.
 
 Popups drawn outside the page cannot be seen by that rule, so they stop the key themselves. `DropdownPicker` and `ModelPicker` both close on `Escape`, stop it propagating, and return focus to the control that opened them. `DropdownPicker`'s trigger describes itself as a disclosure — `aria-expanded`, plus `aria-controls` naming the popup while it exists — and deliberately does not claim `aria-haspopup`: the popup holds whatever the calling screen puts in it, so there is no menu, listbox or dialog to advertise.
 

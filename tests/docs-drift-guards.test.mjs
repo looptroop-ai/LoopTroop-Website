@@ -7,6 +7,7 @@ import {
   auditSseEventCoverage,
   compareSemverTriples,
   extractFloorVersion,
+  findFutureReleaseLanguage,
   findReleaseLeakage,
   parseDocumentedApiRoutes,
   parseDocumentedSseEvents,
@@ -123,4 +124,11 @@ PR21 (unreleased) adds something here.
 `)
 
   assert.deepEqual(findings, ['<!-- release-marker keep-out -->', 'PR21 (unreleased)'])
+})
+
+test('finds forward-looking release wording without flagging upcoming questions', () => {
+  assert.deepEqual(
+    findFutureReleaseLanguage('Next release behavior. Upcoming release notes. Adjust the upcoming questions.'),
+    ['Next release', 'Upcoming release'],
+  )
 })

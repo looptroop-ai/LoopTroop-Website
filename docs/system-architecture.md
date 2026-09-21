@@ -8,16 +8,16 @@ This document is the canonical architecture reference for the current LoopTroop 
 LoopTroop is not a thin chat wrapper around a coding model. It is a long-running workflow system with explicit planning phases, durable storage, isolated execution worktrees, resumable ticket actors, and restart-aware OpenCode session ownership. The core architectural rule is simple: **important state must survive the model and survive the browser**.
 
 > [!NOTE]
-> **Next release behavior.** The durable approval-save and runtime-recovery
-> details on this page are upcoming: content-hash save preconditions, retained
+> **Current behavior.** The durable approval-save and runtime-recovery
+> details on this page are current: content-hash save preconditions, retained
 > drafts, best-effort leaving flushes, and conditional step-cap or hook recovery.
 > A recovery conflict can refuse destructive reset; browser unload is not a
-> delivery guarantee. The same upcoming scope includes durable same-PR review
+> delivery guarantee. The same current scope includes durable same-PR review
 > decisions, server-advertised blocked actions, click-time Manual QA snapshots,
 > action-triggered complete log history with typed cursor expiry, and actual-
 > value form snapshots that preserve edits through hydration and save races.
 > The request guards, child-process credential filtering, and static
-> process-launch and filesystem checks described below are also upcoming.
+> process-launch and filesystem checks described below are also current.
 
 ## 1. Mental Model
 
@@ -268,9 +268,9 @@ Snapshot restore is equally defensive. `server/machines/persistence.ts` reconcil
 Prompt acquisition is bounded by timeout and abort signals. OpenCode `create`, `list`, `getSession`, and message-read calls are guarded so an OpenCode restart cannot indefinitely block the workflow runner.
 
 > [!NOTE]
-> **Next release behavior.** Question-timer restoration, confirmed-stop handling,
+> **Current behavior.** Question-timer restoration, confirmed-stop handling,
 > durable marker fallback, and restart limits in this section describe the
-> upcoming release.
+> current implementation.
 
 When a durable ownership record and the remote session survive a restart, the questions attached to that session can be rebuilt. On startup, LoopTroop asks OpenCode what is still outstanding for each project with active sessions. A reconnected request is restored from its persisted `opencode_question_timer:` artifact: a stopped question stays stopped, a live deadline resumes with its remaining time, and an overdue deadline fires immediately. No fresh full countdown is promised after restart. If neither remote rejection nor fallback abort can be confirmed, the question remains visible for retry rather than being treated as stopped. Both outcomes are counted in the startup report.
 
@@ -369,9 +369,8 @@ by `npm run dev` instead.
 | Standalone executable | `server/lib/isSea.ts`, `server/lib/seaAssets.ts` |
 
 > [!NOTE]
-> **Next release behavior.** The process and log-safety details below describe
-> the upcoming release. The currently published release does not include these
-> changes yet.
+> **Current behavior.** The process and log-safety details below describe the
+> current implementation and are live.
 
 Daemon-state cleanup re-reads the instance record under the existing lock before
 removing it. CLI process control carries a captured start identity through

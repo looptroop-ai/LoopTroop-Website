@@ -47,8 +47,8 @@ Useful mental model:
 - **Ticket Details timing**: **Actual implementation time** sums `CODING` periods for originally planned beads only, so a ticket paused in `BLOCKED_ERROR` while awaiting Retry or Continue does not inflate bead execution time and Manual QA fix-bead work remains separate. Its tooltip separately reports `PREPARING_EXECUTION_ENV`, `RUNNING_FINAL_TEST`, and Manual QA fix-bead time. The displayed final-bead timestamp belongs to the final originally planned bead, so later Manual QA fix beads do not replace it.
 
 > [!NOTE]
-> **Next release behavior.** The actual-value form snapshot behavior described
-> below is part of the upcoming client changes.
+> **Current behavior.** The actual-value form snapshot behavior described
+> below is part of the current client behavior.
 
 The DRAFT, project, configuration, and prompt forms compare actual current
 values with their saved or initial snapshot. Custom controls count, and a modal
@@ -116,11 +116,11 @@ The underlying state machine enforces valid state transitions and recovery hooks
 **Recovery semantics:**
 
 > [!NOTE]
-> **Next release behavior.** Confirmed remote-stop cancellation, retryable
+> **Current behavior.** Confirmed remote-stop cancellation, retryable
 > ownership, durable marker fallback, approval-save baselines and retained
 > drafts with best-effort leaving flushes, bead start-checkpoint ordering,
 > conditional OpenCode step-cap recovery, protected Git-hook recovery, and the
-> continuation distinctions below describe the upcoming release. Pull-request
+> continuation distinctions below describe the current implementation. Pull-request
 > decisions, server-advertised recovery actions, click-time Manual QA snapshots,
 > and action-triggered complete log drains are part of the same scope.
 

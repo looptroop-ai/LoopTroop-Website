@@ -140,9 +140,9 @@ They define what gets worked on next, what blocks what, and exactly what context
 ## 10. Ralph Loop Recovery
 
 > [!NOTE]
-> **Next release behavior.** The automatic continuation cap, finite/zero
+> **Current behavior.** The automatic continuation cap, finite/zero
 > semantics, and separate user-facing Continue path described here are part of
-> the upcoming release.
+> the current implementation.
 
 **Summary:** The Ralph Loop is LoopTroop's recovery mechanism for failed bead execution. If a bead fails or times out, LoopTroop does not keep pushing the same polluted session. It writes a compact note about what went wrong, resets the worktree back to the bead start snapshot when possible, starts a fresh execution session, and retries with clean context plus the useful failure note.
 

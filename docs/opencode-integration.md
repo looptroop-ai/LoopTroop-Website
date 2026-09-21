@@ -8,9 +8,9 @@ LoopTroop uses OpenCode as the model-execution layer, but it wraps that layer he
 At runtime, LoopTroop chooses exactly one adapter: the real SDK adapter for a live OpenCode server, or the in-process mock adapter for tests and offline development.
 
 > [!NOTE]
-> **Next release behavior.** The step-cap/root-configuration recovery in §6.1
+> **Current behavior.** The step-cap/root-configuration recovery in §6.1
 > and the durable ownership, marker fallback, and restart limits described below
-> are upcoming. A conflicting marker can refuse destructive recovery; a missing
+> are current. A conflicting marker can refuse destructive recovery; a missing
 > marker after restart does not provide ownership evidence.
 
 ## 1. Core Modules
@@ -24,8 +24,8 @@ At runtime, LoopTroop chooses exactly one adapter: the real SDK adapter for a li
 | Diagnostics and recovery | `server/opencode/retryPolicy.ts`, `errorDetails.ts`, `blockedErrorDiagnostics.ts`, `logDiagnostics.ts` | Classify retryable interruptions, sanitize provider errors, enrich generic failures from local OpenCode logs, and surface blocked-error diagnostics to the UI |
 
 > [!NOTE]
-> **Next release behavior.** The browser model-picker announcements described
-> below are upcoming client behavior.
+> **Current behavior.** The browser model-picker announcements described
+> below are current client behavior.
 
 The browser's `ModelPicker` keeps the committed model separate from the
 keyboard-active option: `aria-selected` names the saved selection and
@@ -119,7 +119,7 @@ For full local OpenCode DEBUG logs in your terminal, run `npm run dev --opencode
 When OpenCode emits only a generic `Provider returned error` stream event, LoopTroop best-effort scans the newest local OpenCode log files for the same `session.id` and surfaces the exact provider cause in the ticket log and blocked-error diagnostics. The enrichment keeps compact fields only: HTTP status, retryability, OpenCode provider/model, request model, provider error type/title/message, and a short response-body preview. It discards prompt bodies, raw request payloads, headers, cookies, authorization values, and URL query strings before persisting anything. By default it reads OpenCode's documented local log directory; set `LOOPTROOP_OPENCODE_LOG_DIR` when LoopTroop is attached to an external server with logs stored elsewhere.
 
 > [!NOTE]
-> **Next release behavior.** Complete `DEBUG` history and export use all
+> **Current behavior.** Complete `DEBUG` history and export use all
 > available native OpenCode history, while provider-error enrichment remains a
 > bounded diagnostic read of ten candidate files at 5 MiB per file. The two
 > paths do not share a limit. Complete reads surface metadata, read, and index
@@ -382,9 +382,9 @@ closed rather than guessing.
 Waiting does not consume the step's working time. Attaching a request suspends every work budget on the ticket through `server/workflow/workBudget.ts`, and resolving it credits the elapsed wall time back. The ledger is ticket-scoped rather than session-scoped because there is no single clock to key: PRD drafting runs two prompts in two sessions under one deadline, the council drafter and voter own `Promise.race` timers that never see the prompt timer, and execution had its own copy of the remaining-time helper. Suspension is reference-counted, so a step with two questions outstanding stays held until the second is dealt with.
 
 > [!NOTE]
-> **Next release behavior.** Question expiry, successful remote rejection,
+> **Current behavior.** Question expiry, successful remote rejection,
 > fallback abort, persisted timer restoration, and retryable ownership in this
-> subsection describe the upcoming release.
+> subsection describe the current implementation.
 
 Live timer state lives in memory; the durable copy is written to phase artifacts under the `opencode_question:` and `opencode_question_timer:` prefixes. On expiry, LoopTroop tries remote rejection with up to three attempts. A successful remote rejection clears the question and does not abort the surrounding session. If rejection fails, LoopTroop uses the fallback abort; only when both rejection and fallback abort fail does the pending record and ownership stay visible for retry. A local abort or transport failure that returns false, throws, or cannot be verified is not proof that the remote session stopped. Each rejection writes a skip receipt naming the actor (`timeout` for the wait running out, `user` for a manual skip, `system` for a confirmed lost session), the configured window, the elapsed time, and the sibling requests the same expiry covered.
 

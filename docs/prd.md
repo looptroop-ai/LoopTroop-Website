@@ -190,8 +190,8 @@ That means a saved edit is not silently treated as already approved. You must ap
 Approval includes the SHA-256 hash of the exact raw bytes the user reviewed. If the stored PRD changed before the approval request lands, the server rejects the request with a stale-content `409` instead of approving a different version by mistake.
 
 > [!NOTE]
-> **Next release behavior.** Approval-draft baseline retention and
-> best-effort leaving flushes in this subsection describe the upcoming save
+> **Current behavior.** Approval-draft baseline retention and
+> best-effort leaving flushes in this subsection describe the current save
 > safety behavior.
 
 The structured editor and raw YAML editor carry the content hash they loaded
