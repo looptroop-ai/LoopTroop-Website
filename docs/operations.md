@@ -388,19 +388,20 @@ Routine dependency updates are handled by Renovate rather than by local tooling,
 
 | Policy | Setting |
 | --- | --- |
-| Schedule | Grouped pull requests, Mondays before 06:00 |
+| Schedule | Grouped pull requests, nightly between 00:00 and 06:00 |
 | Release maturity | 7 days before a version is proposed |
-| Security advisories | 2 days, raised outside the weekly schedule |
-| Dev dependencies | Patch and minor grouped, auto-merged once CI is green |
+| Security advisories | 2 days, raised outside the nightly schedule |
+| Dev dependencies | Patch and minor grouped and reviewed by hand. Twelve lint, test and type-only packages auto-merge once CI is green, patch releases only, and none of them below 1.0 |
 | Runtime dependencies | Grouped, always reviewed by hand |
-| Major updates | One pull request each, require dashboard approval |
-| Lockfile refresh | Monthly |
+| Major updates | One pull request each, always reviewed by hand |
+| Lockfile refresh | Weekly, Monday to Wednesday. It resolves against the registry as it stood 7 days earlier |
+| Dependency dashboard | One issue listing every update Renovate knows about and why it has not shipped |
 | GitHub Actions | Pinned to commit SHAs and updated by Renovate |
 
 Dependencies with additional constraints:
 
 - **`drizzle-orm` and `drizzle-kit`** move together on the `rc` tag and stay exact-pinned. A global install re-resolves ranges on the user's machine and ignores the lockfile, so a loose range would ship an untested release candidate.
-- **`@opencode-ai/sdk`** waits 30 days. OpenCode is slated for replacement, so there is no reason to adopt its releases early; update the documented minimum version in the same pull request.
+- **`@opencode-ai/sdk`** takes the ordinary 7 days and is always reviewed by hand. The SDK talks to an OpenCode CLI that users install separately and that Renovate cannot see, so the risk here is version skew rather than an immature release. No maturity window addresses that, only a person reading the pull request. Update the documented minimum version in the same pull request.
 - **`@types/node`** is held below the next major so it cannot drift ahead of the supported runtime and hide use of newer APIs.
 - **`tailwindcss` and `@tailwindcss/vite`** move together because the Vite integration must match the application stylesheet compiler.
 
