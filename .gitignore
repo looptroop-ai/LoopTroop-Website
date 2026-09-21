@@ -5,6 +5,9 @@ docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/.vitepress/.temp/
 *.log
+.env
+.env.*
+.vercel/
 .DS_Store
 .idea/
 .vscode/
