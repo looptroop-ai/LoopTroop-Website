@@ -48,20 +48,28 @@ the installer is running.
 | **Yarn Classic** (Bash/zsh commands) | `yarn global add looptroop` | `yarn global upgrade looptroop@latest` | ✅ |
 | **Homebrew** (macOS, Linux) | `brew install looptroop-ai/tap/looptroop` | `brew upgrade looptroop` | ✅ |
 | **Scoop** (Windows) | `scoop bucket add looptroop https://github.com/looptroop-ai/scoop-bucket`, then `scoop install looptroop` | `scoop update looptroop` | ✅ |
+| **Chocolatey** (Windows) | `choco install looptroop` | `choco upgrade looptroop` | ✅ |
+| **WinGet** (Windows) | `winget install LoopTroopAI.LoopTroop` | `looptroop stop`, then `winget upgrade LoopTroopAI.LoopTroop` | ✅ |
 | **Container** (Docker, Podman) | `docker pull looptroopai/looptroop:latest` or `docker pull ghcr.io/looptroop-ai/looptroop:latest` | pull again | ✅ |
-| **Chocolatey** (Windows) | `choco install looptroop` | `choco upgrade looptroop` | ⏳ |
-| **WinGet** (Windows) | `winget install LoopTroopAI.LoopTroop` | `looptroop stop`, then `winget upgrade LoopTroopAI.LoopTroop` | ⏳ |
 | **AUR** (Arch Linux) | `yay -S looptroop-bin` or `paru -S looptroop-bin` | `yay -Syu looptroop-bin` or `paru -Syu looptroop-bin` | ⏳ |
+
+### Chocolatey and WinGet arrive later than the rest
+
+Both feeds review every version before serving it. Chocolatey moderates each
+submission and a pull request carries each WinGet manifest into
+[microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), so a release
+reaches these two channels days after it reaches npm, Homebrew and Scoop. The
+commands work throughout; for a short while after a release they install the
+previous version. `choco upgrade` and `winget upgrade` pick up the new one once
+it clears, and `looptroop doctor` says which version you are on.
 
 ### ⏳ means the command does not work yet
 
-Those three packages are written, built, installed and removed again by CI on
-every change. Each is waiting on somebody else:
+The AUR package is written, built, installed and removed again by CI on every
+change. It is waiting on somebody else:
 
 | Channel | Waiting on |
 | --- | --- |
-| **Chocolatey** | Community moderation. Every version is reviewed before the feed serves it, and no release waits on that. |
-| **WinGet** | A pull request open at [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), reviewed by people at Microsoft. |
 | **AUR** | Registration reopening. New AUR accounts are closed following a security incident, so there is no account to publish from. |
 
 ### Every other command here is tested against the real feed
@@ -86,9 +94,8 @@ published release. And the container image is verified on both architectures at
 release time from the GitHub Container Registry, while the weekly run pulls the
 Docker Hub image.
 
-The commands are listed because they are what will work, unchanged, the day each
-clears. Until then every ✅ row is a real alternative on the same platform — Arch
-users can install with npm, and Windows users with Scoop.
+The AUR command is listed because it is what will work, unchanged, the day it
+clears. Until then Arch users can install with npm or the one-line installer.
 
 ## What you need first, per channel
 
@@ -101,8 +108,8 @@ Everything else differs by channel, so read the row you are actually using.
 | **npm, bun, pnpm, Yarn** | you provide **24.21.0+** (and npm **12.0.2+**) | you provide it | you provide it |
 | **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
 | **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
-| **Chocolatey** ⏳ | installed for you (`nodejs-lts`) | installed for you | installed for you |
-| **WinGet** ⏳ | not needed — the executable carries its own | installed for you | installed for you |
+| **Chocolatey** | installed for you (`nodejs-lts`) | installed for you | installed for you |
+| **WinGet** | not needed — the executable carries its own | installed for you | installed for you |
 | **AUR** ⏳ | installed for you (`nodejs>=24`) | installed for you | installed for you |
 | **Standalone executable** | needed to *install*, not to *run* | you provide it | you provide it |
 | **Container** | in the image | in the image | in the image |
@@ -408,8 +415,8 @@ looptroop stop
 | **Yarn Classic** | `yarn global remove looptroop` |
 | **Homebrew** | `brew uninstall looptroop` |
 | **Scoop** | `scoop uninstall looptroop` |
-| ⏳ **Chocolatey** | `choco uninstall looptroop` |
-| ⏳ **WinGet** | `winget uninstall LoopTroopAI.LoopTroop` |
+| **Chocolatey** | `choco uninstall looptroop` |
+| **WinGet** | `winget uninstall LoopTroopAI.LoopTroop` |
 | ⏳ **AUR** | `yay -R looptroop-bin`, or `paru -R looptroop-bin` |
 | **Installer script (default mode)** | `npm uninstall -g looptroop` — it installs through npm, so npm removes it |
 | **Installer script (`--binary`)** | no command; remove the install directory, below |
