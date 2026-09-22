@@ -29,7 +29,7 @@ import { pathToFileURL } from 'node:url'
  * Update this to the latest application `main` commit whenever CLI behavior
  * changes, including before a release tag, so published docs stay current.
  */
-export const CLI_SOURCE_REF = '10888081de5a4ac46af30810ede613b56d83fda4'
+export const CLI_SOURCE_REF = 'e09c069a9956c0970eb17710ee35cbc1078d35cb'
 
 const PAGE = path.join(process.cwd(), 'docs', 'cli.md')
 const MARKER = '<!-- generated from server/cli/cli.ts; run npm run sync:cli -->'

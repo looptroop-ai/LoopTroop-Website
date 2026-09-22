@@ -27,16 +27,22 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: looptroop-ai/LoopTroop
-          ref: 10888081de5a4ac46af30810ede613b56d83fda4
+          ref: e09c069a9956c0970eb17710ee35cbc1078d35cb
           path: .source/LoopTroop
           persist-credentials: false
+          # Everything `scripts/docs-install-catalog.mjs` imports, directly or
+          # not. A file missing here fails verify:site with ERR_MODULE_NOT_FOUND
+          # as soon as CLI_SOURCE_REF reaches a commit that imports it.
           sparse-checkout: |
             package.json
             scripts/docs-install-catalog.mjs
+            scripts/package-manifests.ts
             scripts/smoke-published.mjs
             scripts/smoke-lib.mjs
             scripts/tool-path.ts
             server/lib/executablePath.ts
+            shared/installChannel.ts
+            shared/nodeFloor.ts
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
