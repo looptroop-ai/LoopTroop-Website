@@ -44,8 +44,9 @@ It checks the machine rather than a ticket. In a normal CLI run that means a
 leading `version` update check plus machine checks named `node`, `npm`, `git`,
 `gh`, `gh auth`, `config dir`, `install`, `schema`, `last start`,
 `project ignores`, `opencode cli`, `opencode`, `port`, and `daemon`. Each
-failing check prints what to do about it. The current floor is **Node 24.21.0
-or newer and npm 12.0.2 or newer**.
+failing check prints what to do about it. The floor is **Node 24.11.0 or
+newer**. The `npm` check reports the version it finds and does not hold it to
+a floor.
 
 **Versions are shown against the newest published one** — `v26.7.0 (latest
 v27.1.0)` — for LoopTroop, Node, npm and the OpenCode CLI. When the latest

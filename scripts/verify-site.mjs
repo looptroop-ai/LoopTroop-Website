@@ -69,25 +69,33 @@ export function findDocumentedPrerequisiteVersions(markdown, tool) {
   return [...markdown.matchAll(matcher)].map((match) => match[1])
 }
 
+/**
+ * A floor the CLI does not declare must not be documented either. The CLI
+ * declares no npm floor: it has no install scripts, so the npm that came with
+ * the reader's Node is the one it needs, and every npm version this page ever
+ * named was one no Node release bundled. A page still naming one would be
+ * telling readers to go and install something before they can start.
+ */
 export function assertDocumentedPrerequisiteFloors(markdown, packageManifest) {
-  const nodeFloor = extractFloorVersion(packageManifest.engines?.node)
-  const npmFloor = extractFloorVersion(packageManifest.engines?.npm)
+  for (const tool of ['node', 'npm']) {
+    const declared = packageManifest.engines?.[tool]
+    const label = tool === 'node' ? 'Node' : 'npm'
+    const documented = findDocumentedPrerequisiteVersions(markdown, label)
 
-  const documentedNodeFloors = findDocumentedPrerequisiteVersions(markdown, 'Node')
-  const documentedNpmFloors = findDocumentedPrerequisiteVersions(markdown, 'npm')
-
-  if (documentedNodeFloors.length === 0) fail('Getting Started documents no Node prerequisite versions.')
-  if (documentedNpmFloors.length === 0) fail('Getting Started documents no npm prerequisite versions.')
-
-  for (const documented of documentedNodeFloors) {
-    if (compareSemverTriples(documented, nodeFloor) < 0) {
-      fail(`Getting Started documents Node ${documented}+ below the CLI floor ${nodeFloor}.`)
+    if (declared === undefined) {
+      if (documented.length > 0) {
+        fail(`Getting Started documents ${label} ${documented[0]}+ while the CLI declares no ${label} floor.`)
+      }
+      continue
     }
-  }
 
-  for (const documented of documentedNpmFloors) {
-    if (compareSemverTriples(documented, npmFloor) < 0) {
-      fail(`Getting Started documents npm ${documented}+ below the CLI floor ${npmFloor}.`)
+    const floor = extractFloorVersion(declared)
+    if (documented.length === 0) fail(`Getting Started documents no ${label} prerequisite versions.`)
+
+    for (const version of documented) {
+      if (compareSemverTriples(version, floor) < 0) {
+        fail(`Getting Started documents ${label} ${version}+ below the CLI floor ${floor}.`)
+      }
     }
   }
 }

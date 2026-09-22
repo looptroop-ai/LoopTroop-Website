@@ -44,6 +44,25 @@ test('reports documented prerequisite versions below the CLI floor', () => {
   )
 })
 
+test('accepts a page that documents no npm floor when the CLI declares none', () => {
+  const gettingStarted = '| curl | Node 24.11.0+, git, gh |'
+
+  assert.doesNotThrow(() => assertDocumentedPrerequisiteFloors(gettingStarted, {
+    engines: { node: '>=24.11.0' },
+  }))
+})
+
+test('reports an npm floor the CLI no longer declares', () => {
+  const gettingStarted = '| curl | Node 24.11.0+, npm 12.0.2+, git, gh |'
+
+  assert.throws(
+    () => assertDocumentedPrerequisiteFloors(gettingStarted, {
+      engines: { node: '>=24.11.0' },
+    }),
+    /declares no npm floor/,
+  )
+})
+
 test('parses documented route rows and allows intentional tombstones', () => {
   const markdown = `
 | Method | Route | Notes |

@@ -137,9 +137,11 @@ This trust policy comes from the **daemon's own environment**, not from
 `command.env`, child processes, or a model-generated command. A child command
 cannot widen trust by setting its own `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`.
 
-For the npm install and upgrade path, the current runtime floor is **Node
-24.21.0 or newer and npm 12.0.2 or newer**. The launcher, Doctor, install
-scripts, and package channels enforce the same floor.
+For the npm install and upgrade path, the runtime floor is **Node 24.11.0 or
+newer**, the first long-term-support release of the Node 24 line. The
+launcher, Doctor, install scripts, and package channels enforce the same
+floor. No npm version is required: LoopTroop has no install scripts, so the
+npm that came with your Node is the one it needs.
 
 ### Runtime markers
 
