@@ -63,6 +63,30 @@ test('reports an npm floor the CLI no longer declares', () => {
   )
 })
 
+test('names the homepage when its prerequisites drift from the CLI', () => {
+  const homepage = '<span>Pre-requisites:</span> OpenCode, Node 24.21.0+, npm 12.0.2+, Git'
+
+  assert.throws(
+    () => assertDocumentedPrerequisiteFloors(homepage, { engines: { node: '>=24.15.0' } }, 'The homepage'),
+    /^Error: The homepage documents npm 12\.0\.2\+ while the CLI declares no npm floor\.$/,
+  )
+})
+
+/**
+ * The CLI source is named twice: once for the sparse checkout CI verifies
+ * against, once for the script that regenerates docs/cli.md. Moving one without
+ * the other validates the pages against a different CLI than the one they were
+ * generated from, and nothing downstream notices.
+ */
+test('pins the workflow checkout and the CLI reference sync to the same source commit', async () => {
+  const { CLI_SOURCE_REF } = await import('../scripts/sync-cli-reference.mjs')
+  const { readFile } = await import('node:fs/promises')
+  const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8')
+
+  assert.match(CLI_SOURCE_REF, /^[0-9a-f]{40}$/)
+  assert.ok(workflow.includes(`ref: ${CLI_SOURCE_REF}`), 'ci.yml checks out a different LoopTroop commit than CLI_SOURCE_REF')
+})
+
 test('parses documented route rows and allows intentional tombstones', () => {
   const markdown = `
 | Method | Route | Notes |

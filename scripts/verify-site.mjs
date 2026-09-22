@@ -76,7 +76,7 @@ export function findDocumentedPrerequisiteVersions(markdown, tool) {
  * named was one no Node release bundled. A page still naming one would be
  * telling readers to go and install something before they can start.
  */
-export function assertDocumentedPrerequisiteFloors(markdown, packageManifest) {
+export function assertDocumentedPrerequisiteFloors(markdown, packageManifest, page = 'Getting Started') {
   for (const tool of ['node', 'npm']) {
     const declared = packageManifest.engines?.[tool]
     const label = tool === 'node' ? 'Node' : 'npm'
@@ -84,17 +84,17 @@ export function assertDocumentedPrerequisiteFloors(markdown, packageManifest) {
 
     if (declared === undefined) {
       if (documented.length > 0) {
-        fail(`Getting Started documents ${label} ${documented[0]}+ while the CLI declares no ${label} floor.`)
+        fail(`${page} documents ${label} ${documented[0]}+ while the CLI declares no ${label} floor.`)
       }
       continue
     }
 
     const floor = extractFloorVersion(declared)
-    if (documented.length === 0) fail(`Getting Started documents no ${label} prerequisite versions.`)
+    if (documented.length === 0) fail(`${page} documents no ${label} prerequisite versions.`)
 
     for (const version of documented) {
       if (compareSemverTriples(version, floor) < 0) {
-        fail(`Getting Started documents ${label} ${version}+ below the CLI floor ${floor}.`)
+        fail(`${page} documents ${label} ${version}+ below the CLI floor ${floor}.`)
       }
     }
   }
@@ -253,13 +253,21 @@ async function verifyLandingInstallOrder() {
   }
 }
 
+/**
+ * Both pages a reader decides from. The homepage states prerequisites on every
+ * install tab, and it was the one this check never read — so it went on
+ * advertising a Node release and an npm version the CLI no longer asked for,
+ * while Getting Started beside it had been corrected and passed.
+ */
 async function verifyLandingPrerequisiteFloors() {
-  const [gettingStartedMarkdown, sourcePackageManifest] = await Promise.all([
+  const [gettingStartedMarkdown, landingPage, sourcePackageManifest] = await Promise.all([
     readFile('docs/getting-started.md', 'utf8'),
+    readFile('web.html', 'utf8'),
     readSourcePackageManifest(),
   ])
 
   assertDocumentedPrerequisiteFloors(gettingStartedMarkdown, sourcePackageManifest)
+  assertDocumentedPrerequisiteFloors(landingPage, sourcePackageManifest, 'The homepage')
 }
 
 async function verifyDocumentationIsLive() {
