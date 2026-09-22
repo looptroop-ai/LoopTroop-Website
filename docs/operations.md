@@ -384,7 +384,7 @@ These commands update the same maintenance timestamps used by opted-in startup g
 
 ### Scheduled Dependency Updates
 
-Routine dependency updates are handled by Renovate rather than by local tooling, so the same policy applies whether or not any contributor happens to start the app. The configuration lives in `renovate.json` and is validated in CI, because an invalid rule is ignored silently at runtime rather than reported.
+Routine dependency updates are handled by Renovate rather than by local tooling, so the same policy applies whether or not any contributor happens to start the app. The configuration lives in `.github/renovate.json` and is validated in CI, because an invalid rule is ignored silently at runtime rather than reported.
 
 | Policy | Setting |
 | --- | --- |
