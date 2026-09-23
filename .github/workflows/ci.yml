@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: looptroop-ai/LoopTroop
-          ref: e09c069a9956c0970eb17710ee35cbc1078d35cb
+          ref: acb60484439f09ac9793a944b8956923847f5281
           path: .source/LoopTroop
           persist-credentials: false
           # Everything `scripts/docs-install-catalog.mjs` imports, directly or
