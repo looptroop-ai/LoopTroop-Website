@@ -1,0 +1,184 @@
+# Keeps the documentation on the latest LoopTroop without anyone moving it.
+#
+# The site states things it takes from the application: the Node floor, from
+# `engines.node`, and the CLI reference, from `server/cli/cli.ts`. Both used to
+# follow by hand, with a commit here after each application change, and the
+# application's Node floor now moves on its own every few weeks. Once a day,
+# this reads the head of the application's `main`, rewrites what depends on it
+# with `scripts/follow-looptroop.mjs`, and publishes the result if a page
+# changed.
+#
+# `follow` does everything that needs dependencies or the application's own
+# code (npm ci, the build, and verify:site, which imports the application
+# source) with a read-only token. `publish` holds the write token and runs none
+# of that. It runs the same built-in-only script from the same commit again,
+# pushes only a rewrite byte for byte equal to the one `follow` verified, and
+# never forces.
+#
+# A new application commit that changes no page publishes nothing, since
+# `CLI_SOURCE_REF` only moves together with a page it changes. It is still
+# verified, though. The day `main` stops verifying here, because it contradicts
+# a page or imports a file the sparse checkout lacks, this fails that day
+# rather than on the next change that would publish.
+name: Follow LoopTroop main
+
+on:
+  schedule:
+    - cron: '41 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: follow-looptroop
+  cancel-in-progress: false
+
+env:
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_AUDIT: 'false'
+  LOOPTROOP_SOURCE_ROOT: ${{ github.workspace }}/.source/LoopTroop
+
+jobs:
+  follow:
+    name: Rewrite and verify the docs at LoopTroop main
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      commit: ${{ steps.main.outputs.commit }}
+      changed: ${{ steps.result.outputs.changed }}
+      digest: ${{ steps.result.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Find the head of LoopTroop main
+        id: main
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit=$(git ls-remote https://github.com/looptroop-ai/LoopTroop.git refs/heads/main | cut -f1)
+          if ! [[ "${commit}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not read the head of LoopTroop main."
+            exit 1
+          fi
+          echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Rewrite what follows LoopTroop
+        env:
+          COMMIT: ${{ steps.main.outputs.commit }}
+        run: node scripts/follow-looptroop.mjs "${COMMIT}"
+
+      # `moved`: CLI_SOURCE_REF changed, so there is something to verify.
+      # `changed`: a page changed as well, so there is something to publish.
+      - name: Record what changed
+        id: result
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then moved=false; else moved=true; fi
+          if git diff --quiet -- . ':(exclude)scripts/sync-cli-reference.mjs'; then changed=false; else changed=true; fi
+          git diff --stat
+          {
+            echo "moved=${moved}"
+            echo "changed=${changed}"
+            echo "digest=$(git diff --binary | sha256sum | cut -d' ' -f1)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check out the LoopTroop commit the docs now describe
+        if: steps.result.outputs.moved == 'true'
+        uses: ./.github/actions/looptroop-source
+      - if: steps.result.outputs.moved == 'true'
+        run: npm ci
+      - if: steps.result.outputs.moved == 'true'
+        run: npm test
+      - if: steps.result.outputs.moved == 'true'
+        run: npm run build
+      - if: steps.result.outputs.moved == 'true'
+        run: npm run verify:site
+      - if: steps.result.outputs.moved == 'true'
+        run: npm run licenses:check
+
+      - name: Check that verifying changed nothing
+        if: steps.result.outputs.moved == 'true'
+        env:
+          DIGEST: ${{ steps.result.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(git diff --binary | sha256sum | cut -d' ' -f1)" != "${DIGEST}" ] || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            echo "::error::Verifying the rewrite changed tracked files, or left files git does not ignore."
+            git status --porcelain
+            exit 1
+          fi
+
+  publish:
+    name: Publish the rewritten docs
+    needs: [follow]
+    if: needs.follow.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.21.0
+
+      - name: Rewrite what follows LoopTroop
+        env:
+          COMMIT: ${{ needs.follow.outputs.commit }}
+        run: node scripts/follow-looptroop.mjs "${COMMIT}"
+
+      - name: Commit the rewrite follow verified
+        env:
+          COMMIT: ${{ needs.follow.outputs.commit }}
+          VERIFIED: ${{ needs.follow.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(git diff --binary | sha256sum | cut -d' ' -f1)" != "${VERIFIED}" ]; then
+            echo "::error::This rewrite is not the one follow verified, so nothing is published."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git diff --name-only -z | xargs -0 git add --
+          git -c core.hooksPath=/dev/null commit --quiet \
+            -m "docs: follow LoopTroop ${COMMIT:0:12}" \
+            -m "Written by .github/workflows/follow-looptroop.yml from https://github.com/looptroop-ai/LoopTroop/commit/${COMMIT}."
+          git log -1 --stat
+
+      # Not forced. If main moved while this ran, the rewrite is left for
+      # tomorrow's run, which starts from the new main.
+      - name: Push
+        env:
+          TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          credential=$(printf 'x-access-token:%s' "${TOKEN}" | base64 | tr -d '\n')
+          unset TOKEN
+          authenticated() {
+            GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0='http.https://github.com/.extraHeader' \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${credential}" \
+              git -c core.hooksPath=/dev/null "$@"
+          }
+          remote=$(authenticated ls-remote origin refs/heads/main | cut -f1)
+          if [ "${remote}" != "${SOURCE_SHA}" ]; then
+            echo "::notice::main moved to ${remote:-(unknown)} since ${SOURCE_SHA}; the next run starts from there."
+            exit 0
+          fi
+          authenticated push origin HEAD:main

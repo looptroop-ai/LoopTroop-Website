@@ -26,8 +26,11 @@ import { pathToFileURL } from 'node:url'
  * The latest merged application revision the documentation describes — an
  * immutable ref, never a moving branch name.
  *
- * Update this to the latest application `main` commit whenever CLI behavior
- * changes, including before a release tag, so published docs stay current.
+ * Nobody needs to move it: `.github/workflows/follow-looptroop.yml` points it at
+ * the head of the application's `main` once a day, whenever that changes a
+ * page, and rewrites the pages that depend on it. CI checks out the same commit
+ * through `.github/actions/looptroop-source`, which reads it from this line, so
+ * this is the only place it is written.
  */
 export const CLI_SOURCE_REF = '300ed63dc21d1c7aa446abbc209dc84d50a72506'
 
@@ -37,8 +40,8 @@ const GENERATED_BLOCK_PATTERN = new RegExp(
   `${MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n\\n\`\`\`text\\n[\\s\\S]*?\\n\`\`\``,
 )
 
-export function sourceUrl(relativePath) {
-  return `https://raw.githubusercontent.com/looptroop-ai/LoopTroop/${CLI_SOURCE_REF}/${relativePath}`
+export function sourceUrl(relativePath, ref = CLI_SOURCE_REF) {
+  return `https://raw.githubusercontent.com/looptroop-ai/LoopTroop/${ref}/${relativePath}`
 }
 
 function fail(message) {
@@ -49,29 +52,29 @@ function fail(message) {
  * The `USAGE` template literal, with or without `export` — older revisions did
  * not export it, and those revisions must still work when selected explicitly.
  */
-export async function fetchSourceText(relativePath) {
+export async function fetchSourceText(relativePath, ref = CLI_SOURCE_REF) {
   let source
   try {
-    const url = sourceUrl(relativePath)
+    const url = sourceUrl(relativePath, ref)
     const response = await fetch(url)
     if (!response.ok) fail(`${url} answered ${response.status}.`)
     source = await response.text()
   } catch (error) {
-    fail(`Could not read ${sourceUrl(relativePath)}: ${error instanceof Error ? error.message : String(error)}`)
+    fail(`Could not read ${sourceUrl(relativePath, ref)}: ${error instanceof Error ? error.message : String(error)}`)
   }
   return source
 }
 
-export function extractUsage(cliSource) {
+export function extractUsage(cliSource, ref = CLI_SOURCE_REF) {
   const match = cliSource.match(/(?:export )?const USAGE = `([\s\S]*?)`\n/)
-  if (match === null) fail(`No USAGE template literal in cli.ts at ${CLI_SOURCE_REF}.`)
+  if (match === null) fail(`No USAGE template literal in cli.ts at ${ref}.`)
   // Backticks are the only thing a template literal escapes that a fenced code
   // block does not, so unescaping them is the whole conversion.
   return match[1].replace(/\\`/g, '`').trimEnd()
 }
 
-export async function readUsage() {
-  return extractUsage(await fetchSourceText('server/cli/cli.ts'))
+export async function readUsage(ref = CLI_SOURCE_REF) {
+  return extractUsage(await fetchSourceText('server/cli/cli.ts', ref), ref)
 }
 
 export function rewriteCliPage(page, usage) {
@@ -81,8 +84,8 @@ export function rewriteCliPage(page, usage) {
   return page.replace(GENERATED_BLOCK_PATTERN, () => block)
 }
 
-export async function syncCliReference({ check = false } = {}) {
-  const usage = await readUsage()
+export async function syncCliReference({ check = false, ref = CLI_SOURCE_REF } = {}) {
+  const usage = await readUsage(ref)
 
   let page
   try {
@@ -93,17 +96,17 @@ export async function syncCliReference({ check = false } = {}) {
 
   const rewritten = rewriteCliPage(page, usage)
 
-  if (rewritten === page) return `PASS: docs/cli.md matches cli.ts at ${CLI_SOURCE_REF}.`
+  if (rewritten === page) return `PASS: docs/cli.md matches cli.ts at ${ref}.`
 
   if (check) {
     fail(
-      `docs/cli.md has drifted from cli.ts at ${CLI_SOURCE_REF}.\n`
+      `docs/cli.md has drifted from cli.ts at ${ref}.\n`
       + '       Run `npm run sync:cli` and commit the result.',
     )
   }
 
   await writeFile(PAGE, rewritten)
-  return `Rewrote docs/cli.md from cli.ts at ${CLI_SOURCE_REF}.`
+  return `Rewrote docs/cli.md from cli.ts at ${ref}.`
 }
 
 async function main() {

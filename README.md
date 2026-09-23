@@ -15,4 +15,6 @@ npm run dev     # http://localhost:5174/docs/
 
 Documentation pages are Markdown in `docs/`. The marketing page is `web.html` and `src/web.css`.
 
+A few things here come from the application and follow it on their own: the CLI reference in `docs/cli.md`, the minimum Node version the pages state, and `CLI_SOURCE_REF`, the application commit the pages are checked against. The *Follow LoopTroop main* workflow updates all three once a day. To update them sooner, run it from the Actions tab.
+
 Before opening a pull request, see [CONTRIBUTING.md](CONTRIBUTING.md) for the checks to run.
