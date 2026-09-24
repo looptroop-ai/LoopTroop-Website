@@ -9,10 +9,11 @@ Welcome to LoopTroop! This guide takes you from zero to your first AI-driven dev
 
 Two things every channel needs, because none of them install it for you:
 
-- **[OpenCode](https://opencode.ai)** with at least one configured provider.
-  LoopTroop starts one if it is on your PATH and adopts one you are already
-  running, but it will not install it, and refuses to start with no OpenCode to
-  reach.
+- **[OpenCode](https://opencode.ai)** v1 or v2, with a configured provider and
+  an available model. LoopTroop detects the server protocol automatically. It
+  starts the installed CLI when no server is reachable, and adopts a server
+  already running. It does not install OpenCode or require a major-version
+  change.
 - A local git repository with an `origin` pointing to GitHub.
 
 **Everything else depends on how you install it** — Homebrew and Scoop bring
@@ -135,6 +136,10 @@ the rest; [Installation](installation.md) covers upgrading and uninstalling; and
 LoopTroop works best with multiple AI models — they draft, vote on, and refine plans together before any code is written. You can configure your council models inside the app via the **Configuration** button on the dashboard.
 
 You need at least a **Main Implementer Model** (which writes and validates code) and **1–9 additional Council Members** (which challenge and improve the plan), for a maximum council size of ten. See [Configuration](configuration.md) for all settings and trade-offs.
+
+Configure provider credentials and providers in OpenCode. LoopTroop's model
+selectors show the models OpenCode reports as available; choose one in the
+Configuration screen.
 
 ### Choosing Your Main Implementer
 

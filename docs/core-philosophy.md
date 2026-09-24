@@ -164,9 +164,9 @@ This connects directly to the context-engineering philosophy: preserve the lesso
 
 ## 11. OpenCode Execution Engine
 
-**Summary:** LoopTroop uses OpenCode as the execution layer for model sessions, file edits, terminal commands, coding, verification, and PR work. The main implementer model handles scanning, implementation, final checks, and PR creation, while council models are used for planning and review. LoopTroop can use the models exposed by your configured OpenCode providers, so different models can serve as the main implementer and the council.
+**Summary:** LoopTroop uses OpenCode as the execution layer for model sessions, file edits, terminal commands, coding, verification, and PR work. The main implementer model handles scanning, implementation, final checks, and PR creation, while council models are used for planning and review. LoopTroop can use the models currently available from OpenCode, so different models can serve as the main implementer and the council.
 
-LoopTroop runs an OpenCode server (`opencode serve`) and talks to it through the OpenCode SDK adapter. Because it drives your own OpenCode installation, it can use the providers and models your OpenCode is configured with — and it also inherits the skills, MCP servers, and any other configuration you have set up in OpenCode. The main implementer and the council are configured separately (`main_implementer` versus `council_members`), so you can pair a strong implementer model with a diverse planning council.
+LoopTroop runs or adopts an OpenCode server (`opencode serve`) and detects its v1 or v2 API automatically. It uses the providers and available models from that OpenCode installation, along with its skills, MCP servers, and other configuration. The main implementer and the council are configured separately (`main_implementer` versus `council_members`), so you can pair a strong implementer model with a diverse planning council. Existing v1 installations remain supported; LoopTroop does not require a major-version change.
 
 For long-running automation, OpenCode may run with permissive local execution permissions (an allow-all execution policy). That is powerful, but it also means you should run LoopTroop in a VM or a sandboxed development environment.
 

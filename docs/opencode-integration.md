@@ -5,7 +5,7 @@
 
 LoopTroop uses OpenCode as the model-execution layer, but it wraps that layer heavily so ticket state, retries, approvals, and recovery remain durable outside any one model transcript.
 
-At runtime, LoopTroop chooses exactly one adapter: the real SDK adapter for a live OpenCode server, or the in-process mock adapter for tests and offline development.
+LoopTroop detects the authenticated OpenCode server protocol and uses the matching live transport. v1 keeps its SDK transport; v2 uses LoopTroop's runtime HTTP transport and adds no OpenCode SDK dependency. The in-process mock adapter is available for tests and offline development.
 
 > [!NOTE]
 > **Current behavior.** The step-cap/root-configuration recovery in §6.1
@@ -17,7 +17,7 @@ At runtime, LoopTroop chooses exactly one adapter: the real SDK adapter for a li
 
 | Area | Modules | Responsibility |
 | --- | --- | --- |
-| Adapter bootstrap | `server/opencode/adapter.ts`, `factory.ts`, `mockAdapter.ts`, `runtimeConfig.ts`, `types.ts` | Select SDK vs mock mode, resolve the base URL, attach auth headers, and expose the typed OpenCode surface |
+| Adapter bootstrap | `server/opencode/adapter.ts`, `connection.ts`, `v1Transport.ts`, `v2Transport.ts`, `factory.ts`, `mockAdapter.ts`, `runtimeConfig.ts`, `types.ts` | Detect the authenticated server protocol, resolve the base URL, apply auth headers, and expose the typed OpenCode surface |
 | Session lifecycle | `server/opencode/sessionCreation.ts`, `sessionManager.ts`, `sessionContinuation.ts`, `permissions.ts` | Retry session creation, persist ownership in the project DB, manage reconnect/completion/abandonment, and decide whether Continue may reuse a preserved session |
 | Prompt execution | `server/opencode/contextBuilder.ts`, `toolPolicy.ts`, `assistantMessageAnalysis.ts`, `server/workflow/runOpenCodePrompt.ts` | Build phase context, apply tool restrictions, stream prompt events, reconcile streamed output with durable assistant messages, and produce attempt metadata |
 | Catalog and selection | `server/opencode/providerCatalog.ts`, `modelValidation.ts` | Discover OpenCode models, normalize provider-catalog responses, and validate saved model selections against connected providers |
@@ -53,11 +53,11 @@ The `OpenCodeAdapter` interface currently exposes:
 | `assembleCouncilContext()` | Build council prompt parts |
 | `checkHealth()` | Health and availability check |
 
-`getOpenCodeAdapter()` returns a singleton. In normal mode it uses `@opencode-ai/sdk/v2`; in mock mode it returns `MockOpenCodeAdapter`, which also supplies a mock health result and provider catalog for the rest of the app.
+`getOpenCodeAdapter()` returns a singleton. In live mode it detects OpenCode v1 or v2 from the authenticated server API. v2 uses LoopTroop's HTTP transport; v1 uses the retained `@opencode-ai/sdk` transport. Mock mode returns `MockOpenCodeAdapter`, which also supplies a mock health result and provider catalog for the rest of the app.
 
-The SDK adapter automatically adds a Basic auth header when `OPENCODE_SERVER_PASSWORD` is configured. Prompt dispatch passes OpenCode prompt options such as `model`, `agent`, `variant`, and `stepFinishSafetyMs`. Tool access is no longer sent through OpenCode's deprecated prompt-level `tools` field; LoopTroop applies the prompt's complete ordered permission policy to the session immediately before dispatch.
+Requests use Basic auth when a password is configured. v2 fixes the username to `opencode`; it uses `OPENCODE_PASSWORD` when that variable is set, otherwise `OPENCODE_SERVER_PASSWORD`, preserving the supplied v2 password exactly. v1 uses `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`, with `opencode` as the default username. Prompt dispatch passes OpenCode options such as `model`, `agent`, and `variant`. Tool access is controlled by LoopTroop's ordered session permission policy immediately before dispatch.
 
-Session creation, exact session lookup, session listing, and message reads accept `AbortSignal`s and are wrapped with bounded SDK-operation timeouts. Session creation also runs through a shared retry wrapper: after the initial failure, LoopTroop waits 1 s, 3 s, and 7 s before the three retry attempts. Each failed create attempt collects lightweight OpenCode health diagnostics, but the health probe is diagnostic-only and never replaces the actual session-create result.
+Session creation, exact session lookup, session listing, and message reads accept `AbortSignal`s and are wrapped with bounded transport-operation timeouts. Session creation also runs through a shared retry wrapper: after the initial failure, LoopTroop waits 1 s, 3 s, and 7 s before the three retry attempts. Each failed create attempt collects lightweight OpenCode health diagnostics, but the health probe is diagnostic-only and never replaces the actual session-create result.
 
 LoopTroop creates sessions with a session-scoped allow-all permission rule, then refreshes the complete policy before every prompt so reused sessions cannot retain a previous phase's restrictions. If the connected OpenCode server is too old to support session-scoped permissions, session creation or policy application fails with an explicit upgrade message instead of silently degrading behavior.
 
@@ -66,14 +66,17 @@ LoopTroop creates sessions with a session-scoped allow-all permission rule, then
 | Setting | Meaning |
 | --- | --- |
 | `LOOPTROOP_OPENCODE_BASE_URL` | Base URL for the OpenCode server; defaults to `http://127.0.0.1:4096` |
-| `LOOPTROOP_OPENCODE_MODE=mock` | Use the mock adapter instead of the SDK adapter |
+| `LOOPTROOP_OPENCODE_MODE=mock` | Use the mock adapter instead of a live OpenCode transport |
 | `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` | Do not override the OpenCode server permission mode during `npm run dev`; by default LoopTroop starts its managed OpenCode server with `OPENCODE_PERMISSION='"allow"'` |
 | `LOOPTROOP_OPENCODE_LOGS=all` | Direct watcher fallback that starts managed OpenCode with `--print-logs --log-level DEBUG` when `npm run dev:opencode` actually launches the server |
 | `LOOPTROOP_OPENCODE_LOG_DIR` | Optional OpenCode log directory used to enrich generic provider errors from an external or nonstandard OpenCode server |
-| `OPENCODE_SERVER_USERNAME` | Basic auth username for requests to the local OpenCode server; defaults to `opencode` |
-| `OPENCODE_SERVER_PASSWORD` | Basic auth password for requests to the local OpenCode server; `npm run dev` auto-generates an ephemeral credential if not set |
+| `OPENCODE_PASSWORD` | v2 Basic auth password; takes precedence when set and is passed exactly as provided |
+| `OPENCODE_SERVER_USERNAME` | v1 Basic auth username; defaults to `opencode`. v2 always uses `opencode` |
+| `OPENCODE_SERVER_PASSWORD` | v1 Basic auth password and v2 fallback when `OPENCODE_PASSWORD` is unset |
 
-Both the LoopTroop backend and the OpenCode process must share the same credentials. `npm run dev` handles this automatically by propagating the generated credential to all child processes. To use a persistent credential, set `OPENCODE_SERVER_PASSWORD` (and optionally `OPENCODE_SERVER_USERNAME`) before running `npm run dev`.
+The LoopTroop backend and a managed OpenCode child share credentials. When neither password variable is set, the managed child gets an ephemeral password; an explicit password is preserved. For an external server, configure credentials that match that server. Set `OPENCODE_PASSWORD` for v2, or `OPENCODE_SERVER_PASSWORD` and optionally `OPENCODE_SERVER_USERNAME` for v1.
+
+LoopTroop does not require a major-version change. It detects the running v1 or v2 server automatically and uses the matching API.
 
 Base-URL resolution depends on the mode:
 
@@ -107,7 +110,11 @@ the [Operations Guide](operations.md#opencode-is-managed-for-you).
 
 ## 4. OpenCode Configuration Pass-Through
 
-LoopTroop sends work through your OpenCode server rather than replacing OpenCode's provider layer.
+LoopTroop sends work through your OpenCode server rather than replacing OpenCode's provider layer. Configure provider credentials, model availability and agent settings in OpenCode's native configuration; LoopTroop selects from the models the authenticated server reports.
+
+OpenCode v2 uses its native `providers` and `agents` config sections. LoopTroop
+preserves those fields and applies v2 settings there; v1 remains supported with
+its v1 schema.
 
 | Layer | Owned by | Notes |
 | --- | --- | --- |
@@ -220,10 +227,11 @@ Continue does not archive the active phase attempt or create a fresh attempt. Re
 
 When `OpenCode Max Steps` is greater than zero, LoopTroop merges the cap into
 the root `opencode.json` and writes `.ticket/opencode-steps-restore.json` before
-the change. The sidecar holds the exact pre-run bytes, including the `absent`
-case when LoopTroop created the file. A valid marker keeps the temporary root
-config out of bead and final candidate staging without adding a common Git
-exclude rule.
+the change. It uses `agent` for v1 and `agents` for v2, preserving the other
+configuration fields. The sidecar holds the exact pre-run bytes, including the
+`absent` case when LoopTroop created the file. A valid marker keeps the
+temporary root config out of bead and final candidate staging without adding a
+common Git exclude rule.
 
 Ordinary capped runs reset and retry normally. If the current config conflicts
 with the marker, LoopTroop preserves the edited bytes and sidecar and refuses a
@@ -307,7 +315,9 @@ Blocked execution setup also has a same-session action called **Retry with extra
 
 OpenCode stream events are consumed server-side and then translated into LoopTroop's own ticket event model.
 
-The SDK adapter subscribes to OpenCode's global event stream, unwraps `{ directory, payload }` frames, and filters them back to the owned session before emitting LoopTroop events. This keeps live model detail working when the directory-scoped OpenCode event endpoint closes early, while still preventing unrelated project/session events from entering the ticket log.
+The v1 SDK and v2 HTTP transports consume OpenCode's event stream and filter events to the owned session before emitting LoopTroop events. This keeps unrelated project/session events out of the ticket log.
+
+OpenCode v2 does not persist bus history by default. If an event-stream interruption leaves LoopTroop unable to prove that it saw the complete event sequence for a prompt, the prompt fails with an interruption diagnostic. LoopTroop does not resubmit a prompt with an uncertain result.
 
 Events without an explicit session ID are not assigned to a per-session stream,
 and events naming a different session are omitted. A directory-only or global
@@ -354,6 +364,9 @@ OpenCode's `question` tool may stop a run and ask the operator something. LoopTr
 
 The per-ticket route filters the global OpenCode question queue down to active sessions that LoopTroop currently owns for that ticket. Reply/reject actions emit deduplicated question lifecycle log entries and `needs_input` SSE updates, so the browser can remove resolved prompts without polling OpenCode directly.
 
+Question forms show OpenCode's labels and submit each selected choice's wire
+value. When a choice has no separate value, LoopTroop submits its label.
+
 ### 9.1 Who May Ask
 
 Whether a prompt may raise `question` is a setting, not a property of the prompt. `runOpenCodePrompt()` resolves it once at its own boundary, so every retry and same-session continuation is covered by the same answer, and passes it into `resolveOpenCodePermissions()` as a single `question` permission rule. That rule replaces whatever the tool policy said, rather than being appended to it: precedence between a wildcard `{ permission: '*' }` rule and a specific `{ permission: 'question' }` one is not documented, so relying on last-wins would be a guess. The default is deny, so a call site that forgets to opt in fails closed.
@@ -396,19 +409,21 @@ LoopTroop uses related but distinct OpenCode probes:
 
 | Surface | Backing code | Purpose |
 | --- | --- | --- |
-| `adapter.checkHealth()` and `GET /api/health/opencode` | `server/opencode/adapter.ts`, `server/routes/health.ts` | Basic OpenCode reachability, version, and a lightweight model list |
-| `GET /api/models` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Fetch and flatten active models from configured providers; `?scope=all` explicitly requests every provider |
-| `POST /api/models/refresh` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Dispose LoopTroop's catalog/root OpenCode instance, then return freshly fetched models from configured providers |
+| `adapter.checkHealth()` and `GET /api/health/opencode` | `server/opencode/adapter.ts`, `server/routes/health.ts` | Authenticated reachability, detected protocol/version, and a lightweight model list |
+| `GET /api/models` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Fetch currently available providers and enabled models; `?scope=all` asks for a broader list when the protocol supports one |
+| `POST /api/models/refresh` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Reload OpenCode's model data and return its current available-model view |
 
-Provider-catalog fetch first tries `/provider` and falls back to `/config/providers`. The normalizer accepts both catalog shapes and filters inactive models out of the flattened list. The default response returns `models` from configured providers plus `connectedProviders` and `defaultModels`. The full OpenCode catalog is returned in `models` only for `GET /api/models?scope=all`.
+For v1, provider discovery tries `/provider` and falls back to `/config/providers`; it can return a broader catalog for `scope=all`. For v2, LoopTroop reads OpenCode's available-provider and model endpoints. It shows only the providers the server reports as available and their enabled models. The v2 API does not expose disconnected providers, so `scope=all` returns the same list and the response sets `catalogScope` to `available`.
+
+Model metadata is kept as OpenCode reports it. Unknown price, reasoning, tool-use, or image-support fields stay `null`; LoopTroop does not infer those values. The canonical `id` is used in selections, while `modelID` retains the provider-facing identifier when available. v2 variants are normalized for the existing picker.
 
 If model discovery fails but health still passes, the API returns empty model arrays plus a message instead of crashing the UI. The frontend treats that startup message as retriable so model selectors can recover automatically while OpenCode is still coming up.
 
-The Configuration model pickers fetch configured-provider models by default. Their separate full-catalog query remains disabled until the user enables **Show all providers**, avoiding transfer and browser processing of thousands of unrelated models during normal configuration. Turning the option off immediately restores the configured-provider list, while a full-catalog failure does not replace its independent cached result.
+The Configuration model pickers show currently available models by default. Protocols that provide a broader catalog expose **Show all providers**. The v2 server does not, because it only returns currently available providers and enabled models. A v1 full-catalog failure does not replace the connected-model result already loaded.
 
-The Configuration reload button uses `POST /api/models/refresh` for a stronger refresh after provider credentials change. The route first calls OpenCode's instance-scoped `/instance/dispose` endpoint for the catalog/root directory, using the same Basic authentication as other OpenCode requests, and only then fetches `/provider` again. It clears both frontend model scopes, repopulates configured-provider models, and leaves the full catalog unloaded until explicitly requested again. It does not restart `opencode serve`, use global disposal, or dispose the separate worktree instances owned by active ticket sessions. A disposal or subsequent catalog-fetch failure is surfaced to the model-discovery error state rather than returning a catalog known to be stale.
+The Configuration reload button uses `POST /api/models/refresh` after provider credentials change. It calls the protocol-specific OpenCode catalog-refresh endpoint and then fetches updated data with the same Basic authentication. It does not restart `opencode serve` or dispose the separate worktree instances owned by active ticket sessions. A refresh or subsequent catalog-fetch failure is surfaced instead of returning a catalog known to be stale.
 
-When `LOOPTROOP_OPENCODE_MODE=mock`, health and model discovery come from in-process mock data rather than network calls. The refresh route returns that mock catalog without attempting instance disposal.
+When `LOOPTROOP_OPENCODE_MODE=mock`, health and model discovery come from in-process mock data rather than network calls. The refresh route returns that mock catalog without a network request.
 
 ## 11. Question Log Fingerprinting
 

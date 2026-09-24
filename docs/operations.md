@@ -302,7 +302,7 @@ Before those services launch, LoopTroop runs a dev preflight that:
 - holds newer releases that are still inside that 7-day delay or conflict with the current peer dependency graph; automatic maintenance never retries with `--force` or `--legacy-peer-deps`
 - previews `npm audit fix` lockfile changes with the same peer resolver, recognizes npm's expected exit code when unresolved findings remain, and runs the fix only when the proposal is compatible and every proposed npm package version has passed the same 7-day delay
 - retries temporary npm audit transport or malformed-response failures once, then defers that audit without stamping it complete so an external registry outage cannot prevent the application or a boot-enabled service from starting
-- upgrades the local `opencode` CLI to the latest available version when the binary is installed (only when maintenance is opted in)
+- upgrades the installed OpenCode CLI only when maintenance is opted in, using a verified stable version within the same major
 - checks and reclaims only stale LoopTroop-owned processes on configured ports
 - refuses to kill unrelated port occupants and reports which process still owns the conflicting port
 - writes the last successful preflight snapshot to `tmp/dev-preflight-report.json`
@@ -312,7 +312,7 @@ Before those services launch, LoopTroop runs a dev preflight that:
 
 `npm run dev` also resolves the local OpenCode server endpoint before the dev services launch:
 
-- **Reuse:** if the configured address is already responding to authenticated requests, `npm run dev` reuses that running instance.
+- **Reuse:** if the configured address responds to an authenticated OpenCode v1 or v2 API, `npm run dev` reuses that running instance and detects its protocol.
 - **Explicit base URL guard rail:** if an explicitly configured local `LOOPTROOP_OPENCODE_BASE_URL` is occupied by a non-OpenCode process, startup stops and asks you to choose another URL. Automatic port fallback only applies to the default local address.
 - **Port fallback:** if the default OpenCode port (`4096`) is occupied by a non-OpenCode process, `npm run dev` scans for the next free port and starts OpenCode there instead.
 - **Permission mode:** when `npm run dev` starts the managed OpenCode server, it sets `OPENCODE_PERMISSION='"allow"'` by default. LoopTroop also applies a complete ordered permission policy to every session before each prompt, explicitly allowing `external_directory` and `doom_loop` for trusted unattended work before applying any phase-specific restrictions. If OpenCode still emits an unexpected permission request, LoopTroop answers it automatically with `always`; a failed reply aborts the session immediately so normal retry or blocked-error handling can proceed instead of leaving the ticket idle. Set `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` to leave any existing OpenCode permission environment untouched; session-level policies still apply.
@@ -342,10 +342,10 @@ prefix and upstream-deleted files cannot be recovered.
 > those bytes during the scan still fails rather than publishing mixed history,
 > and an unfinished final line is reread on the next scan.
 
-- **Ephemeral auth:** if `OPENCODE_SERVER_PASSWORD` is not set and a new local OpenCode server is about to start, `npm run dev` generates a random credential and sets `OPENCODE_SERVER_USERNAME` to `opencode`. This credential is propagated automatically to all child processes — backend and watcher — for the duration of the session.
+- **Ephemeral auth:** if neither `OPENCODE_PASSWORD` nor `OPENCODE_SERVER_PASSWORD` is set and a managed OpenCode server is about to start, LoopTroop generates a random password and shares it with the server and backend. An explicit password is preserved. v2 uses the fixed username `opencode` and prefers `OPENCODE_PASSWORD`; v1 uses `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`.
 - **Ephemeral API token:** if `LOOPTROOP_API_TOKEN` is not set, `npm run dev` generates one for the backend and Vite dev proxy so local same-origin `/api/*` calls are protected without embedding the token in the frontend bundle.
 
-Normal `npm run dev` is verify-only with respect to your dependencies: it never rewrites `package.json`, the lockfile, or a globally installed CLI. Dependency sync, npm audit remediation, and the OpenCode CLI upgrade are opt-in through `LOOPTROOP_DEV_MAINTENANCE=1`, or run explicitly with `npm run deps:sync`, `npm run audit:remediate`, and `npm run opencode:upgrade`. When opted in, that expensive networked maintenance work is daily-gated through `tmp/dev-maintenance-state.json`: each task runs on the first local dev start of the day, then runs again only if its relevant inputs change later that day.
+Normal `npm run dev` does not update dependencies or a globally installed OpenCode CLI. Dependency sync, npm audit remediation, and the OpenCode CLI upgrade are opt-in through `LOOPTROOP_DEV_MAINTENANCE=1`, or run explicitly with `npm run deps:sync`, `npm run audit:remediate`, and `npm run opencode:upgrade`. When opted in, maintenance is daily-gated through `tmp/dev-maintenance-state.json`: each task runs on the first local dev start of the day, then runs again only if its relevant inputs change later that day. OpenCode upgrades stay within the installed major and use a verified stable target. The supported methods are npm, bun, and curl; other methods or unavailable version metadata are deferred with a reason.
 
 "Verify-only" is scoped to dependencies, and preflight still performs three actions on your machine:
 
@@ -357,7 +357,7 @@ The last two exist so a crashed session does not block the next start. They appl
 
 Audit failure handling distinguishes external availability from local integrity. Registry timeouts, connection errors, rate limits, service errors, and malformed audit responses are retried once and then reported as deferred without blocking normal startup. Because a deferred audit is not recorded as successful, the next eligible startup retries it. Local failures such as an unreadable lockfile, an invalid staged lockfile, or a failed dependency application remain startup-blocking. The standalone `npm run audit:remediate` command remains strict and exits unsuccessfully for either category so explicit maintenance and automation can detect incomplete work.
 
-The 7-day release delay applies to direct npm package updates selected by dependency sync and to all npm package versions proposed by audit remediation. Before changing the live checkout, LoopTroop resolves proposed package and lock files in a temporary directory, then validates the result with `npm ci --dry-run` under npm's normal peer-dependency rules. Incompatible direct releases are held while compatible candidates can still proceed; related candidates are reconsidered together so a supporting package can unlock a previously incompatible update. If npm rejects a registry-hosted tarball as a remote URL during a direct-update preview, LoopTroop holds only the triggering direct update and retries it on the next daily check; it never loosens npm's remote-package policy. A rejected URL from any host other than the configured npm registry remains an error. Audit remediation is all-or-nothing: if npm rejects the proposed graph, or proposes any package version that is too fresh or whose publish time cannot be verified, LoopTroop holds the entire `npm audit fix` attempt. Every held-package detail states its specific cause: an incomplete 7-day release-safety period with the exact eligibility timestamp, unavailable npm metadata, a non-comparable version, an incompatible peer dependency with npm's exact constraint, or a registry-tarball policy hold. Accepted proposals are applied with `npm ci`; if that fails, the previous package files and dependency graph are restored. Automatic maintenance never bypasses npm conflicts with `--force` or `--legacy-peer-deps`. OpenCode is exempt only from the release-age delay: the local OpenCode CLI and direct `@opencode-ai/sdk` package update immediately when their normal maintenance path runs, while npm peer compatibility remains mandatory.
+The 7-day release delay applies to direct npm package updates selected by dependency sync and to all npm package versions proposed by audit remediation. Before changing the live checkout, LoopTroop resolves proposed package and lock files in a temporary directory, then validates the result with `npm ci --dry-run` under npm's normal peer-dependency rules. Incompatible direct releases are held while compatible candidates can still proceed; related candidates are reconsidered together so a supporting package can unlock a previously incompatible update. If npm rejects a registry-hosted tarball as a remote URL during a direct-update preview, LoopTroop holds only the triggering direct update and retries it on the next daily check; it never loosens npm's remote-package policy. A rejected URL from any host other than the configured npm registry remains an error. Audit remediation is all-or-nothing: if npm rejects the proposed graph, or proposes any package version that is too fresh or whose publish time cannot be verified, LoopTroop holds the entire `npm audit fix` attempt. Every held-package detail states its specific cause: an incomplete 7-day release-safety period with the exact eligibility timestamp, unavailable npm metadata, a non-comparable version, an incompatible peer dependency with npm's exact constraint, or a registry-tarball policy hold. Accepted proposals are applied with `npm ci`; if that fails, the previous package files and dependency graph are restored. Automatic maintenance never bypasses npm conflicts with `--force` or `--legacy-peer-deps`. OpenCode CLI upgrades use the same-major policy above; the v1 SDK dependency follows normal package maintenance.
 
 ## 4. Maintenance Commands
 
@@ -407,7 +407,7 @@ Routine dependency updates are handled by Renovate rather than by local tooling,
 Dependencies with additional constraints:
 
 - **`drizzle-orm` and `drizzle-kit`** move together on the `rc` tag and stay exact-pinned. A global install re-resolves ranges on the user's machine and ignores the lockfile, so a loose range would ship an untested release candidate.
-- **`@opencode-ai/sdk`** gets its own pull request and the ordinary 7 days. The SDK talks to an OpenCode CLI that users install separately and that Renovate cannot see, so the risk here is version skew rather than an immature release. No maturity window addresses that, only a person reading the pull request. Update the documented minimum version in the same pull request.
+- **`@opencode-ai/sdk`** remains the transport dependency for OpenCode v1. Local dependency sync age-exempts it and can update it immediately; Renovate still proposes it in its own reviewed pull request under the ordinary seven-day maturity window. The OpenCode CLI is separate and uses the same-major opt-in upgrade path above. If an SDK update changes its server compatibility requirement, update the documented minimum OpenCode version in that pull request.
 - **`esbuild`** gets its own pull request and stays exact-pinned, because `package.json` approves its install script by version. Update that approval in the same pull request.
 - **`@types/node`** is held below the next major so it cannot drift ahead of the supported runtime and hide use of newer APIs.
 - **`typescript`** is held below 6.1 until `typescript-eslint` accepts a newer TypeScript in its peer range.
@@ -448,7 +448,7 @@ The frontend dev server pre-optimizes its complete declared browser dependency s
 | `verify:published` | Install a **published** release from its real feed using the documented command, start it, check the health endpoint, and remove it again. Needs network access and a version that is actually published — `-- --channel npm --version X.Y.Z`, or `-- --plan --tier weekly` to list the legs without running any. Normally driven by the Published install smoke workflow rather than by hand. |
 | `deps:sync` | Preview direct dependency updates with npm peer resolution, apply compatible releases with `npm ci`, hold conflicts, then refresh the daily-maintenance stamp. |
 | `audit:remediate` | Preview the gated npm audit remediation in isolation, hold incompatible proposals, and apply accepted lockfiles with `npm ci`. |
-| `opencode:upgrade` | Run only the OpenCode CLI upgrade step, then refresh the daily-maintenance stamp. |
+| `opencode:upgrade` | Run only the OpenCode CLI upgrade step within the installed major when a stable target and supported install method are verified, then refresh the daily-maintenance stamp. |
 | `diagnose:stall` | Generate a runtime diagnostics report under `tmp/diagnostics/`. |
 
 ### Tests And Code Quality
@@ -509,13 +509,14 @@ The app database is runtime-bootstrapped by `server/db/init.ts`. The committed m
 | `LOOPTROOP_DEV_SKIP_DEPS=1` | Skip automatic dependency sync and audit remediation during `npm run dev` |
 | `LOOPTROOP_DEV_SKIP_OPENCODE_UPGRADE=1` | Skip the automatic local OpenCode CLI upgrade during `npm run dev` |
 | `LOOPTROOP_DEV_FORCE_MAINTENANCE=1` | Bypass the once-per-day maintenance gate and force all startup maintenance checks now |
-| `LOOPTROOP_OPENCODE_MODE` | Set to `mock` to use the mock adapter instead of the real SDK adapter |
+| `LOOPTROOP_OPENCODE_MODE` | Set to `mock` to use the mock adapter instead of a live OpenCode transport |
 | `LOOPTROOP_OPENCODE_PERMISSION_MODE` | Set to `inherit` to skip setting `OPENCODE_PERMISSION='"allow"'` when `npm run dev` starts a managed OpenCode server; by default LoopTroop sets permissive mode automatically for local trusted sessions |
 | `LOOPTROOP_OPENCODE_LOGS=all` | Direct watcher fallback for `npm run dev:opencode`; starts a managed OpenCode server with `--print-logs --log-level DEBUG` when the watcher actually launches OpenCode |
 | `LOOPTROOP_OPENCODE_LOG_DIR` | Optional OpenCode log directory used to enrich generic provider errors from an external or nonstandard OpenCode server; default lookup is `~/.local/share/opencode/log/` |
 | `CHOKIDAR_USEPOLLING` | Governs both the frontend (Vite) and backend file watchers. Leave unset for auto-detection (native watching everywhere except WSL on a Windows-mounted drive). Set to `1` to force polling or `0` to force native watching |
-| `OPENCODE_SERVER_USERNAME` | Basic auth username for the local OpenCode dev server; defaults to `opencode` when `OPENCODE_SERVER_PASSWORD` is also set |
-| `OPENCODE_SERVER_PASSWORD` | Basic auth password for the local OpenCode dev server; auto-generated as an ephemeral random credential by `npm run dev` if not set and a new local OpenCode server is about to start |
+| `OPENCODE_PASSWORD` | v2 Basic auth password; used when set and passed exactly as provided |
+| `OPENCODE_SERVER_USERNAME` | v1 Basic auth username; defaults to `opencode`. v2 always uses `opencode` |
+| `OPENCODE_SERVER_PASSWORD` | v1 Basic auth password and v2 fallback if `OPENCODE_PASSWORD` is unset; managed children get an ephemeral password only when neither is set |
 
 Default local service addresses:
 
@@ -706,7 +707,7 @@ When using `npm run dev`, port resolution and basic auth are handled automatical
 1. Ensure OpenCode is running: `opencode serve`.
 2. Ping the backend health endpoint: `curl http://127.0.0.1:3000/api/health/opencode`. If you configured `LOOPTROOP_API_TOKEN`, include `-H "X-LoopTroop-Token: $LOOPTROOP_API_TOKEN"`.
 3. If OpenCode is on a non-default port, set `LOOPTROOP_OPENCODE_BASE_URL`, for example `export LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:4097`.
-4. If you started OpenCode outside of `npm run dev`, ensure `OPENCODE_SERVER_PASSWORD` and `OPENCODE_SERVER_USERNAME` match the values LoopTroop is using. A credential mismatch causes silently failed requests.
+4. For an external server with Basic auth, configure matching credentials in LoopTroop's environment. v2 uses username `opencode` and `OPENCODE_PASSWORD` (falling back to `OPENCODE_SERVER_PASSWORD`); v1 uses `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`.
 5. If LoopTroop only records generic provider failures, inspect the newest files under `~/.local/share/opencode/log/` or point `LOOPTROOP_OPENCODE_LOG_DIR` at the external server's log directory so LoopTroop can enrich those errors.
 
 ## 12. Watcher and WSL Performance Notes

@@ -283,8 +283,8 @@ That means an edit can affect a ticket that is already in progress **only if the
 
 The docs links on each control point back to this page, but the UI itself also has a few behaviors worth knowing:
 
-- **OpenCode health is checked live.** The dialog shows whether OpenCode is reachable, whether model discovery is still loading, and whether the connected providers currently expose any models.
-- **The reload button performs a strong provider/model refresh.** It spins and remains disabled until the refresh finishes, disposes only LoopTroop's OpenCode catalog/root instance, then fetches the provider catalog again and replaces the cached model query. Use it after adding or changing OpenCode provider credentials, or when the catalog was empty during startup. This does not restart `opencode serve` or interrupt active ticket worktree instances.
+- **OpenCode health is checked live.** The dialog shows whether OpenCode is reachable, whether model discovery is still loading, and whether available providers expose any models.
+- **The reload button refreshes provider/model data.** It remains disabled until the refresh finishes, asks OpenCode to reload its catalog, then replaces the cached model query. Use it after adding or changing provider credentials, or when the catalog was empty during startup. This does not restart `opencode serve` or interrupt active ticket worktree instances.
 
 > [!NOTE]
 > **Current behavior.** Configuration and related form snapshot handling
@@ -299,7 +299,7 @@ The docs links on each control point back to this page, but the UI itself also h
 > startup response ``OpenCode server is not reachable. Start it with `opencode serve`.``. Other failures, including HTTP 500 responses, keep their existing
 > error and are not retried by these model queries.
 
-- **Model pickers load configured providers only by default.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop registers with OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. The much larger full OpenCode catalog is not requested until you enable **Show all providers**; turning the option off returns to the configured-provider list.
+- **Model pickers show currently available models.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop sends to OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. OpenCode v1 can also return a broader catalog through **Show all providers**; v2 reports only available providers and enabled models, so its picker does not offer that toggle.
 - **Model selection is announced accessibly.** The selected model is the committed value (`aria-selected`); keyboard movement uses `aria-activedescendant` until a choice is committed. Loading, connection failures, and model-catalog errors are announced separately from an empty catalog.
 - **Duplicate model selection is prevented.** The main implementer is auto-included in the council, and the picker disables models already chosen in another council slot.
 - **Effort controls are conditional.** The effort / thinking picker only appears when the selected model advertises variants, and the saved variant is stored per slot.
@@ -407,6 +407,13 @@ Both scopes present the policy as a single row, matching the other **Advanced** 
 
 ## AI Models
 
+Configure providers, credentials and agents in OpenCode. Its v2 config uses
+the native `providers` and `agents` sections. LoopTroop asks the authenticated
+server for models it reports as available, then passes the selected model and
+variant through for each prompt. See OpenCode's [provider
+configuration](https://opencode.ai/v2/docs/providers) and [agent
+configuration](https://opencode.ai/v2/docs/agents).
+
 ### Main Implementer Model
 
 **Type:** model selector  
@@ -428,6 +435,10 @@ Pick the model you trust most for sustained reasoning and code generation. Other
 If the model supports effort or thinking variants (see [Effort / Thinking Variant](#effort--thinking-variant)), prefer a higher-effort variant for complex tickets.
 
 For OpenRouter models, LoopTroop supports the routing choices shown in the configuration UI, including `:floor`, `:nitro`, `:thinking`, `:extended`, and `:free`. **None** is selected by default, which sends the base model ID with no routing suffix. LoopTroop saves any selected suffix, highlights it again when Configuration is reopened, and registers that exact model ID with its managed OpenCode server before a ticket runs. Routing changes affect the selected model ID and its OpenCode registration; effort remains a separate per-slot setting.
+
+If OpenCode is offline, you can save other profile edits while leaving the
+existing routing choice unchanged. Selecting a different routing choice still
+requires a live OpenCode check.
 
 ::: tip
 You can change the main implementer between tickets. The choice is locked per-ticket once work starts, so adjustments to the profile only affect future tickets.

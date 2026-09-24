@@ -49,11 +49,18 @@ newer**. The `npm` check reports the version it finds and does not hold it to
 a floor.
 
 **Versions are shown against the newest published one** — `v26.7.0 (latest
-v27.1.0)` — for LoopTroop, Node, npm and the OpenCode CLI. When the latest
-lookup is unavailable, the report says `latest unknown` instead of stalling the
-rest of Doctor. The LoopTroop version is emphasized when it is behind, because
-it is the one this machine can act on directly. These lookups are cached for
-fifteen minutes, failures included, and never delay the local checks.
+v27.1.0)` — for LoopTroop, Node, npm and the OpenCode CLI. For OpenCode,
+Doctor checks the package for the installed major (`opencode-ai` for v1,
+`@opencode/cli` for v2), so it does not suggest a major-version change. When the
+latest lookup is unavailable, the report says `latest unknown` instead of
+stalling the rest of Doctor. The LoopTroop version is emphasized when it is
+behind, because it is the one this machine can act on directly. These lookups
+are cached for fifteen minutes, failures included, and never delay the local
+checks.
+
+The `opencode` check reports the authenticated server protocol and version. If
+authentication fails, its remedy names the v2 `OPENCODE_PASSWORD` setting or
+the v1 `OPENCODE_SERVER_PASSWORD` and `OPENCODE_SERVER_USERNAME` settings.
 
 **Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
 `✗` is a failing check. For tool probes, the message underneath tells you which

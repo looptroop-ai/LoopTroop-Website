@@ -124,16 +124,18 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | Method | Route | Notes |
 | --- | --- | --- |
 | `GET` | `/api/health` | Basic process health; exempt from the normal read-rate bucket |
-| `GET` | `/api/health/opencode` | OpenCode reachability and version |
+| `GET` | `/api/health/opencode` | Authenticated OpenCode reachability, detected protocol, and version |
 | `GET` | `/api/health/startup` | Startup recovery and restore status |
 | `GET` | `/api/health/update` | Current/latest release, detected install channel, ordered update steps, and complete latest GitHub release metadata |
 | `POST` | `/api/health/startup/restore-notice/dismiss` | Dismiss startup restore notice |
-| `GET` | `/api/models` | Models from configured providers; pass `scope=all` to request the full catalog |
-| `POST` | `/api/models/refresh` | Refresh the provider catalog now and return the current connected-model view |
+| `GET` | `/api/models` | Models from providers OpenCode reports as available; pass `scope=all` for a broader catalog when supported |
+| `POST` | `/api/models/refresh` | Ask OpenCode to reload model data and return the current available-model view |
 | `GET` | `/api/workflow/meta` | Current workflow groups and phases |
 | `GET` | `/api/stream?ticketId=<id>` | Ticket-scoped SSE stream using the composite ticket ref; validates the ticket and enforces stream caps |
 
-`POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but always refreshes the provider catalog first and returns the connected-model view rather than the optional `scope=all` catalog.
+`POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but refreshes OpenCode's model data first and returns the protocol's default available-model view rather than the optional `scope=all` catalog.
+
+A successful model response includes `catalogScope`. v1 supports `connected` and `all`; v2 reports `available`, because its server API exposes available providers and enabled models but no disconnected-provider catalog. `costInput`, `costOutput`, `canReason`, `canUseTools`, and `canSeeImages` may be `null` when OpenCode does not provide that metadata. `id` is the canonical selection ID; `modelID`, when present, is the provider-facing ID.
 
 > [!NOTE]
 > **Current behavior.** Model-discovery failures carry a machine-readable

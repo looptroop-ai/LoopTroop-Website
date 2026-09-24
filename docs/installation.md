@@ -23,10 +23,11 @@ the service without a browser.
 
 > [!IMPORTANT]
 > Whichever channel you pick, LoopTroop needs **[OpenCode](https://opencode.ai)
-> with a configured provider** before it can run a coding task. LoopTroop starts
-> OpenCode if it is installed and adopts one you are already running, but it will
-> not install it, and it refuses to start with no OpenCode to reach. See
-> [Getting Started](getting-started.md).
+> with a configured provider and an available model** before it can run a coding
+> task. It detects OpenCode v1 or v2 from the authenticated server API, starts
+> the installed CLI when no server is already reachable, and adopts a server
+> that is running. It does not install OpenCode or require a major-version
+> change. See [Getting Started](getting-started.md).
 
 The PowerShell command needs `curl.exe`, included in current Windows 10 and
 Windows 11. If it is unavailable, use the npm channel below. It downloads the
@@ -646,7 +647,7 @@ see the [API Reference](api-reference.md).
 
 ::: details What happens during startup?
 
-The preflight handles dependency updates, security audit fixes, OpenCode CLI updates, and port checks. Dependency proposals must pass npm's normal peer resolution before they can change the checkout; incompatible releases are held rather than forced. Normal startup prints a short summary of every updated package (previous → new version) and releases held by the age or compatibility gates.
+The preflight handles dependency updates, security audit fixes, optional same-major OpenCode CLI maintenance, and port checks. Dependency proposals must pass npm's normal peer resolution before they can change the checkout; incompatible releases are held rather than forced. OpenCode CLI maintenance is skipped unless opted in, and never changes its major version. Normal startup prints a short summary of maintenance changes (previous → new version) and releases held by the age or compatibility gates.
 
 For the full preflight specification, see [Operations Guide](operations.md).
 :::
