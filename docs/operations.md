@@ -388,22 +388,29 @@ Routine dependency updates are handled by Renovate rather than by local tooling,
 
 | Policy | Setting |
 | --- | --- |
-| Schedule | Grouped pull requests, nightly between 00:00 and 06:00 |
+| Merging | Nothing merges itself. Every Renovate pull request waits for a person, or an agent acting for one, to review and merge it |
+| Schedule | Nightly between 00:00 and 06:00 |
 | Release maturity | 7 days before a version is proposed |
-| Security advisories | 2 days, raised outside the nightly schedule |
-| Dev dependencies | Patch and minor grouped and reviewed by hand. Twelve lint, test and type-only packages auto-merge once CI is green, patch releases only, and none of them below 1.0 |
-| Runtime dependencies | Grouped, always reviewed by hand |
-| Major updates | One pull request each, always reviewed by hand |
+| Security advisories | 2 days, raised outside the nightly schedule and even when the open pull request limit is reached. OSV is consulted as a second source for direct dependencies |
+| Open pull requests | At most 10, not counting security fixes |
+| Ships to users | Runtime dependencies and the frontend packages Vite bundles into the client share one pull request, patch and minor only |
+| Dev tooling | Every other dev dependency (build, lint, test and type packages, TypeScript, Tailwind) shares one pull request, patch and minor only |
+| CI and container | GitHub Actions updates and Dockerfile base-image digest refreshes share one pull request. Actions are pinned to commit SHAs and the base image to its digest |
+| Toolchain | The build Node in `.nvmrc`, npm in `packageManager` and the Dockerfile base move together in one pull request. Workflows read `.nvmrc` with `node-version-file`, so nothing else needs editing |
+| Node floor | `engines.node` moves on its own, to the newest Node release that has been out for 90 days in the same major |
+| Major updates | One pull request each, except packages that have to move together: the Drizzle pair, Tailwind with its Vite plugin, node with npm, and families Renovate groups itself such as React with react-dom, CodeMirror, Radix, ESLint and the artifact actions |
 | Lockfile refresh | Weekly, Monday to Wednesday. It resolves against the registry as it stood 7 days earlier |
 | Dependency dashboard | One issue listing every update Renovate knows about and why it has not shipped |
-| GitHub Actions | Pinned to commit SHAs and updated by Renovate |
+
+`main` requires a branch to be up to date, so merging one Renovate pull request leaves the others behind. Renovate rebases them in its nightly window. To rebase one sooner, tick the rebase box in its description. Don't use GitHub's **Update branch** button: that commit isn't Renovate's, and Renovate stops maintaining a branch someone else has committed to.
 
 Dependencies with additional constraints:
 
 - **`drizzle-orm` and `drizzle-kit`** move together on the `rc` tag and stay exact-pinned. A global install re-resolves ranges on the user's machine and ignores the lockfile, so a loose range would ship an untested release candidate.
-- **`@opencode-ai/sdk`** takes the ordinary 7 days and is always reviewed by hand. The SDK talks to an OpenCode CLI that users install separately and that Renovate cannot see, so the risk here is version skew rather than an immature release. No maturity window addresses that, only a person reading the pull request. Update the documented minimum version in the same pull request.
+- **`@opencode-ai/sdk`** gets its own pull request and the ordinary 7 days. The SDK talks to an OpenCode CLI that users install separately and that Renovate cannot see, so the risk here is version skew rather than an immature release. No maturity window addresses that, only a person reading the pull request. Update the documented minimum version in the same pull request.
+- **`esbuild`** gets its own pull request and stays exact-pinned, because `package.json` approves its install script by version. Update that approval in the same pull request.
 - **`@types/node`** is held below the next major so it cannot drift ahead of the supported runtime and hide use of newer APIs.
-- **`tailwindcss` and `@tailwindcss/vite`** move together because the Vite integration must match the application stylesheet compiler.
+- **`typescript`** is held below 6.1 until `typescript-eslint` accepts a newer TypeScript in its peer range.
 
 `npm audit` runs in CI as a report only and never applies fixes automatically; remediation is a reviewed change.
 
