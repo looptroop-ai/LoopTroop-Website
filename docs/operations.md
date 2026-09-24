@@ -398,7 +398,7 @@ Routine dependency updates are handled by Renovate rather than by local tooling,
 | CI and container | GitHub Actions updates and Dockerfile base-image digest refreshes share one pull request. Actions are pinned to commit SHAs and the base image to its digest |
 | Toolchain | The build Node in `.nvmrc`, npm in `packageManager` and the Dockerfile base move together in one pull request. Workflows read `.nvmrc` with `node-version-file`, so nothing else needs editing |
 | Node floor | `engines.node` moves on its own, to the newest Node release that has been out for 90 days in the same major |
-| Major updates | One pull request each, except packages that have to move together: the Drizzle pair, Tailwind with its Vite plugin, node with npm, and families Renovate groups itself such as React with react-dom, CodeMirror, Radix, ESLint and the artifact actions |
+| Major updates | One pull request each, except packages that have to move together: React with react-dom and their types, Vite with its React plugin, the Drizzle pair, Tailwind with its Vite plugin, node with npm, and families Renovate groups itself such as CodeMirror, Radix, ESLint and the artifact actions |
 | Lockfile refresh | Weekly, Monday to Wednesday. It resolves against the registry as it stood 7 days earlier |
 | Dependency dashboard | One issue listing every update Renovate knows about and why it has not shipped |
 
