@@ -540,7 +540,7 @@ kept distinct from an empty model list.
 
 `EffortPicker` (`src/components/config/EffortPicker.tsx`) appears next to a model selector when that model exposes variants (for example `high`, `low`, `medium`). The selected variant is stored per model id in `councilMemberVariants`.
 
-`ProfileSetup` also pings `/api/health/opencode` so the modal can show whether OpenCode is reachable, surface model-discovery failures separately from connection failures, and expose a reload button for the provider/model catalog. Model pickers keep configured-provider and full-catalog queries separate: the configured list loads normally, while the full catalog remains disabled until **Show all providers** is selected. Reload clears both caches and refreshes only the configured list.
+`ProfileSetup` also pings `/api/health/opencode` so the modal can show whether OpenCode is reachable, surface model-discovery failures separately from connection failures, and expose a reload button for the provider/model catalog. Model pickers keep configured-provider and full-catalog queries separate: the configured list loads normally, while the full catalog remains disabled until **Show all providers** is selected. Reload keeps the connected-provider list visible while refreshing it. On success, the refreshed response replaces that list and invalidates the full catalog cache. If a refresh returns `OPENCODE_BUSY`, both caches stay intact and the request is not retried automatically.
 
 ### Numeric Settings
 

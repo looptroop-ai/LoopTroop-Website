@@ -172,14 +172,17 @@ modal state is not promised across a reload.
 
 ## Child-process credentials
 
-Project commands, Git and hook commands, doctor tool probes, and managed or development OpenCode
-launches receive a copied environment after their explicit overrides are
-merged. LoopTroop removes only `LOOPTROOP_API_TOKEN` and
-`LOOPTROOP_DEV_EVENT_TOKEN` from those child environments. On Windows the two
-names are matched case-insensitively; other names are not removed by a
-secret-shaped wildcard.
+Project commands, Git and hook commands, doctor tool probes, and tool
+subprocesses receive a copied environment after their explicit overrides are
+merged. LoopTroop removes `LOOPTROOP_API_TOKEN`, `LOOPTROOP_DEV_EVENT_TOKEN`,
+`OPENCODE_PASSWORD`, and `OPENCODE_SERVER_PASSWORD` from those child
+environments. On Windows these names are matched case-insensitively; other
+names are not removed by a secret-shaped wildcard. The backend keeps the
+OpenCode password aliases for authenticated requests. A managed OpenCode server
+gets the configured aliases it needs, while the development web process does
+not receive them.
 
-Provider credentials and intentional Git controls such as `GH_TOKEN`,
+Other provider credentials and intentional Git controls such as `GH_TOKEN`,
 `GITHUB_TOKEN`, `GIT_SSH_COMMAND`, `GIT_SSH`, `GIT_TERMINAL_PROMPT`, and
 `GIT_ASKPASS` remain available to the tools that need them. The trusted CLI
 daemon startup handoff retains its configured daemon environment. Filtering
@@ -314,10 +317,10 @@ Before those services launch, LoopTroop runs a dev preflight that:
 
 - **Reuse:** if the configured address responds to an authenticated OpenCode v1 or v2 API, `npm run dev` reuses that running instance and detects its protocol.
 - **Explicit base URL guard rail:** if an explicitly configured local `LOOPTROOP_OPENCODE_BASE_URL` is occupied by a non-OpenCode process, startup stops and asks you to choose another URL. If OpenCode rejects the configured credentials, startup stops with a credential-specific error. Automatic port fallback only applies to the default local address.
-- **Port fallback:** if the default OpenCode port (`4096`) is occupied by another process, returns an unrelated HTTP response, or rejects the configured credentials, `npm run dev` scans for the next free port and starts OpenCode there instead. An explicitly configured local URL stays strict and stops on either an unrelated process or rejected credentials.
+- **Port fallback:** if the default OpenCode port (`4096`) is occupied by another process, returns an unrecognized HTTP response (including a 5xx response), or rejects the configured credentials, `npm run dev` scans for the next free port and starts OpenCode there instead. An explicitly configured local URL stays strict and stops on an unrecognized response or rejected credentials.
 - **Permission mode:** when `npm run dev` starts the managed OpenCode server, it sets `OPENCODE_PERMISSION='"allow"'` by default. LoopTroop also applies a complete ordered permission policy to every session before each prompt, explicitly allowing `external_directory` and `doom_loop` for trusted unattended work before applying any phase-specific restrictions. If OpenCode still emits an unexpected permission request, LoopTroop answers it automatically with `always`; a failed reply aborts the session immediately so normal retry or blocked-error handling can proceed instead of leaving the ticket idle. Set `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` to leave any existing OpenCode permission environment untouched; session-level policies still apply.
 - **LAN and trusted same-origin proxies:** start with `npm run dev --lan` only when exposing the frontend directly on a trusted local network. The startup summary prints LAN URLs and a QR code for mobile testing, while backend API and OpenCode remain loopback-only behind the Vite dev proxy. A trusted same-origin proxy such as Tailscale Serve can instead front the ordinary loopback Vite server. For either route, before forwarding an API request to the loopback backend, Vite normalizes `Origin` only when the browser marks the request as same-origin and its `Origin` authority matches the incoming frontend `Host`. An unrelated site's `Origin` stays unchanged and the backend rejects it. Documentation links continue to use the hosted site. Under WSL, LoopTroop does not start a relay process; it prints a Windows Administrator PowerShell `netsh interface portproxy` + firewall one-liner, matching cleanup commands, and a Windows-side self-test instead. If the matching Windows network profile is Public, LoopTroop also prints the exact `Set-NetConnectionProfile ... -NetworkCategory Private` fix command. Router/AP client isolation still has to be checked manually if Windows-side self-tests pass but other devices cannot connect.
-- **Verbose OpenCode logs:** start with the existing `npm run dev --opencode-logs=all` option to print managed OpenCode logs in your terminal. The launcher adds `--print-logs` and adds `--log-level DEBUG` only when the resolved CLI supports that option, as v1 does. OpenCode v2 receives no `--log-level` flag. Daemon-managed startup adds no logging flags and skips the help probe. Managed logs are also written to the normal OpenCode log directory. This option affects only servers started by the dev launcher; reused, remote, or mock OpenCode servers keep their own logging configuration. Treat DEBUG output as sensitive local troubleshooting data because it may include request or provider details.
+- **Verbose OpenCode logs:** start with the existing `npm run dev --opencode-logs=all` option to print managed OpenCode logs in your terminal. The launcher adds `--print-logs` and adds `--log-level` only when the resolved CLI advertises a debug value, using that spelling. If help shows only a generic level parameter, it keeps the `DEBUG` spelling used by v1. A CLI without a supported debug value receives no `--log-level` flag. When daemon logging is not enabled, daemon-managed startup adds no logging flags and skips the help probe. Managed logs are also written to the normal OpenCode log directory. This option affects only servers started by the dev launcher; reused, remote, or mock OpenCode servers keep their own logging configuration. Treat DEBUG output as sensitive local troubleshooting data because it may include request or provider details.
 - **Provider error enrichment:** if OpenCode reports only `Provider returned error`, LoopTroop scans the newest local OpenCode logs for the same session and records the exact sanitized provider cause when available. By default it looks in `~/.local/share/opencode/log/`, considers ten candidate files, and reads at most 5 MiB per file; set `LOOPTROOP_OPENCODE_LOG_DIR` when reusing an external OpenCode server whose logs live elsewhere. This bounded diagnostic read is separate from complete DEBUG/history loads.
 
 Complete DEBUG/history reads use the full available native OpenCode file set

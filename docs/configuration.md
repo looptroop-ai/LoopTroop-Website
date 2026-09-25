@@ -284,7 +284,7 @@ That means an edit can affect a ticket that is already in progress **only if the
 The docs links on each control point back to this page, but the UI itself also has a few behaviors worth knowing:
 
 - **OpenCode health is checked live.** The dialog shows whether OpenCode is reachable, whether model discovery is still loading, and whether available providers expose any models.
-- **The reload button refreshes provider/model data.** It remains disabled until the refresh finishes, asks OpenCode to reload its catalog, then replaces the cached model query. Use it after adding or changing provider credentials, or when the catalog was empty during startup. This does not restart `opencode serve` or interrupt active ticket worktree instances.
+- **The reload button refreshes provider/model data.** It remains disabled until the refresh finishes, asks OpenCode to reload its catalog, then replaces the connected model query. Use it after adding or changing provider credentials, or when the catalog was empty during startup. If OpenCode is busy, LoopTroop keeps the cached catalog and does not retry automatically; wait for prompts and unanswered questions to finish, then try again. This does not restart `opencode serve` or interrupt active ticket worktree instances.
 
 > [!NOTE]
 > **Current behavior.** Configuration and related form snapshot handling

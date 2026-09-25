@@ -33,7 +33,8 @@ keyboard-active option: `aria-selected` names the saved selection and
 Loading and catalog failures are announced as status or alert content rather
 than being presented as an empty provider list. Credential failures name the
 OpenCode password settings to check. Busy refreshes tell the user to wait for
-prompts and questions to finish, then retry.
+prompts and questions to finish, then retry; the cached model list stays visible
+while a refresh is refused.
 
 ## 2. Adapter Surface
 
@@ -76,15 +77,15 @@ LoopTroop creates sessions with a session-scoped allow-all permission rule, then
 | `OPENCODE_SERVER_USERNAME` | v1 Basic auth username; defaults to `opencode`. v2 always uses `opencode` |
 | `OPENCODE_SERVER_PASSWORD` | v1 Basic auth password and v2 fallback when `OPENCODE_PASSWORD` is blank or unset |
 
-The LoopTroop backend and a managed OpenCode child share credentials. When neither password variable has a nonblank value, the managed child gets an ephemeral password; a nonblank password is preserved. For an external server, configure credentials that match that server. Set `OPENCODE_PASSWORD` for v2, or `OPENCODE_SERVER_PASSWORD` and optionally `OPENCODE_SERVER_USERNAME` for v1.
+The backend keeps these passwords to authenticate OpenCode requests. Project and tool subprocesses, and the development web process, do not inherit `OPENCODE_PASSWORD` or `OPENCODE_SERVER_PASSWORD`; the managed OpenCode server receives the configured aliases it needs. When the development stack starts a managed server and neither password variable has a nonblank value, LoopTroop generates an ephemeral password for the backend and server. The standalone OpenCode launcher prints a new password for manual sharing and never prints configured passwords. For an external server, configure matching credentials. Set `OPENCODE_PASSWORD` for v2, or `OPENCODE_SERVER_PASSWORD` and optionally `OPENCODE_SERVER_USERNAME` for v1.
 
 LoopTroop does not require a major-version change. It detects the running v1 or v2 server automatically and uses the matching API.
 
 Base-URL resolution depends on the mode:
 
 - **Loopback URL:** `npm run dev` probes the configured address first. If OpenCode is already responding there, LoopTroop reuses that instance.
-- **Default local URL with a conflicting process:** if another process occupies the default OpenCode port, returns an unrelated HTTP response, or rejects the configured credentials, `npm run dev` scans for the next free port and starts managed OpenCode there instead.
-- **Explicit local URL:** the configured port is treated as authoritative. If another process occupies it, startup asks you to choose another URL. If OpenCode rejects the configured credentials, startup stops with a credential-specific error instead of silently moving to another port.
+- **Default local URL with a conflicting process:** if another process occupies the default OpenCode port, returns an unrecognized HTTP response (including a 5xx response), or rejects the configured credentials, `npm run dev` scans for the next free port and starts managed OpenCode there instead.
+- **Explicit local URL:** the configured port is treated as authoritative. If another process occupies it, startup asks you to choose another URL. If OpenCode returns an unrecognized response or rejects the configured credentials, startup stops instead of silently moving to another port.
 - **Remote URL:** the launcher treats the server as external and never tries to start or port-shift it.
 - **Mock mode:** no network probe happens at all.
 
@@ -123,7 +124,7 @@ its v1 schema.
 | Provider credentials, MCP tools, skills, and server configuration | OpenCode | Whatever you configured in OpenCode remains available to LoopTroop sessions |
 | Session ownership, prompt assembly, timeout/retry policy, blocked-error routing, question APIs, and ticket-log projection | LoopTroop | This is the orchestration layer that makes OpenCode durable inside the ticket workflow |
 
-For full local OpenCode logs in your terminal, use the existing `npm run dev --opencode-logs=all` option. The launcher checks the resolved CLI's `serve --help` output, adds `--print-logs`, and adds `--log-level DEBUG` only when the CLI supports it, as v1 does. OpenCode v2 receives no `--log-level` flag. Daemon-managed startup adds no logging flags and skips this help probe. The launcher also passes `LOOPTROOP_OPENCODE_LOGS=all` to the watcher. These settings affect only a server LoopTroop starts; reused, remote, and mock servers keep their own logging configuration. OpenCode's [troubleshooting docs](https://opencode.ai/docs/troubleshooting/) describe DEBUG logs as detailed diagnostic output. Treat them as sensitive local data because they may contain request or provider details.
+For full local OpenCode logs in your terminal, use the existing `npm run dev --opencode-logs=all` option. The launcher checks the resolved CLI's `serve --help` output, adds `--print-logs`, and adds `--log-level` only when the CLI advertises a debug value, using that spelling. A CLI that advertises only a generic level parameter keeps the `DEBUG` spelling used by v1; a CLI without a supported debug level receives no `--log-level` flag. When daemon logging is not enabled, daemon-managed startup adds no logging flags and skips this help probe. The launcher also passes `LOOPTROOP_OPENCODE_LOGS=all` to the watcher. These settings affect only a server LoopTroop starts; reused, remote, and mock servers keep their own logging configuration. OpenCode's [troubleshooting docs](https://opencode.ai/docs/troubleshooting/) describe DEBUG logs as detailed diagnostic output. Treat them as sensitive local data because they may contain request or provider details.
 
 When OpenCode emits only a generic `Provider returned error` stream event, LoopTroop best-effort scans the newest local OpenCode log files for the same `session.id` and surfaces the exact provider cause in the ticket log and blocked-error diagnostics. The enrichment keeps compact fields only: HTTP status, retryability, OpenCode provider/model, request model, provider error type/title/message, and a short response-body preview. It discards prompt bodies, raw request payloads, headers, cookies, authorization values, and URL query strings before persisting anything. By default it reads OpenCode's documented local log directory; set `LOOPTROOP_OPENCODE_LOG_DIR` when LoopTroop is attached to an external server with logs stored elsewhere.
 
@@ -319,7 +320,7 @@ OpenCode stream events are consumed server-side and then translated into LoopTro
 
 The v1 SDK and v2 HTTP transports consume OpenCode's event stream and filter events to the owned session before emitting LoopTroop events. This keeps unrelated project/session events out of the ticket log.
 
-OpenCode v2 does not persist bus history by default. When a synced log has no replay payloads, LoopTroop uses its watermark only as a starting boundary. It waits for the session to become idle and checks pending inboxes around that wait, then requires the live stream to account for every durable event through the post-wait watermark. If a sequence is missing or the stream is lost, the prompt stops with a history-coverage diagnostic; LoopTroop does not guess which prompt owns an event or resend it. A prompt POST without a verifiable inbox receipt is non-continuable because acceptance cannot be proven.
+OpenCode v2 does not persist bus history by default, and fork or transfer history can contain reserved sequence gaps. LoopTroop uses a valid synced watermark only as a starting boundary; it does not claim that earlier history is complete or use it to attribute the new prompt. It reads synced watermarks before and after waiting for the session to become idle, with pending-inbox checks around that wait. Every durable sequence after the boundary must be verified by persisted replay or continuous live observation through the latest watermark. If an event is unmapped, a sequence is missing, or the stream is lost, the prompt stops with a history-coverage diagnostic. LoopTroop does not guess which prompt owns an event or resend it. A prompt POST without a verifiable inbox receipt is non-continuable because acceptance cannot be proven.
 
 Events without an explicit session ID are not assigned to a per-session stream,
 and events naming a different session are omitted. A directory-only or global
@@ -418,7 +419,7 @@ LoopTroop uses related but distinct OpenCode probes:
 | --- | --- | --- |
 | `adapter.checkHealth()` and `GET /api/health/opencode` | `server/opencode/adapter.ts`, `server/routes/health.ts` | Authenticated reachability, detected protocol/version, and a lightweight model list |
 | `GET /api/models` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Fetch currently available providers and enabled models; `?scope=all` asks for a broader list when the protocol supports one |
-| `POST /api/models/refresh` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Reload OpenCode's model data and return its current available-model view; returns `409 OPENCODE_BUSY` while protected work or requests remain active |
+| `POST /api/models/refresh` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Reload OpenCode's model data and return its current available-model view; returns `409 OPENCODE_BUSY` while protected work or prompts are active or queued |
 
 For v1, provider discovery tries `/provider` and falls back to `/config/providers`; it can return a broader catalog for `scope=all`. For v2, LoopTroop reads OpenCode's available-provider and model endpoints. It shows only the providers the server reports as available and their enabled models. The v2 API does not expose disconnected providers, so `scope=all` returns the same list and the response sets `catalogScope` to `available`.
 
@@ -428,7 +429,9 @@ If model discovery fails but health still passes, the API returns empty model ar
 
 The Configuration model pickers show currently available models by default. Protocols that provide a broader catalog expose **Show all providers**. The v2 server does not, because it only returns currently available providers and enabled models. A v1 full-catalog failure does not replace the connected-model result already loaded.
 
-The Configuration reload button uses `POST /api/models/refresh` after provider credentials change. It calls the protocol-specific OpenCode catalog-refresh endpoint and then fetches updated data with the same Basic authentication. Reload is rejected while a LoopTroop prompt is active. For v2, LoopTroop also checks the server-wide active-session list and pending forms and permissions for active LoopTroop sessions. An incomplete safety check fails before reload. A busy request returns `409 OPENCODE_BUSY`; wait until prompts and unanswered requests finish, then retry. A refresh or subsequent catalog-fetch failure is surfaced instead of returning a catalog known to be stale.
+The Configuration reload button uses `POST /api/models/refresh` after provider credentials change. It calls the protocol-specific OpenCode catalog-refresh endpoint and then fetches updated data with the same Basic authentication. Reload is rejected while a prompt is active or waiting for another reload. For v2, LoopTroop also checks the server-wide active-session list and pending forms and permissions for active LoopTroop sessions. A failed safety check stops before reload. A busy request returns `409 OPENCODE_BUSY`; the browser keeps its cached catalogs and does not retry automatically. Wait until prompts and unanswered requests finish, then retry. A successful refresh replaces the connected catalog and invalidates any broader catalog query; a refresh or subsequent catalog-fetch failure does not present stale data as current.
+
+A prompt that arrives while a catalog reload is running waits for it to finish under the prompt's existing abort signal and workflow deadline. The reload guard rejects new refreshes and OpenRouter config changes that need a write while prompts are active or queued. Profile or ticket-start changes that need a new OpenRouter route still check the config delta before writing; routes already present and unchanged selections remain usable.
 
 OpenRouter routing registration uses the same guard. LoopTroop checks whether a
 selection would add a missing route before it considers an OpenCode config write,
