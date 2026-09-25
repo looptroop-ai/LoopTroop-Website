@@ -58,7 +58,7 @@ Questions can be:
 - `single_choice`
 - `multiple_choice`
 
-Choice questions still support additional free-text notes, so the user can select the closest option and add nuance when needed.
+For a single-choice question, the user can select an option or enter free text; choosing one clears the other. A multiple-choice answer can include a free-text note alongside its selected options.
 
 Question sources are also explicit:
 

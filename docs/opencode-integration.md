@@ -55,7 +55,7 @@ The `OpenCodeAdapter` interface currently exposes:
 
 `getOpenCodeAdapter()` returns a singleton. In live mode it detects OpenCode v1 or v2 from the authenticated server API. v2 uses LoopTroop's HTTP transport; v1 uses the retained `@opencode-ai/sdk` transport. Mock mode returns `MockOpenCodeAdapter`, which also supplies a mock health result and provider catalog for the rest of the app.
 
-Requests use Basic auth when a password is configured. v2 fixes the username to `opencode`; it uses `OPENCODE_PASSWORD` when that variable is set, otherwise `OPENCODE_SERVER_PASSWORD`, preserving the supplied v2 password exactly. v1 uses `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`, with `opencode` as the default username. Prompt dispatch passes OpenCode options such as `model`, `agent`, and `variant`. Tool access is controlled by LoopTroop's ordered session permission policy immediately before dispatch.
+Requests use Basic auth when a nonblank password is configured. v2 fixes the username to `opencode`; it uses `OPENCODE_PASSWORD` when that variable is nonblank, otherwise `OPENCODE_SERVER_PASSWORD`, preserving the supplied v2 password exactly. v1 uses `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`, with `opencode` as the default username. Prompt dispatch passes OpenCode options such as `model`, `agent`, and `variant`. Tool access is controlled by LoopTroop's ordered session permission policy immediately before dispatch.
 
 Session creation, exact session lookup, session listing, and message reads accept `AbortSignal`s and are wrapped with bounded transport-operation timeouts. Session creation also runs through a shared retry wrapper: after the initial failure, LoopTroop waits 1 s, 3 s, and 7 s before the three retry attempts. Each failed create attempt collects lightweight OpenCode health diagnostics, but the health probe is diagnostic-only and never replaces the actual session-create result.
 
@@ -70,19 +70,19 @@ LoopTroop creates sessions with a session-scoped allow-all permission rule, then
 | `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` | Do not override the OpenCode server permission mode during `npm run dev`; by default LoopTroop starts its managed OpenCode server with `OPENCODE_PERMISSION='"allow"'` |
 | `LOOPTROOP_OPENCODE_LOGS=all` | Direct watcher fallback that starts managed OpenCode with `--print-logs --log-level DEBUG` when `npm run dev:opencode` actually launches the server |
 | `LOOPTROOP_OPENCODE_LOG_DIR` | Optional OpenCode log directory used to enrich generic provider errors from an external or nonstandard OpenCode server |
-| `OPENCODE_PASSWORD` | v2 Basic auth password; takes precedence when set and is passed exactly as provided |
+| `OPENCODE_PASSWORD` | v2 Basic auth password; takes precedence when nonblank and is passed exactly as provided |
 | `OPENCODE_SERVER_USERNAME` | v1 Basic auth username; defaults to `opencode`. v2 always uses `opencode` |
-| `OPENCODE_SERVER_PASSWORD` | v1 Basic auth password and v2 fallback when `OPENCODE_PASSWORD` is unset |
+| `OPENCODE_SERVER_PASSWORD` | v1 Basic auth password and v2 fallback when `OPENCODE_PASSWORD` is blank or unset |
 
-The LoopTroop backend and a managed OpenCode child share credentials. When neither password variable is set, the managed child gets an ephemeral password; an explicit password is preserved. For an external server, configure credentials that match that server. Set `OPENCODE_PASSWORD` for v2, or `OPENCODE_SERVER_PASSWORD` and optionally `OPENCODE_SERVER_USERNAME` for v1.
+The LoopTroop backend and a managed OpenCode child share credentials. When neither password variable has a nonblank value, the managed child gets an ephemeral password; a nonblank password is preserved. For an external server, configure credentials that match that server. Set `OPENCODE_PASSWORD` for v2, or `OPENCODE_SERVER_PASSWORD` and optionally `OPENCODE_SERVER_USERNAME` for v1.
 
 LoopTroop does not require a major-version change. It detects the running v1 or v2 server automatically and uses the matching API.
 
 Base-URL resolution depends on the mode:
 
 - **Loopback URL:** `npm run dev` probes the configured address first. If OpenCode is already responding there, LoopTroop reuses that instance.
-- **Default local URL with a conflicting non-OpenCode process:** LoopTroop scans for the next available port and starts managed OpenCode there instead.
-- **Explicit local URL:** the configured port is treated as authoritative. If a different process is occupying it, startup fails instead of silently moving to another port.
+- **Default local URL with a conflicting process:** if another process occupies the default OpenCode port, or the server rejects the configured credentials, `npm run dev` scans for the next free port and starts managed OpenCode there instead.
+- **Explicit local URL:** the configured port is treated as authoritative. If another process occupies it, startup asks you to choose another URL. If OpenCode rejects the configured credentials, startup stops with a credential-specific error instead of silently moving to another port.
 - **Remote URL:** the launcher treats the server as external and never tries to start or port-shift it.
 - **Mock mode:** no network probe happens at all.
 
