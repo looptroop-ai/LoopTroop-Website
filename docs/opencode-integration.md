@@ -31,7 +31,9 @@ The browser's `ModelPicker` keeps the committed model separate from the
 keyboard-active option: `aria-selected` names the saved selection and
 `aria-activedescendant` follows movement until the user commits a choice.
 Loading and catalog failures are announced as status or alert content rather
-than being presented as an empty provider list.
+than being presented as an empty provider list. Credential failures name the
+OpenCode password settings to check. Busy refreshes tell the user to wait for
+prompts and questions to finish, then retry.
 
 ## 2. Adapter Surface
 
@@ -68,7 +70,7 @@ LoopTroop creates sessions with a session-scoped allow-all permission rule, then
 | `LOOPTROOP_OPENCODE_BASE_URL` | Base URL for the OpenCode server; defaults to `http://127.0.0.1:4096` |
 | `LOOPTROOP_OPENCODE_MODE=mock` | Use the mock adapter instead of a live OpenCode transport |
 | `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` | Do not override the OpenCode server permission mode during `npm run dev`; by default LoopTroop starts its managed OpenCode server with `OPENCODE_PERMISSION='"allow"'` |
-| `LOOPTROOP_OPENCODE_LOGS=all` | Direct watcher fallback that starts managed OpenCode with `--print-logs --log-level DEBUG` when `npm run dev:opencode` actually launches the server |
+| `LOOPTROOP_OPENCODE_LOGS=all` | Direct watcher fallback for `npm run dev:opencode`; when it starts a managed server, logging flags are selected from the resolved CLI's `serve --help` output |
 | `LOOPTROOP_OPENCODE_LOG_DIR` | Optional OpenCode log directory used to enrich generic provider errors from an external or nonstandard OpenCode server |
 | `OPENCODE_PASSWORD` | v2 Basic auth password; takes precedence when nonblank and is passed exactly as provided |
 | `OPENCODE_SERVER_USERNAME` | v1 Basic auth username; defaults to `opencode`. v2 always uses `opencode` |
@@ -81,7 +83,7 @@ LoopTroop does not require a major-version change. It detects the running v1 or 
 Base-URL resolution depends on the mode:
 
 - **Loopback URL:** `npm run dev` probes the configured address first. If OpenCode is already responding there, LoopTroop reuses that instance.
-- **Default local URL with a conflicting process:** if another process occupies the default OpenCode port, or the server rejects the configured credentials, `npm run dev` scans for the next free port and starts managed OpenCode there instead.
+- **Default local URL with a conflicting process:** if another process occupies the default OpenCode port, returns an unrelated HTTP response, or rejects the configured credentials, `npm run dev` scans for the next free port and starts managed OpenCode there instead.
 - **Explicit local URL:** the configured port is treated as authoritative. If another process occupies it, startup asks you to choose another URL. If OpenCode rejects the configured credentials, startup stops with a credential-specific error instead of silently moving to another port.
 - **Remote URL:** the launcher treats the server as external and never tries to start or port-shift it.
 - **Mock mode:** no network probe happens at all.
@@ -121,7 +123,7 @@ its v1 schema.
 | Provider credentials, MCP tools, skills, and server configuration | OpenCode | Whatever you configured in OpenCode remains available to LoopTroop sessions |
 | Session ownership, prompt assembly, timeout/retry policy, blocked-error routing, question APIs, and ticket-log projection | LoopTroop | This is the orchestration layer that makes OpenCode durable inside the ticket workflow |
 
-For full local OpenCode DEBUG logs in your terminal, run `npm run dev --opencode-logs=all`. The launcher maps that opt-in to OpenCode's documented [`--print-logs` and `--log-level DEBUG` CLI flags](https://opencode.ai/docs/cli/) for [`opencode serve`](https://opencode.ai/docs/server/) and propagates `LOOPTROOP_OPENCODE_LOGS=all` to the watcher. This only changes logging for an OpenCode server that LoopTroop starts itself; reused, remote, or mock servers keep their own logging configuration. OpenCode's [troubleshooting docs](https://opencode.ai/docs/troubleshooting/) describe DEBUG logs as detailed diagnostic output; treat them as sensitive local data because they may contain request or provider details.
+For full local OpenCode logs in your terminal, use the existing `npm run dev --opencode-logs=all` option. The launcher checks the resolved CLI's `serve --help` output, adds `--print-logs`, and adds `--log-level DEBUG` only when the CLI supports it, as v1 does. OpenCode v2 receives no `--log-level` flag. Daemon-managed startup adds no logging flags and skips this help probe. The launcher also passes `LOOPTROOP_OPENCODE_LOGS=all` to the watcher. These settings affect only a server LoopTroop starts; reused, remote, and mock servers keep their own logging configuration. OpenCode's [troubleshooting docs](https://opencode.ai/docs/troubleshooting/) describe DEBUG logs as detailed diagnostic output. Treat them as sensitive local data because they may contain request or provider details.
 
 When OpenCode emits only a generic `Provider returned error` stream event, LoopTroop best-effort scans the newest local OpenCode log files for the same `session.id` and surfaces the exact provider cause in the ticket log and blocked-error diagnostics. The enrichment keeps compact fields only: HTTP status, retryability, OpenCode provider/model, request model, provider error type/title/message, and a short response-body preview. It discards prompt bodies, raw request payloads, headers, cookies, authorization values, and URL query strings before persisting anything. By default it reads OpenCode's documented local log directory; set `LOOPTROOP_OPENCODE_LOG_DIR` when LoopTroop is attached to an external server with logs stored elsewhere.
 
@@ -211,7 +213,7 @@ cancelled prompt cannot look successful.
 
 Retry-status handling is driven by OpenCode stream events, not only by log text. The runner watches `session.status` retry events across OpenCode-backed phases and treats matching rate-limit, usage-limit, resource-exhaustion, overload/capacity, temporary-unavailability, timeout/deadline, fetch, network, and socket-reset messages as continuable provider interruptions. The profile's `OpenCode Retry Limit` blocks after a configured number of matching retry events, and `OpenCode Retry Grace Window` blocks when a matching retry state produces no progress for the configured window. A zero retry limit blocks on the first matching retry event; a zero grace window disables the timer.
 
-When a ticket is blocked by a resumable OpenCode/provider interruption, the prompt runner can preserve the active owned session instead of abandoning it. Eligible interruptions include retryable diagnostics, HTTP 402/408/429/500/502/503/504/529, rate or usage limits, overload/capacity messages, timeouts, and transport failures. `HTTP 402 Payment Required` is treated as externally clearable, so Continue can resume the same session after payment or workspace access is restored. Auth, invalid request, request-size, permission, missing API key, model-not-found, and non-402 insufficient-quota signals remain non-continuable.
+When a ticket is blocked by a resumable OpenCode/provider interruption, the prompt runner can preserve the active owned session instead of abandoning it. Eligible interruptions include retryable diagnostics, HTTP 402/408/429/500/502/503/504/529, rate or usage limits, overload/capacity messages, timeouts, and transport failures. `HTTP 402 Payment Required` is treated as externally clearable, so Continue can resume the same session after payment or workspace access is restored. Auth, invalid request, request-size, permission, missing API key, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt remain non-continuable because acceptance cannot be proven. Missing replay payloads alone do not block continuation when LoopTroop has verified a starting boundary and continuously observed the later event sequence.
 
 CODING also carries the latest meaningful OpenCode retry/session/output-limit diagnostic forward when a bead later blocks for completion-marker or bead retry-budget reasons, so the Error view can show the underlying provider/session cause alongside the bead wrapper failure.
 
@@ -305,7 +307,7 @@ rather than removing Continue permanently; a later read or restart may verify
 it again. Only confirmed remote absence or provably stale ownership abandons the
 local session record.
 
-**Non-continuable errors:** Auth failures, invalid requests, permission errors, missing API keys, model-not-found, and non-402 insufficient-quota signals are not eligible for Continue.
+**Non-continuable errors:** Auth failures, invalid requests, permission errors, missing API keys, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt are not eligible for Continue.
 
 When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please` — no context rebuild and no new attempt version.
 
@@ -317,7 +319,7 @@ OpenCode stream events are consumed server-side and then translated into LoopTro
 
 The v1 SDK and v2 HTTP transports consume OpenCode's event stream and filter events to the owned session before emitting LoopTroop events. This keeps unrelated project/session events out of the ticket log.
 
-OpenCode v2 does not persist bus history by default. If an event-stream interruption leaves LoopTroop unable to prove that it saw the complete event sequence for a prompt, the prompt fails with an interruption diagnostic. LoopTroop does not resubmit a prompt with an uncertain result.
+OpenCode v2 does not persist bus history by default. When a synced log has no replay payloads, LoopTroop uses its watermark only as a starting boundary. It waits for the session to become idle and checks pending inboxes around that wait, then requires the live stream to account for every durable event through the post-wait watermark. If a sequence is missing or the stream is lost, the prompt stops with a history-coverage diagnostic; LoopTroop does not guess which prompt owns an event or resend it. A prompt POST without a verifiable inbox receipt is non-continuable because acceptance cannot be proven.
 
 Events without an explicit session ID are not assigned to a per-session stream,
 and events naming a different session are omitted. A directory-only or global
@@ -366,6 +368,11 @@ The per-ticket route filters the global OpenCode question queue down to active s
 
 Question forms show OpenCode's labels and submit each selected choice's wire
 value. When a choice has no separate value, LoopTroop submits its label.
+For v2 forms, each field's description supplies the prompt text and its title
+supplies the header. A missing description falls back to the field title or
+key; a missing title falls back to the form title. Free-text answers are
+available only when OpenCode marks that field as custom. Multiselect answers
+remain arrays.
 
 ### 9.1 Who May Ask
 
@@ -401,7 +408,7 @@ Waiting does not consume the step's working time. Attaching a request suspends e
 
 Live timer state lives in memory; the durable copy is written to phase artifacts under the `opencode_question:` and `opencode_question_timer:` prefixes. On expiry, LoopTroop tries remote rejection with up to three attempts. A successful remote rejection clears the question and does not abort the surrounding session. If rejection fails, LoopTroop uses the fallback abort; only when both rejection and fallback abort fail does the pending record and ownership stay visible for retry. A local abort or transport failure that returns false, throws, or cannot be verified is not proof that the remote session stopped. Each rejection writes a skip receipt naming the actor (`timeout` for the wait running out, `user` for a manual skip, `system` for a confirmed lost session), the configured window, the elapsed time, and the sibling requests the same expiry covered.
 
-On startup, `reconcilePendingQuestionsAfterRestart()` runs once per project against a session-to-ticket ownership map covering the whole project, because `listPendingQuestions()` answers per project: reconciling ticket by ticket would show each pass its siblings' questions as ownerless, and a ticket whose sessions had all been abandoned would never be visited at all. A question whose session reconnected is rebuilt from its `opencode_question_timer:` artifact, which is authoritative: `stoppedAt` survives, a live deadline keeps its remaining time, and a deadline already past fires as soon as it is armed. If the session cannot be reattached and neither remote rejection nor fallback abort can be confirmed, the question stays visible for retry rather than being treated as stopped.
+On startup, `reconcilePendingQuestionsAfterRestart()` runs once per project against a session-to-ticket ownership map covering the whole project, because `listPendingQuestions()` answers per project: reconciling ticket by ticket would show each pass its siblings' questions as ownerless, and a ticket whose sessions had all been abandoned would never be visited at all. A question whose session reconnected is rebuilt from its `opencode_question_timer:` artifact, which is authoritative: `stoppedAt` survives, a live deadline keeps its remaining time, and a deadline already past fires as soon as it is armed. Opening a ticket's question panel also refreshes its pending-question list immediately, including after the tab was closed. If the session cannot be reattached and neither remote rejection nor fallback abort can be confirmed, the question stays visible for retry rather than being treated as stopped.
 
 ## 10. Health And Model Discovery
 
@@ -411,17 +418,24 @@ LoopTroop uses related but distinct OpenCode probes:
 | --- | --- | --- |
 | `adapter.checkHealth()` and `GET /api/health/opencode` | `server/opencode/adapter.ts`, `server/routes/health.ts` | Authenticated reachability, detected protocol/version, and a lightweight model list |
 | `GET /api/models` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Fetch currently available providers and enabled models; `?scope=all` asks for a broader list when the protocol supports one |
-| `POST /api/models/refresh` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Reload OpenCode's model data and return its current available-model view |
+| `POST /api/models/refresh` | `server/opencode/providerCatalog.ts`, `server/routes/models.ts` | Reload OpenCode's model data and return its current available-model view; returns `409 OPENCODE_BUSY` while protected work or requests remain active |
 
 For v1, provider discovery tries `/provider` and falls back to `/config/providers`; it can return a broader catalog for `scope=all`. For v2, LoopTroop reads OpenCode's available-provider and model endpoints. It shows only the providers the server reports as available and their enabled models. The v2 API does not expose disconnected providers, so `scope=all` returns the same list and the response sets `catalogScope` to `available`.
 
-Model metadata is kept as OpenCode reports it. Unknown price, reasoning, tool-use, or image-support fields stay `null`; LoopTroop does not infer those values. The canonical `id` is used in selections, while `modelID` retains the provider-facing identifier when available. v2 variants are normalized for the existing picker.
+Model metadata is kept as OpenCode reports it. Unknown price, reasoning, tool-use, or image-support fields stay `null`; LoopTroop does not infer those values. The canonical `id` is used in selections, while `modelID` retains the provider-facing identifier when available. v2 variants are normalized for the existing picker. Cost bands include input, output, cache-read, and cache-write prices across reported tiers. A model is labeled free only when all reported prices are zero.
 
 If model discovery fails but health still passes, the API returns empty model arrays plus a message instead of crashing the UI. The frontend treats that startup message as retriable so model selectors can recover automatically while OpenCode is still coming up.
 
 The Configuration model pickers show currently available models by default. Protocols that provide a broader catalog expose **Show all providers**. The v2 server does not, because it only returns currently available providers and enabled models. A v1 full-catalog failure does not replace the connected-model result already loaded.
 
-The Configuration reload button uses `POST /api/models/refresh` after provider credentials change. It calls the protocol-specific OpenCode catalog-refresh endpoint and then fetches updated data with the same Basic authentication. It does not restart `opencode serve` or dispose the separate worktree instances owned by active ticket sessions. A refresh or subsequent catalog-fetch failure is surfaced instead of returning a catalog known to be stale.
+The Configuration reload button uses `POST /api/models/refresh` after provider credentials change. It calls the protocol-specific OpenCode catalog-refresh endpoint and then fetches updated data with the same Basic authentication. Reload is rejected while a LoopTroop prompt is active. For v2, LoopTroop also checks the server-wide active-session list and pending forms and permissions for active LoopTroop sessions. An incomplete safety check fails before reload. A busy request returns `409 OPENCODE_BUSY`; wait until prompts and unanswered requests finish, then retry. A refresh or subsequent catalog-fetch failure is surfaced instead of returning a catalog known to be stale.
+
+OpenRouter routing registration uses the same guard. LoopTroop checks whether a
+selection would add a missing route before it considers an OpenCode config write,
+then checks again while holding the guard. A profile change or ticket start that
+needs a new registration returns `409` before saving or initializing the ticket
+when OpenCode is busy. Unchanged selections and routes already present in the
+config continue to work without a write or reload.
 
 When `LOOPTROOP_OPENCODE_MODE=mock`, health and model discovery come from in-process mock data rather than network calls. The refresh route returns that mock catalog without a network request.
 

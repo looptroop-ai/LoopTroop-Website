@@ -61,6 +61,9 @@ checks.
 The `opencode` check reports the authenticated server protocol and version. If
 authentication fails, its remedy names the v2 `OPENCODE_PASSWORD` setting or
 the v1 `OPENCODE_SERVER_PASSWORD` and `OPENCODE_SERVER_USERNAME` settings.
+When a running daemon's health check succeeds, Doctor includes the OpenCode
+base URL recorded by that daemon in the check detail. Without a running daemon,
+it probes the configured base URL.
 
 **Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
 `✗` is a failing check. For tool probes, the message underneath tells you which

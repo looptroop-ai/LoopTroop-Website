@@ -129,13 +129,13 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | `GET` | `/api/health/update` | Current/latest release, detected install channel, ordered update steps, and complete latest GitHub release metadata |
 | `POST` | `/api/health/startup/restore-notice/dismiss` | Dismiss startup restore notice |
 | `GET` | `/api/models` | Models from providers OpenCode reports as available; pass `scope=all` for a broader catalog when supported |
-| `POST` | `/api/models/refresh` | Ask OpenCode to reload model data and return the current available-model view |
+| `POST` | `/api/models/refresh` | Ask OpenCode to reload model data and return the current available-model view; may return `409 OPENCODE_BUSY` |
 | `GET` | `/api/workflow/meta` | Current workflow groups and phases |
 | `GET` | `/api/stream?ticketId=<id>` | Ticket-scoped SSE stream using the composite ticket ref; validates the ticket and enforces stream caps |
 
-`POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but refreshes OpenCode's model data first and returns the protocol's default available-model view rather than the optional `scope=all` catalog.
+`POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but refreshes OpenCode's model data first and returns the protocol's default available-model view rather than the optional `scope=all` catalog. It returns HTTP `409` with `code: "OPENCODE_BUSY"` while a LoopTroop prompt is active. For v2, it also checks OpenCode's active-session list and pending forms and permissions for active LoopTroop sessions. A busy or incomplete safety check prevents reload; wait for current work and unanswered requests to finish, then retry.
 
-A successful model response includes `catalogScope`. v1 supports `connected` and `all`; v2 reports `available`, because its server API exposes available providers and enabled models but no disconnected-provider catalog. `costInput`, `costOutput`, `canReason`, `canUseTools`, and `canSeeImages` may be `null` when OpenCode does not provide that metadata. `id` is the canonical selection ID; `modelID`, when present, is the provider-facing ID.
+A successful model response includes `catalogScope`. v1 supports `connected` and `all`; v2 reports `available`, because its server API exposes available providers and enabled models but no disconnected-provider catalog. `costInput`, `costOutput`, `canReason`, `canUseTools`, and `canSeeImages` may be `null` when OpenCode does not provide that metadata. `costTiers`, when present, includes input, output, cache-read, and cache-write prices by tier. `id` is the canonical selection ID; `modelID`, when present, is the provider-facing ID.
 
 > [!NOTE]
 > **Current behavior.** Model-discovery failures carry a machine-readable
@@ -196,6 +196,12 @@ LoopTroop uses a singleton profile, not a collection.
 | `PATCH` | `/api/profile` | Updates the singleton profile |
 
 `POST /api/profile` returns `409` when the profile already exists. `PATCH /api/profile` returns `404` when no profile has been created yet.
+
+Creating or changing a profile can also return `409` when a requested OpenRouter
+model needs a new OpenCode config entry while active work prevents catalog
+reload. LoopTroop checks for a needed config change before writing it. An
+unchanged selection or a route already in the OpenCode config does not require
+that write or reload.
 
 > [!NOTE]
 > **Current behavior.** The browser form snapshot and prompt preview
@@ -639,7 +645,7 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 
 | Method | Route | Notes |
 | --- | --- | --- |
-| `POST` | `/api/tickets/:id/start` | Starts a `DRAFT` ticket using locked profile and project settings |
+| `POST` | `/api/tickets/:id/start` | Starts a `DRAFT` ticket using locked profile and project settings; may return `409 OPENCODE_BUSY` before setup if its model selection needs a config change during active work |
 | `POST` | `/api/tickets/:id/approve` | Generic workflow approval endpoint |
 | `POST` | `/api/tickets/:id/cancel` | Cancel active work — accepts an optional JSON body (see below) |
 | `POST` | `/api/tickets/:id/approve-interview` | Approve interview artifact |
@@ -1034,6 +1040,12 @@ Regeneration payload:
 `GET /api/tickets/:id/opencode/questions` returns `{ "questions": [...], "timer": ... }`. The aggregate route returns `{ "questions": [...], "timers": {...} }`, keyed by ticket ID, and may also include `{ "errors": [...] }` when some tickets fail question discovery. Each question entry carries a `timerKey` naming the countdown it belongs to; several entries can share one.
 
 Both list routes reconcile against OpenCode before answering. A poll that succeeds prunes anything OpenCode no longer lists and arms a countdown for anything OpenCode has that LoopTroop is not yet tracking. A poll that fails prunes nothing, because an unreachable server is not evidence that a question went away.
+
+For OpenCode v2 forms, a field's description is the prompt text and its title
+is the short header. Missing descriptions fall back to the title or field key;
+missing titles use the form title. Free-text answers are accepted only for
+fields that OpenCode marks as custom. Single-select answers contain one value,
+and multiselect answers contain an array of values.
 
 > [!NOTE]
 > **Current behavior.** After the browser receives a resolution for a
