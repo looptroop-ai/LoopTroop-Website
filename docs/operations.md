@@ -407,10 +407,11 @@ Routine dependency updates are handled by Renovate rather than by local tooling,
 | Ships to users | Runtime dependencies and the frontend packages Vite bundles into the client share one pull request, patch and minor only |
 | Dev tooling | Every other dev dependency (build, lint, test and type packages, TypeScript, Tailwind) shares one pull request, patch and minor only |
 | CI and container | GitHub Actions updates and Dockerfile base-image digest refreshes share one pull request. Actions are pinned to commit SHAs and the base image to its digest |
+| CI tools | Bun, pnpm, Yarn and both OpenCode test lanes share one pull request for patch and minor updates. Major updates stay separate per package and retain the major label |
 | Toolchain | The build Node in `.nvmrc`, npm in `packageManager` and the Dockerfile base move together in one pull request. Workflows read `.nvmrc` with `node-version-file`, so nothing else needs editing |
 | Node floor | `engines.node` moves on its own, to the newest Node release that has been out for 90 days in the same major |
 | Major updates | One pull request each, except packages that have to move together: React with react-dom and their types, Vite with its React plugin, the Drizzle pair, Tailwind with its Vite plugin, node with npm, and families Renovate groups itself such as CodeMirror, Radix, ESLint and the artifact actions |
-| Lockfile refresh | Weekly, Monday to Wednesday. It resolves against the registry as it stood 7 days earlier |
+| Lockfile refresh | One weekly pull request covers the root lockfile and all five CI-tool lockfiles, Monday to Wednesday. It resolves against the registry as it stood 7 days earlier |
 | Dependency dashboard | One issue listing every update Renovate knows about and why it has not shipped |
 
 `main` requires a branch to be up to date, so merging one Renovate pull request leaves the others behind. Renovate rebases them in its nightly window. To rebase one sooner, tick the rebase box in its description. Don't use GitHub's **Update branch** button: that commit isn't Renovate's, and Renovate stops maintaining a branch someone else has committed to.
@@ -420,6 +421,7 @@ Dependencies with additional constraints:
 - **`drizzle-orm` and `drizzle-kit`** move together on the `rc` tag and stay exact-pinned. A global install re-resolves ranges on the user's machine and ignores the lockfile, so a loose range would ship an untested release candidate.
 - **`@opencode-ai/sdk`** remains the transport dependency for OpenCode v1. Local dependency sync age-exempts it and can update it immediately; Renovate still proposes it in its own reviewed pull request under the ordinary seven-day maturity window. The OpenCode CLI is separate and uses the same-major opt-in upgrade path above. If an SDK update changes its server compatibility requirement, update the documented minimum OpenCode version in that pull request.
 - **`esbuild`** gets its own pull request and stays exact-pinned, because `package.json` approves its install script by version. Update that approval in the same pull request.
+- CI tools stay exact-pinned. Yarn stays on Classic because the install checks use its global-install channel. The OpenCode v1 and v2 manifests remain on their respective majors, even when their patch and minor updates share a pull request.
 - **`@types/node`** is held below the next major so it cannot drift ahead of the supported runtime and hide use of newer APIs.
 - **`typescript`** is held below 6.1 until `typescript-eslint` accepts a newer TypeScript in its peer range.
 
@@ -427,7 +429,7 @@ Dependencies with additional constraints:
 
 ### CI security checks
 
-CI tooling for Bun, pnpm, Yarn and OpenCode uses committed integrity lockfiles and disables third-party lifecycle scripts. Native binaries come from the verified optional packages. Container builds use npm bundled in the digest-pinned Node image and install production dependencies from the release lockfile with lifecycle scripts disabled. The published-install checks still install LoopTroop from live feeds; their tooling comes from the workflow commit while the test driver comes from the release under test. Generated-input tests exercise network trust boundaries in the ordinary test suite.
+CI tooling for Bun, pnpm, Yarn and OpenCode uses committed integrity lockfiles and disables third-party lifecycle scripts. Native binaries come from the verified optional packages and must run successfully before setup finishes. Tools use the normal PATH without trusted-executable directory overrides; Windows Bun uses its native binary directory, while OpenCode keeps its npm shim for the launcher regression tests. Container builds use npm bundled in the digest-pinned Node image and install production dependencies from the release lockfile with lifecycle scripts disabled. The published-install checks still install LoopTroop from live feeds; their tooling comes from the workflow commit while the test driver comes from the release under test. The run summary records that release, the workflow commit and installed tool versions. Generated-input tests exercise network trust boundaries in the ordinary test suite.
 
 Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Packaging check and blocks the merge.
 
