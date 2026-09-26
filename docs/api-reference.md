@@ -1043,9 +1043,10 @@ Both list routes reconcile against OpenCode before answering. A poll that succee
 
 For OpenCode v2 forms, a field's description is the prompt text and its title
 is the short header. Missing descriptions fall back to the title or field key;
-missing titles use the form title. Free-text answers are accepted only for
-fields that OpenCode marks as custom. Single-select answers contain one value,
-and multiselect answers contain an array of values.
+missing titles use the form title. A string field without `options` accepts
+text when `custom` is omitted or false. If `options` is present, free-text
+answers require `custom: true`. Single-select answers contain one value, and
+multiselect answers contain an array of values.
 
 > [!NOTE]
 > **Current behavior.** After the browser receives a resolution for a

@@ -215,6 +215,13 @@ replacement file, and changes generations after an active read finishes.
 Daemon health checks require the recorded instance ID. A failed start can stop
 its own live child through the retained process handle when the platform's
 start-time probe is unavailable; a stored PID alone never grants that authority.
+If the daemon crashes while its managed OpenCode child is still running, the
+next start checks the retained owned-server record before probing or adopting
+OpenCode. A verified live child must be cleaned up with `looptroop stop` before
+retrying `looptroop start`; an unverifiable live identity keeps the evidence in
+place. If the recorded OpenCode child is confirmed dead or its PID now belongs
+to another process, startup can proceed. A stored PID alone never authorizes a
+signal.
 Windows command logs redact profile path prefixes and retain only the final
 visible path segments.
 

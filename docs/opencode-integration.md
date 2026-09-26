@@ -108,6 +108,14 @@ reports the state rather than restarting forever.
 `looptroop doctor` names which of the four applies, and
 `looptroop status` repeats it.
 
+If the daemon crashes while its managed OpenCode child is still running, the
+next start checks the retained owned-server record before probing or adopting
+OpenCode. A verified live child is recorded as incomplete startup cleanup, so
+run `looptroop stop` and retry `looptroop start`. An unverifiable live identity
+keeps startup blocked and the record is preserved. Startup can proceed if the
+recorded OpenCode child is confirmed dead or its PID now belongs to another
+process. A stored PID alone never authorizes a signal.
+
 This is why an installed user is never told to run `opencode serve` by hand — see
 the [Operations Guide](operations.md#opencode-is-managed-for-you).
 
@@ -320,7 +328,10 @@ OpenCode stream events are consumed server-side and then translated into LoopTro
 
 The v1 SDK and v2 HTTP transports consume OpenCode's event stream and filter events to the owned session before emitting LoopTroop events. This keeps unrelated project/session events out of the ticket log.
 
-OpenCode v2 does not persist bus history by default, and fork or transfer history can contain reserved sequence gaps. LoopTroop uses a valid synced watermark only as a starting boundary; it does not claim that earlier history is complete or use it to attribute the new prompt. It reads synced watermarks before and after waiting for the session to become idle, with pending-inbox checks around that wait. Every durable sequence after the boundary must be verified by persisted replay or continuous live observation through the latest watermark. If an event is unmapped, a sequence is missing, or the stream is lost, the prompt stops with a history-coverage diagnostic. LoopTroop does not guess which prompt owns an event or resend it. A prompt POST without a verifiable inbox receipt is non-continuable because acceptance cannot be proven.
+OpenCode v2 does not persist bus history by default, and fork or transfer history can contain reserved sequence gaps. LoopTroop uses the initial bootstrap cursor only as a starting boundary and verifies durable events from it through continuous observation or replay, including while waiting for idle. At the first idle watermark it starts a fresh inbox-competition check, waits for idle again, and requires the inbox to be empty before dispatch. Previously delivered and drained inbox entries at or before that watermark do not block a later prompt; competing inbox activity after it does. An unmapped event, an unaccounted sequence gap, or a lost stream stops the prompt with a history-coverage diagnostic. LoopTroop does not guess which prompt owns an event or resend it. A prompt POST without a verifiable inbox receipt is non-continuable because acceptance cannot be proven.
+
+The idle wait uses the caller's deadline when one is supplied. Without one, the
+wait is bounded to 60 seconds.
 
 Events without an explicit session ID are not assigned to a per-session stream,
 and events naming a different session are omitted. A directory-only or global
@@ -371,8 +382,9 @@ Question forms show OpenCode's labels and submit each selected choice's wire
 value. When a choice has no separate value, LoopTroop submits its label.
 For v2 forms, each field's description supplies the prompt text and its title
 supplies the header. A missing description falls back to the field title or
-key; a missing title falls back to the form title. Free-text answers are
-available only when OpenCode marks that field as custom. Multiselect answers
+key; a missing title falls back to the form title. A string field without
+`options` accepts text even when `custom` is omitted or false. When `options`
+is present, free-text answers require `custom: true`. Multiselect answers
 remain arrays.
 
 ### 9.1 Who May Ask

@@ -108,10 +108,18 @@ cleanup also leaves its pending ownership record intact.
 Shutdown closes live browser event streams before waiting for HTTP requests
 to finish, so an open LoopTroop tab does not hold the daemon open.
 
-If startup itself fails after launching OpenCode, a retained cleanup record
-also blocks a later start. Cleanup must confirm that the owned process tree is
-gone before removing that record; an unknown process identity is not permission
-to signal a PID or discard ownership.
+If startup itself fails after launching OpenCode, its retained cleanup record
+blocks a later start until `looptroop stop` confirms the owned process tree is
+gone. Missing, recycled, or unverifiable identity keeps that failure record in
+place and does not authorize a signal by PID alone.
+
+If the daemon crashes while a managed OpenCode child is still running, the next
+start checks the retained owned-server record before probing or adopting a
+server. A verified live child is recorded as incomplete startup cleanup; run
+`looptroop stop` and retry `looptroop start`. An unverifiable live identity
+blocks startup with the record preserved. A confirmed dead process or a
+PID/start-token mismatch is treated as stale state and does not block startup;
+it never grants authority to signal that PID.
 
 ## OpenCode is managed for you
 
