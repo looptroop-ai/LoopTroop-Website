@@ -17,4 +17,6 @@ Documentation pages are Markdown in `docs/`. The marketing page is `web.html` an
 
 A few things here come from the application and follow it on their own: the CLI reference in `docs/cli.md`, the minimum Node version the pages state, and `CLI_SOURCE_REF`, the application commit the pages are checked against. The *Follow LoopTroop main* workflow updates all three once a day. To update them sooner, run it from the Actions tab.
 
+Renew `public/.well-known/security.txt` manually before it expires. Confirm that its GitHub reporting link and published policy URL are still correct, then set `Expires` to 364 days ahead. Run `node --test tests/security-metadata.test.mjs` to check the fields, expiry window, and Vercel headers.
+
 Before opening a pull request, see [CONTRIBUTING.md](CONTRIBUTING.md) for the checks to run.

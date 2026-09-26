@@ -281,6 +281,15 @@ Get-FileHash looptroop-<version>-win-x64.zip -Algorithm SHA256
 is what the installers check against — `checksums.sha256` is generated from it,
 so the two cannot disagree.
 
+The release workflow publishes `release-provenance.sigstore.json` with the
+signed bundle for `release-manifest.json`. The manifest lists the hashes for the
+other release assets. Download both files from the same release and verify the
+manifest with the bundle:
+
+```bash
+gh attestation verify release-manifest.json --repo looptroop-ai/LoopTroop --bundle release-provenance.sigstore.json --signer-workflow looptroop-ai/LoopTroop/.github/workflows/release.yml
+```
+
 Every downloadable asset also carries a **build provenance attestation**: a
 signed statement of which workflow, repository and commit produced those exact
 bytes. That covers the four executables, the npm tarball, the bundle, both

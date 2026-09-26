@@ -437,7 +437,35 @@ Selected read-only build and test jobs use StepSecurity Harden-Runner to record 
 
 OpenSSF Scorecard reports repository supply-chain findings on pushes to main and on a weekly schedule. Its results are available in GitHub code scanning and the public Scorecard service. GitHub's existing CodeQL setup handles source scanning, and Renovate handles dependency updates. Scorecard also assesses repository policies and recent review history. LoopTroop requires pull requests and CI checks but does not require independent human approvals; the maintainer accepts those review-policy findings. AI reviews do not count as human approvals for Scorecard. The project has not enrolled for an OpenSSF Best Practices badge; this is also an accepted limitation. Historical scanner scores can lag the current setup, and the reviewed Scorecard version can miss successful scans when a pull request has more than 30 check runs.
 
+V8 coverage runs with `npm run test:coverage` across all four Vitest projects. It measures application sources under `src/`, `server/`, and `shared/`, including the CommonJS launcher, and writes LCOV, text, and JSON summary reports. Child-process coverage stays disabled because stopped or detached processes can leave incomplete profiles. CI collects coverage in a read-only Ubuntu job, then uploads its artifact to Codecov in a separate OIDC job. Codecov project and patch statuses are informational and have no numeric targets.
+
 The authenticated project picker can browse local directories before attachment, including directories outside the daemon's working directory. Git discovery can read metadata outside a working tree for linked worktrees. These operations use the local user's permissions. Ticket-artifact access has separate containment checks; the project picker is not a filesystem sandbox.
+
+### Vulnerability disclosure
+
+LoopTroop welcomes private reports about security problems in the application, website, and related services. Report them through [GitHub Security Advisories](https://github.com/looptroop-ai/LoopTroop/security/advisories/new). Please do not open a public issue or include credentials, API keys, or tokens in a report. Include the affected version and platform, the impact, minimal reproduction steps, and relevant logs with secrets removed.
+
+#### Research scope
+
+This policy authorizes source review and testing of LoopTroop software only on systems, accounts, and data you control or have explicit permission from their owner to use. You may review the public source code and run a local copy with test data on those systems.
+
+This policy does not authorize active testing of `looptroop.ovh`, its hosting or provider infrastructure, any hosted service, another provider's systems, or another person's LoopTroop installation. Reports about those assets are welcome; this policy does not give permission to probe them.
+
+#### Research expectations
+
+- Keep proof of concept work to the minimum needed to explain the issue. Do not disrupt services, violate another person's privacy, or modify or destroy data.
+- Use only accounts and data you own or have explicit permission to use. If you encounter real user data or affect a real user or service, stop testing and report it privately without inspecting or copying more data.
+- Report findings promptly through the private channel above. Give the maintainer a reasonable time to investigate and remediate before public disclosure. Do not use extortion.
+
+The maintainer aims to acknowledge reports within a few days and will investigate and remediate on a best-effort basis. Timelines are not contractual. Researchers will be credited unless they ask to remain anonymous. LoopTroop has no bug bounty.
+
+#### Safe Harbor
+
+For good-faith research that follows this policy, LoopTroop maintainers authorize the testing described in the scope above with respect to applicable anti-hacking laws. They waive relevant terms of service and acceptable-use restrictions they control when those terms would prevent that research. They also waive anti-circumvention claims they control for research covered by this policy.
+
+LoopTroop maintainers will not initiate or support legal action against a researcher for policy-compliant, good-faith research, including an accidental, good-faith violation of this policy. If a third party brings legal action against a researcher who followed the policy, the maintainers will clarify the authorization they provided, to the extent they control the relevant claims. This Safe Harbor applies only to claims controlled by the LoopTroop maintainers and does not bind independent third parties. Researchers remain responsible for complying with laws that apply to them.
+
+The maintainers consider research conducted under this policy lawful, helpful to security, and conducted in good faith.
 
 ## 5. Scripts Reference
 

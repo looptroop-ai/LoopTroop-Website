@@ -70,6 +70,9 @@ jobs:
           node-version: 24.21.0
           cache: npm
 
+      - name: Check security metadata
+        run: node --test tests/security-metadata.test.mjs
+
       - name: Rewrite what follows LoopTroop
         env:
           COMMIT: ${{ steps.main.outputs.commit }}

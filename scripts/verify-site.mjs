@@ -11,6 +11,7 @@ const requiredFiles = [
   'site/project-stats-history.js',
   'site/release-version.js',
   'site/robots.txt',
+  'site/.well-known/security.txt',
   'site/sitemap.xml',
   'site/og-image.png',
   'site/fonts/inter-latin.woff2',
@@ -325,6 +326,19 @@ export async function verifySite() {
   await verifyLandingPrerequisiteFloors()
   await verifyModeratedChannelsAreExplained()
 
+  const [sourceSecurityTxt, builtSecurityTxt] = await Promise.all([
+    readFile('public/.well-known/security.txt', 'utf8'),
+    readFile('site/.well-known/security.txt', 'utf8'),
+  ])
+  if (sourceSecurityTxt !== builtSecurityTxt) {
+    throw new Error('The built security.txt does not match public/.well-known/security.txt.')
+  }
+
+  const operationsHtml = await readFile('site/docs/operations.html', 'utf8')
+  if (!operationsHtml.includes('id="vulnerability-disclosure"')) {
+    throw new Error('Operations Guide output is missing the vulnerability-disclosure anchor.')
+  }
+
   const indexHtml = await readFile('site/index.html', 'utf8')
   if (indexHtml.includes('{{VERSION}}')) throw new Error('Marketing output still contains a build-time version placeholder.')
   if (!indexHtml.includes('data-release-version')) throw new Error('Marketing output is missing release-version targets.')
@@ -357,7 +371,7 @@ export async function verifySite() {
     if (!sitemap.includes(url)) throw new Error(`Sitemap is missing ${url}.`)
   }
 
-  return `PASS: verified ${requiredFiles.length} required site outputs, public metadata, and landing prerequisite floors.`
+  return `PASS: verified ${requiredFiles.length} required site outputs, security metadata, and landing prerequisite floors.`
 }
 
 async function main() {
