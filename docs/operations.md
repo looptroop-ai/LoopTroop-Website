@@ -429,7 +429,7 @@ Dependencies with additional constraints:
 
 Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Packaging check and blocks the merge.
 
-Supported read-only build and test jobs use StepSecurity Harden-Runner to record outbound connections in audit mode. Audit mode does not block connections. Publishing jobs and jobs with write tokens keep their existing credential boundaries; unsupported runners and container jobs do not run this monitor.
+Selected read-only build and test jobs use StepSecurity Harden-Runner to record outbound connections in audit mode. Audit mode does not block connections. Publishing jobs and jobs with write tokens keep their existing credential boundaries. Container jobs and entire job matrices that include Linux ARM64 are excluded: the action's initialization runs before a step condition can skip it on an unsupported runner.
 
 OpenSSF Scorecard reports repository supply-chain findings on pushes to main and on a weekly schedule. Its results are available in GitHub code scanning and the public Scorecard service. GitHub's existing CodeQL setup handles source scanning, and Renovate handles dependency updates.
 
