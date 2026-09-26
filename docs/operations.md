@@ -427,11 +427,15 @@ Dependencies with additional constraints:
 
 ### CI security checks
 
+CI tooling for Bun, pnpm, Yarn and OpenCode uses committed integrity lockfiles and disables third-party lifecycle scripts. Native binaries come from the verified optional packages. Container builds use npm bundled in the digest-pinned Node image and install production dependencies from the release lockfile with lifecycle scripts disabled. The published-install checks still install LoopTroop from live feeds; their tooling comes from the workflow commit while the test driver comes from the release under test. Generated-input tests exercise network trust boundaries in the ordinary test suite.
+
 Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Packaging check and blocks the merge.
 
 Selected read-only build and test jobs use StepSecurity Harden-Runner to record outbound connections in audit mode. Audit mode does not block connections. Publishing jobs and jobs with write tokens keep their existing credential boundaries. Container jobs and entire job matrices that include Linux ARM64 are excluded: the action's initialization runs before a step condition can skip it on an unsupported runner.
 
-OpenSSF Scorecard reports repository supply-chain findings on pushes to main and on a weekly schedule. Its results are available in GitHub code scanning and the public Scorecard service. GitHub's existing CodeQL setup handles source scanning, and Renovate handles dependency updates.
+OpenSSF Scorecard reports repository supply-chain findings on pushes to main and on a weekly schedule. Its results are available in GitHub code scanning and the public Scorecard service. GitHub's existing CodeQL setup handles source scanning, and Renovate handles dependency updates. Scorecard also assesses repository policies and recent review history. LoopTroop requires pull requests and CI checks but does not require independent human approvals; the maintainer accepts those review-policy findings. AI reviews do not count as human approvals for Scorecard. The project has not enrolled for an OpenSSF Best Practices badge; this is also an accepted limitation. Historical scanner scores can lag the current setup, and the reviewed Scorecard version can miss successful scans when a pull request has more than 30 check runs.
+
+The authenticated project picker can browse local directories before attachment, including directories outside the daemon's working directory. Git discovery can read metadata outside a working tree for linked worktrees. These operations use the local user's permissions. Ticket-artifact access has separate containment checks; the project picker is not a filesystem sandbox.
 
 ## 5. Scripts Reference
 
