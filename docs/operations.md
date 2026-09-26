@@ -425,6 +425,14 @@ Dependencies with additional constraints:
 
 `npm audit` runs in CI as a report only and never applies fixes automatically; remediation is a reviewed change.
 
+### CI security checks
+
+Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Packaging check and blocks the merge.
+
+Supported read-only build and test jobs use StepSecurity Harden-Runner to record outbound connections in audit mode. Audit mode does not block connections. Publishing jobs and jobs with write tokens keep their existing credential boundaries; unsupported runners and container jobs do not run this monitor.
+
+OpenSSF Scorecard reports repository supply-chain findings on pushes to main and on a weekly schedule. Its results are available in GitHub code scanning and the public Scorecard service. GitHub's existing CodeQL setup handles source scanning, and Renovate handles dependency updates.
+
 ## 5. Scripts Reference
 
 Run any of these with `npm run <name>`. This is the subset worth knowing, not the
