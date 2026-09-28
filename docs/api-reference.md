@@ -645,7 +645,7 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 
 | Method | Route | Notes |
 | --- | --- | --- |
-| `POST` | `/api/tickets/:id/start` | Starts a `DRAFT` ticket using locked profile and project settings; may return `409 OPENCODE_BUSY` before setup if its model selection needs a config change during active work |
+| `POST` | `/api/tickets/:id/start` | Starts a `DRAFT` ticket using locked profile and project settings. Malformed metadata returns `409` and leaves the ticket in `DRAFT` with the file intact; an unreadable file returns `500`. Model selection may also return `409 OPENCODE_BUSY` if OpenCode is active. |
 | `POST` | `/api/tickets/:id/approve` | Generic workflow approval endpoint |
 | `POST` | `/api/tickets/:id/cancel` | Cancel active work — accepts an optional JSON body (see below) |
 | `POST` | `/api/tickets/:id/approve-interview` | Approve interview artifact |
