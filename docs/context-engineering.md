@@ -76,7 +76,7 @@ ticketState:
 | Key | Meaning |
 | --- | --- |
 | `ticket_details` | The ticket title and description, formatted as the primary user requirement. |
-| `relevant_files` | The relevant-file scan artifact. It gives later phases repo-grounded hints without dumping the full repository. |
+| `relevant_files` | The relevant-file scan artifact. It gives later phases repo-grounded hints without dumping the full repository; when its character budget is exceeded, lower-relevance files are removed first. |
 | `drafts` | Current-stage council drafts, usually anonymized or labeled for voting/refinement. |
 | `votes` | Structured vote artifacts when a status needs them explicitly. This is not broadly inherited. |
 | `interview` | The approved or current interview artifact. |

@@ -677,6 +677,8 @@ If the last `files:` entry is truncated and breaks YAML parsing, LoopTroop drops
 - Missing `likely_action` defaults to `read`.
 - Missing `content_preview` falls back to the emitted `content`.
 
+The saved artifact limits the combined length of each file's `rationale` and `content_preview`. If the budget is exceeded, lower-relevance files are removed first, and the retained files are emitted from highest to lowest relevance.
+
 ---
 
 ### Final Test Command Artifact
@@ -811,7 +813,9 @@ Valid `type` values: `modified`, `added`, `removed` (case-insensitive).
 
 **Stable identifier repair**
 
-PRD and Beads refinement output requires a `modified` item to preserve its winning-artifact ID. If a model gives a genuinely new item that ID and shifts the surviving item to an otherwise unused ID, LoopTroop can restore the two identifiers. PRD repair requires an explicit mismatched `modified` entry and exactly one matching explicit `added` entry. Beads repair requires exactly one raw explicit mismatched `modified` entry containing the survivor's old and shifted IDs, exactly one explicit `added` entry for the reused ID, a unique title match in both artifacts, and a final item whose title does not match any winner bead after trimming and ignoring case; no other change may reference either ID. Both repairs update identifiers and their change records only; neither creates or rewrites item text. Beads refinement may synthesize omitted additions and removals from stable IDs, but synthesized changes do not authorize an ID repair. Without the required proof, Beads refinement does not infer a cross-ID `modified` change from titles alone. If a check is ambiguous or fails, the IDs stay unchanged, the output remains invalid, and the configured structured-retry policy applies.
+PRD and Beads refinement output requires a `modified` item to preserve its winning-artifact ID. If a model gives a genuinely new item that ID and shifts the surviving item to an otherwise unused ID, LoopTroop can restore the two identifiers. PRD repair requires an explicit mismatched `modified` entry and exactly one matching explicit `added` entry. Beads repair requires exactly one explicit `modified` entry whose declared IDs identify the survivor's old and shifted IDs, plus exactly one `added` entry with `before: null` that resolves to the reused ID by ID or unique title. The survivor must have a unique title in both artifacts, the new item's title cannot match a winner bead after trimming and ignoring case, no other change may reference either ID, and any other winner bead missing from the refined artifact must have a declared `removed` entry with `after: null`. Both repairs update identifiers and their change records only; neither creates or rewrites item text. Beads refinement may synthesize omitted additions and removals from stable IDs, but synthesized changes do not authorize an ID repair. Without the required proof, Beads refinement does not infer a cross-ID `modified` change from titles alone. If a check is ambiguous or fails, the IDs stay unchanged, the output remains invalid, and the configured structured-retry policy applies.
+
+During Beads refinement, an `added` or `removed` row that conflicts with a bead ID still present in both drafts is recorded as a `modified` change. Valid inspiration on that row stays attached to the modification. List-valued bead fields are compared structurally, so a separator inside one value cannot make a real edit disappear.
 
 Repeated PRD `modified` entries that resolve to the same canonical before/after item are collapsed into one change. If their inspiration metadata conflicts, attribution is cleared instead of guessed.
 
