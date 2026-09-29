@@ -817,6 +817,8 @@ PRD and Beads refinement output requires a `modified` item to preserve its winni
 
 During Beads refinement, an `added` or `removed` row that conflicts with a bead ID still present in both drafts is recorded as a `modified` change. Valid inspiration on that row stays attached to the modification. List-valued bead fields are compared structurally, so a separator inside one value cannot make a real edit disappear.
 
+For an ordinary declared Beads removal, an omitted `after` side is normalized as `null` and valid inspiration is retained. Stable-ID repair still requires an explicitly declared `after: null` removal as proof.
+
 Repeated PRD `modified` entries that resolve to the same canonical before/after item are collapsed into one change. If their inspiration metadata conflicts, attribution is cleared instead of guessed.
 
 **Warning:** *Restored PRD refinement ID stability at change index 8: reassigned surviving user_story "Documentation" from US-16 to US-15 and reassigned newly added user_story "Performance safeguards" from US-15 to US-16.*
