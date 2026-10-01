@@ -7,7 +7,7 @@
  *
  * The commands and options in `docs/cli.md` are not transcribed by hand. They
  * are the `USAGE` string from `server/cli/cli.ts` in the application repository,
- * read at the latest merged application commit over HTTPS — a public repo, so no
+ * read at the pinned application commit over HTTPS — a public repo, so no
  * token — and substituted into the fenced block below the marker.
  *
  * `--check` is the point. A generator nobody remembers to run is a hand
@@ -23,16 +23,16 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 /**
- * The latest merged application revision the documentation describes — an
- * immutable ref, never a moving branch name.
+ * The application revision the documentation describes, including in-progress
+ * changes — an immutable ref, never a moving branch name.
  *
- * Nobody needs to move it: `.github/workflows/follow-looptroop.yml` points it at
- * the head of the application's `main` once a day, whenever that changes a
- * page, and rewrites the pages that depend on it. CI checks out the same commit
+ * `.github/workflows/follow-looptroop.yml` points it at the head of the
+ * application's `main` once a day, whenever that changes a page, and rewrites
+ * the pages that depend on it. CI checks out the same commit
  * through `.github/actions/looptroop-source`, which reads it from this line, so
  * this is the only place it is written.
  */
-export const CLI_SOURCE_REF = '300ed63dc21d1c7aa446abbc209dc84d50a72506'
+export const CLI_SOURCE_REF = '704244801d2184c0e49931a3d54e3ff40feac571'
 
 const PAGE = path.join(process.cwd(), 'docs', 'cli.md')
 const MARKER = '<!-- generated from server/cli/cli.ts; run npm run sync:cli -->'

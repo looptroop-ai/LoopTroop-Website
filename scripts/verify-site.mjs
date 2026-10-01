@@ -241,14 +241,7 @@ async function verifyLandingInstallOrder() {
   for (const [channelId, label] of requiredChannels) {
     const channel = installCatalog.channels.find((entry) => entry.id === channelId && entry.live)
     if (!channel) fail(`Install catalog does not provide the live ${channelId} channel.`)
-    // Keep public recipes short when the pinned catalog still uses old wrappers.
-    // The installer URL continues to come from that catalog.
-    const command = channelId === 'installer-sh'
-      ? channel.documentedInstall.replace(/^curl .* -fsSL /, 'curl -fsSL ')
-      : channelId === 'installer-ps1'
-        ? channel.documentedInstall.replace(/^\$script = curl\.exe .*? (https:\/\/[^;\s]+);.*$/, 'irm $1 | iex')
-        : channel.documentedInstall
-    const at = gettingStarted.indexOf(command)
+    const at = gettingStarted.indexOf(channel.documentedInstall)
     if (at === -1) throw new Error(`Getting Started never shows how to install LoopTroop with ${label}.`)
     installedAt = Math.min(installedAt, at)
   }
@@ -301,9 +294,8 @@ async function verifyDocumentationIsLive() {
  * by hand here, which is how those two channels stayed marked as unavailable
  * for weeks after they went live.
  *
- * The catalog comes from the pinned source ref, so this checks nothing until a
- * release carries the field. That is the right way round: the page is verified
- * against the version people can install, not against an unreleased contract.
+ * The catalog comes from the documentation's pinned application revision, so
+ * the checks follow the latest documented behavior without waiting for a release.
  */
 async function verifyModeratedChannelsAreExplained() {
   const [installation, catalog] = await Promise.all([

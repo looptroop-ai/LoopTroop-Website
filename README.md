@@ -15,7 +15,7 @@ npm run dev     # http://localhost:5174/docs/
 
 Documentation pages are Markdown in `docs/`. The marketing page is `web.html` and `src/web.css`.
 
-A few things here come from the application and follow it on their own: the CLI reference in `docs/cli.md`, the minimum Node version the pages state, and `CLI_SOURCE_REF`, the application commit the pages are checked against. The *Follow LoopTroop main* workflow updates all three once a day. To update them sooner, run it from the Actions tab.
+The CLI reference in `docs/cli.md`, the minimum Node version, and install-command checks use the application commit pinned by `CLI_SOURCE_REF`. It can point to an in-progress application change; docs stay current without waiting for a merge or release. The *Follow LoopTroop main* workflow checks `main` daily and publishes when the CLI reference or Node prerequisites change. To update sooner after changes reach `main`, run it from the Actions tab.
 
 Renew `public/.well-known/security.txt` manually before it expires. Confirm that its GitHub reporting link and published policy URL are still correct, then set `Expires` to 364 days ahead. Run `node --test tests/security-metadata.test.mjs` to check the fields, expiry window, and Vercel headers.
 
