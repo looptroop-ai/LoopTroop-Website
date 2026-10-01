@@ -6,13 +6,15 @@ a channel, start it, open it.
 ::: code-group
 
 ```bash [macOS, Linux, WSL]
-curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
+curl -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
 ```powershell [Windows PowerShell]
 $script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
 looptroop open
+# Requires curl.exe (included in Windows 10/11); otherwise use npm below.
+# Downloads the complete script before running it; failed transfers stop here.
 ```
 
 :::
@@ -29,19 +31,15 @@ the service without a browser.
 > that is running. It does not install OpenCode or require a major-version
 > change. See [Getting Started](getting-started.md).
 
-The PowerShell command needs `curl.exe`, included in current Windows 10 and
-Windows 11. If it is unavailable, use the npm channel below. It downloads the
-complete script over HTTPS before invoking it, so a failed or truncated
-transfer never runs as though it were the full installer. Both one-line
-installers refuse insecure URLs and HTTPS→HTTP redirects, and the temporary
-working directory is cleaned up on exit, including Ctrl-C or termination while
-the installer is running.
+The installer verifies release checksums and requires HTTPS for its own
+downloads. Its temporary working directory is cleaned up on exit, including
+Ctrl-C or termination while the installer is running.
 
 ## Channels
 
 | | Install | Upgrade | |
 | --- | --- | --- | --- |
-| **Installer script** (macOS, Linux, WSL) | `curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
+| **Installer script** (macOS, Linux, WSL) | `curl -fsSL https://www.looptroop.ovh/install \| sh` | run it again | ✅ |
 | **Installer script** (Windows) | [PowerShell command above](#installation) | run it again | ✅ |
 | **npm** (everywhere) | `npm install -g looptroop` | `npm install -g looptroop@latest` | ✅ |
 | **bun** (everywhere) | `bun add -g looptroop` | `bun add -g looptroop@latest` | ✅ |
@@ -172,7 +170,7 @@ The installer will place one for you, into `~/.looptroop` unless you say
 otherwise:
 
 ```bash
-curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
+curl -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 ```
 
 ```powershell

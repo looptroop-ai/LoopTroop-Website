@@ -102,6 +102,9 @@ stopped stays alive, keeps its ownership records, and accepts another stop
 request. The stop command reports incomplete cleanup instead of forcing an
 exit after an accepted shutdown request. A new daemon cannot take its place
 while that ownership remains unresolved.
+On Windows, the OpenCode leader exiting is not enough: `taskkill /T` must
+complete successfully before LoopTroop releases the owned process tree and
+its records.
 If HTTP has already closed, the daemon retries runtime cleanup internally;
 a later CLI stop does not force-kill that pending generation. Stale-state
 cleanup also leaves its pending ownership record intact.
@@ -280,6 +283,9 @@ missing after a restart, ownership cannot be proven and LoopTroop does not
 guess from the config's shape or a worktree-local copy. Filesystem-
 equivalent casing follows the actual worktree paths; native Windows/macOS
 equivalent-case behavior is not claimed here.
+If a live retry loses the authoritative marker or cannot reapply the cap after
+resetting, it stops with the marker path and a manual remedy instead of running
+uncapped.
 
 Protected explicit Git-hook validation uses a separate marker under
 `<app-config>/hook-validation/`, keyed by the canonical worktree path and bound

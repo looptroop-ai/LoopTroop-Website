@@ -26,13 +26,14 @@ if it is not already running and opens a signed-in browser on it.
 ::: code-group
 
 ```bash [curl]
-curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
+curl -fsSL https://www.looptroop.ovh/install | sh
 looptroop open
 ```
 
 ```powershell [PowerShell]
 $script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
 looptroop open
+# Requires curl.exe (included in Windows 10/11); otherwise use the npm tab.
 ```
 
 ```bash [npm]
@@ -63,7 +64,10 @@ looptroop open
 
 ```bash [Yarn (Bash/zsh)]
 yarn global add looptroop
+export PATH="$(yarn global bin):$PATH"
 looptroop open
+# Yarn Classic, Bash/zsh. Add the PATH line to your shell profile.
+# Use npm in PowerShell.
 ```
 
 ```bash [Docker]
@@ -71,13 +75,6 @@ docker pull looptroopai/looptroop:latest
 ```
 
 :::
-
-The Yarn tab uses Bash or zsh syntax. Yarn Classic also runs on Windows, but a
-PowerShell PATH command is not documented here. Use npm on Windows, which is the
-recommended documented setup.
-
-The PowerShell command requires `curl.exe` (included in current Windows 10/11). See the
-[npm alternative](installation.md#channels) if it is unavailable.
 
 [Getting Started](getting-started.md) walks through the first run, and
 [Installation](installation.md) covers every channel, what each one requires,

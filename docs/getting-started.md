@@ -10,10 +10,7 @@ Welcome to LoopTroop! This guide takes you from zero to your first AI-driven dev
 Two things every channel needs, because none of them install it for you:
 
 - **[OpenCode](https://opencode.ai)** v1 or v2, with a configured provider and
-  an available model. LoopTroop detects the server protocol automatically. It
-  starts the installed CLI when no server is reachable, and adopts a server
-  already running. It does not install OpenCode or require a major-version
-  change.
+  an available model.
 - A local git repository with an `origin` pointing to GitHub.
 
 **Everything else depends on how you install it** — Homebrew and Scoop bring
@@ -29,10 +26,6 @@ LoopTroop runs OpenCode in `dangerously-skip-permissions` (or YOLO) mode so that
 > **Run LoopTroop inside a disposable VM, cloud dev machine, or sandboxed environment.**
 >
 > Git worktrees protect your repository checkout, but they do not sandbox command execution. A bad generation could delete system folders, corrupt configs, or break your workspace. Worktrees protect code; a VM protects everything else.
->
-> Only select repositories you trust. Their local Git configuration is honored,
-> including `core.sshCommand`: remote Git operations and connection checks can
-> execute that SSH wrapper with your account's permissions.
 
 ## 2. Installation
 
@@ -41,11 +34,13 @@ Pick one. Each tab says what it needs beyond the command itself.
 ::: code-group
 
 ```bash [curl]
-curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install | sh
+curl -fsSL https://www.looptroop.ovh/install | sh
 ```
 
 ```powershell [PowerShell]
 $script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
+# Requires curl.exe (included in Windows 10/11); otherwise use the npm tab.
+# Downloads the complete script before running it; failed transfers stop here.
 ```
 
 ```bash [npm]
@@ -71,6 +66,9 @@ pnpm add -g looptroop
 
 ```bash [Yarn (Bash/zsh)]
 yarn global add looptroop
+export PATH="$(yarn global bin):$PATH"
+# Yarn Classic, Bash/zsh. Add the PATH line to your shell profile.
+# Use npm in PowerShell.
 ```
 
 ```bash [Docker]
@@ -78,16 +76,6 @@ docker pull looptroopai/looptroop:latest
 ```
 
 :::
-
-The Yarn tab uses Bash or zsh syntax. Yarn Classic also runs on Windows, but a
-PowerShell PATH command is not documented here. Use npm on Windows, which is the
-recommended documented setup.
-
-The PowerShell command requires `curl.exe` (included in current Windows 10/11).
-It downloads the whole script before invoking it, so a failed or truncated
-transfer does not start the installer. Both one-line installers refuse insecure
-URLs or redirects. See the
-[npm alternative](installation.md#channels) if it is unavailable.
 
 | Channel | What it needs first |
 | --- | --- |
@@ -113,11 +101,6 @@ looptroop open
 That is both steps: `open` starts LoopTroop in the background if it is not
 already running, then points a browser at it. It serves the interface and the API
 from **one address on port 3000**.
-
-What `open` gives the browser is a **signed-in link**: a single-use code in the
-URL fragment, exchanged for a session cookie. The fragment never reaches an
-access log, and there is no password to set. Sessions last 12 hours; run
-`looptroop open` again when one ends.
 
 ```bash
 looptroop status    # is it running?
@@ -190,9 +173,7 @@ Free APIs can experience rate-limiting or latency spikes. Community trackers hel
 2. Click **Add Project** and provide the absolute path to your local git repository.
 3. LoopTroop verifies it is a valid git repo with a GitHub origin.
 4. If the repository is already attached, LoopTroop warns you and stops the duplicate add. Project names and short names must also be unused by other attached projects.
-5. If the repository has a `.looptroop` state folder but is not currently attached, choose whether to restore everything, keep the project settings while clearing all tickets, or delete that state and start fresh. The two destructive choices show exactly what will be deleted and require confirmation.
-6. Open **Advanced** to review the concrete Manual QA, Git-hook, and [folder-ignore](configuration.md#looptroop-folder-ignore-policy) choices seeded from Configuration. Folder ignores default to **This clone**, which keeps `/.looptroop/` and `/.ticket/` out of Git status through this clone's exclude file without modifying the repository's `.gitignore`.
-6. Create your first **Ticket** with a description of the feature or fix you want.
+5. Create your first **Ticket** with a description of the feature or fix you want.
 
 Once submitted, LoopTroop kicks off an **interview phase** to clarify your intent, then generates a structured spec and implementation plan before any code is written. You review and approve at each gate.
 
