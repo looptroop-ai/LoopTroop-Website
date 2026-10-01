@@ -226,13 +226,14 @@ async function verifyLandingInstallOrder() {
     readInstallCatalog(),
   ])
 
-  // Both the default channel and npm. The install block is a tab group, and every
+  // The default installers and npm. The install block is a tab group, and every
   // panel is rendered into the HTML whether or not it is the visible one — so
   // this asserts the commands are on the page, not which tab happens to be open.
   // Checking only npm would let the curl default disappear silently; checking
-  // only curl would let the tab group lose every other channel.
+  // only the installers would let the tab group lose every other channel.
   const requiredChannels = [
     ['installer-sh', 'the one-line installer'],
+    ['installer-ps1', 'PowerShell'],
     ['npm', 'npm'],
   ]
 
@@ -240,11 +241,13 @@ async function verifyLandingInstallOrder() {
   for (const [channelId, label] of requiredChannels) {
     const channel = installCatalog.channels.find((entry) => entry.id === channelId && entry.live)
     if (!channel) fail(`Install catalog does not provide the live ${channelId} channel.`)
-    // Keep the public recipe short even when the pinned catalog has optional
-    // curl transport flags. The URL and installer arguments still come from it.
+    // Keep public recipes short when the pinned catalog still uses old wrappers.
+    // The installer URL continues to come from that catalog.
     const command = channelId === 'installer-sh'
       ? channel.documentedInstall.replace(/^curl .* -fsSL /, 'curl -fsSL ')
-      : channel.documentedInstall
+      : channelId === 'installer-ps1'
+        ? channel.documentedInstall.replace(/^\$script = curl\.exe .*? (https:\/\/[^;\s]+);.*$/, 'irm $1 | iex')
+        : channel.documentedInstall
     const at = gettingStarted.indexOf(command)
     if (at === -1) throw new Error(`Getting Started never shows how to install LoopTroop with ${label}.`)
     installedAt = Math.min(installedAt, at)

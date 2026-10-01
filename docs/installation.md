@@ -11,10 +11,8 @@ looptroop open
 ```
 
 ```powershell [Windows PowerShell]
-$script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
+irm https://www.looptroop.ovh/install.ps1 | iex
 looptroop open
-# Requires curl.exe (included in Windows 10/11); otherwise use npm below.
-# Downloads the complete script before running it; failed transfers stop here.
 ```
 
 :::
@@ -174,7 +172,7 @@ curl -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 ```
 
 ```powershell
-$script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n"))) -Binary
+& ([scriptblock]::Create((irm https://www.looptroop.ovh/install.ps1))) -Binary
 ```
 
 Installer flags supported by the current installer:

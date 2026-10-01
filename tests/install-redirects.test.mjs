@@ -24,6 +24,16 @@ test('published POSIX installer recipes keep the short curl command', async () =
   }
 })
 
+test('published PowerShell installer recipes use the short native command', async () => {
+  for (const file of ['docs/installation.md', 'docs/index.md', 'docs/getting-started.md']) {
+    const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8')
+    assert.ok(source.includes('irm https://www.looptroop.ovh/install.ps1 | iex'), `${file} has no native PowerShell installer`)
+    assert.ok(!source.includes('curl.exe'), `${file} still requires curl.exe`)
+  }
+  const installation = await readFile(new URL('../docs/installation.md', import.meta.url), 'utf8')
+  assert.ok(installation.includes('& ([scriptblock]::Create((irm https://www.looptroop.ovh/install.ps1))) -Binary'))
+})
+
 function redirectFor(source) {
   return redirects.find((redirect) => redirect.source === source)
 }

@@ -31,9 +31,8 @@ looptroop open
 ```
 
 ```powershell [PowerShell]
-$script = curl.exe --proto "=https" --proto-redir "=https" --tlsv1.2 -fsSL https://www.looptroop.ovh/install.ps1; if ($LASTEXITCODE -ne 0 -or !$script) { throw "Installer download failed" }; & ([scriptblock]::Create(($script -join "`n")))
+irm https://www.looptroop.ovh/install.ps1 | iex
 looptroop open
-# Requires curl.exe (included in Windows 10/11); otherwise use the npm tab.
 ```
 
 ```bash [npm]
