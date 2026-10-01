@@ -197,13 +197,14 @@ installs the standalone executable, the other installs an npm tarball.
 `LOOPTROOP_INSTALL_DIR` sets the same location as `--prefix`, for when you would
 rather not repeat the flag on every upgrade.
 
-Run the same command again to upgrade. The upgrade is transactional: it verifies
-the download against the checksum the release published, stops a running daemon
-and confirms it exited, replaces the file by rename rather than writing over it,
-and checks the new executable reports the version that was asked for. If anything
-fails, the previous version is put back and the daemon it stopped is started
-again, so a bad upgrade leaves you on the version you already had rather than
-with nothing.
+Run the same command again to upgrade. The installer verifies the download
+against the published checksum, stops a running daemon and confirms it exited,
+replaces the executable by rename, and checks the requested version. On Windows,
+each rename during replacement or rollback retries temporary file locks with up
+to 5.5 seconds of waiting. If verification or startup fails, it restores the
+previous version and restarts the daemon it stopped. Persistent locks fail the
+upgrade; if restoration is blocked, the installer preserves the previous
+executable and reports its location for recovery.
 
 > [!NOTE]
 > Installing this way still needs Node, because the installer is itself a Node
