@@ -172,7 +172,7 @@ curl -fsSL https://www.looptroop.ovh/install | sh -s -- --binary
 ```
 
 ```powershell
-& ([scriptblock]::Create((irm https://www.looptroop.ovh/install.ps1))) -Binary
+$installer = irm https://www.looptroop.ovh/install.ps1 -ErrorAction Stop; if ($installer -notmatch '\S') { throw 'Installer download failed' }; & ([scriptblock]::Create($installer)) -Binary
 ```
 
 Installer flags supported by the current installer:

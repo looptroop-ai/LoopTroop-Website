@@ -31,7 +31,7 @@ test('published PowerShell installer recipes use the short native command', asyn
     assert.ok(!source.includes('curl.exe'), `${file} still requires curl.exe`)
   }
   const installation = await readFile(new URL('../docs/installation.md', import.meta.url), 'utf8')
-  assert.ok(installation.includes('& ([scriptblock]::Create((irm https://www.looptroop.ovh/install.ps1))) -Binary'))
+  assert.ok(installation.includes("$installer = irm https://www.looptroop.ovh/install.ps1 -ErrorAction Stop; if ($installer -notmatch '\\S') { throw 'Installer download failed' }; & ([scriptblock]::Create($installer)) -Binary"))
 })
 
 function redirectFor(source) {
