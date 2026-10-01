@@ -95,7 +95,7 @@ The preparation workspace mirrors other artifact-producing phases: it reports ch
 
 “LoopTroop is waiting for user-run verification in an autosaved checklist with collapsed logs, explicit Not applicable PRD coverage, configurable Improvement tickets, and AI-planned full QA-fix beads for failed checks.”
 
-The user—not LoopTroop—starts and controls the application, follows prerequisites/actions, and records results. Pending is the first and default choice and shows no evidence or result-specific fields. Any Fail blocks integration and requires an observation. Improvements are non-blocking, require a reviewed title/description/context, expose a P1–P5 priority selector defaulting to P3 Normal, and provide a collapsed Advanced Manual QA enabled/disabled control resolved initially from the effective project/profile setting. Each produces exactly one Draft ticket in the same project with those explicit settings on final Submit.
+The user, rather than LoopTroop, starts and controls the application, follows prerequisites/actions, and records results. Pending is the first and default choice and shows no evidence or result-specific fields. Any Fail blocks integration and requires an observation. Improvements are non-blocking, require a reviewed title/description/context, expose a P1 to P5 priority selector defaulting to P3 Normal, and provide a collapsed Advanced Manual QA enabled/disabled control resolved initially from the effective project/profile setting. Each produces exactly one Draft ticket in the same project with those explicit settings on final Submit.
 
 The five-second autosave uses compare-and-set `ui_state:manual_qa_draft:vN`, while final Submit snapshots it as immutable `manual_qa_draft`. The workspace has one primary Submit action and no manual Save button; status beside the incomplete-required count says saving is automatic, reports the relative last-save age, and exposes the exact date/time on hover.
 
@@ -206,7 +206,7 @@ After the candidate audit and PR draft are ready, LoopTroop:
 3. persists PR metadata in `pull_request_report`
 
 If cleanup later deletes the remote ticket branch, it requires the recorded
-remote head as a 40–64 character hexadecimal SHA and uses an explicit branch
+remote head as a 40 to 64 character hexadecimal SHA and uses an explicit branch
 refspec with the lease. Missing or invalid expected heads leave the remote
 branch preserved and the deletion skipped.
 

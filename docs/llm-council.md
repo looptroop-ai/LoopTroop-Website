@@ -1,7 +1,7 @@
 # LLM Council
 
 > [!IMPORTANT]
-> **TL;DR** — LoopTroop uses a structured multi-model council (draft → vote → refine → verify) for every planning decision. Models compete independently before converging, so blind spots from any single provider are caught before execution begins.
+> **TL;DR:** LoopTroop uses a structured multi-model council (draft → vote → refine → verify) for every planning decision. Models compete independently before converging, so blind spots from any single provider are caught before execution begins.
 
 > [!TIP]
 > **Why use a Council?** Think of it like a design agency. If you hire one designer, you get one idea. If you hire three designers, have them pitch ideas independently, and then vote on the best elements from each, the final product is vastly superior. That's exactly what the LLM Council does for your code.
@@ -50,7 +50,7 @@ Rejected model responses are diagnostic data, not draft bodies. Accepted drafts 
 
 ## 4. Step 2: Structured Voting
 
-Voting is not "pick the one you like." It is a structured evaluation pass over anonymized drafts.
+Voting evaluates anonymized drafts against a structured rubric.
 
 LoopTroop reduces obvious bias by:
 
@@ -69,7 +69,7 @@ Only drafts that actually received scores can win. When scored drafts tie, the
 main implementer wins the tie outright; otherwise LoopTroop falls back to the
 configured council order as the deterministic tie-breaker.
 
-**One exception to "the drafts are identical in kind."** If a member stopped to ask you something and you answered, that member drafted against instructions the others never saw — and the voters have not seen them either. Left unmarked, the draft that actually followed your steering reads as the one that disagrees with everybody else, so the most informed draft is the one most likely to lose. Such a draft carries a note saying its author was given an answer during drafting and that it should not be marked down merely for differing. The note names no model, so anonymity holds.
+**One exception to "the drafts are identical in kind."** If a member stopped to ask you something and you answered, that member drafted against instructions the others never saw, and the voters have not seen them either. Left unmarked, the draft that actually followed your steering reads as the one that disagrees with everybody else, so the most informed draft is the one most likely to lose. Such a draft carries a note saying its author was given an answer during drafting and that it should not be marked down merely for differing. The note names no model, so anonymity holds.
 
 ## 5. Step 3: Refinement
 
@@ -218,9 +218,9 @@ A `UiRefinementDiffArtifact` contains:
 
 - The winning model ID and generation timestamp
 - An ordered array of `UiRefinementDiffEntry` items, each with:
-  - **`key`** — Stable identifier for the changed item
-  - **`changeType`** — `modified`, `replaced`, `added`, or `removed`
-  - **`itemKind`** — What kind of item (`epic`, `user_story`, `bead`, `question`, etc.)
+  - **`key`:** Stable identifier for the changed item
+  - **`changeType`:** `modified`, `replaced`, `added`, or `removed`
+  - **`itemKind`:** What kind of item (`epic`, `user_story`, `bead`, `question`, etc.)
   - **Before and after** IDs, labels, and text for `modified` and `replaced` entries
   - **Inspiration** metadata linking back to the source draft and council member
 

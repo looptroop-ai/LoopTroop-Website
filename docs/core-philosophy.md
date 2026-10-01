@@ -1,6 +1,6 @@
 # Core Philosophy
 
-> **TL;DR:** LoopTroop is a tool you run locally with a graphical interface that helps you create and edit applications using AI. It does this by employing modern AI engineering methodologies — context engineering, Ralph-style retry loops, LLM council planning, thorough upfront planning, Git worktree isolation, and more.
+> **TL;DR:** LoopTroop is a tool you run locally with a graphical interface that helps you create and edit applications using AI. It does this with modern AI engineering practices, including context engineering, Ralph-style retry loops, LLM council planning, thorough upfront planning, Git worktree isolation, and more.
 
 LoopTroop is opinionated about how AI coding systems should behave. The app trades speed and conversational convenience for controllability, recovery, and durable correctness.
 
@@ -38,19 +38,19 @@ There is also a local API, and a CLI whose `status` and `doctor` commands speak 
 
 ## 3. End-To-End Ticket Orchestration
 
-**Summary:** LoopTroop treats AI coding as a full ticket lifecycle, not a single prompt. A ticket moves through repository scan, interactive interview, PRD generation, bead planning, execution setup, bead-by-bead implementation, Ralph-style recovery when needed, final verification, and PR creation and review — all followed from one place.
+**Summary:** LoopTroop manages AI coding across a full ticket lifecycle. A ticket moves through repository scan, interactive interview, PRD generation, bead planning, execution setup, bead-by-bead implementation, Ralph-style recovery when needed, final verification, and PR creation and review. You can follow every stage from one place.
 
 A ticket is a state machine, not a chat thread. It progresses linearly through clearly named stages:
 
-1. **Repository scan** — identify the files relevant to the ticket.
-2. **Interactive interview** — multi-model question generation, then your answers, then a coverage check.
-3. **PRD generation** — draft, vote, refine, and verify a structured spec.
-4. **Bead planning** — decompose the PRD into small units, then expand them.
-5. **Execution setup** — a pre-flight check and an approved setup plan before the environment is mutated.
-6. **Bead-by-bead implementation** — coding one bead at a time.
-7. **Ralph-style recovery** — fresh-session retries when a bead fails (see §10).
-8. **Final verification** — a final test pass over the integrated changes.
-9. **PR creation and review** — open a pull request and wait for human review before cleanup.
+1. **Repository scan:** identify the files relevant to the ticket.
+2. **Interactive interview:** multi-model question generation, then your answers, then a coverage check.
+3. **PRD generation:** draft, vote, refine, and verify a structured spec.
+4. **Bead planning:** decompose the PRD into small units, then expand them.
+5. **Execution setup:** a pre-flight check and an approved setup plan before the environment is mutated.
+6. **Bead-by-bead implementation:** coding one bead at a time.
+7. **Ralph-style recovery:** fresh-session retries when a bead fails (see §10).
+8. **Final verification:** a final test pass over the integrated changes.
+9. **PR creation and review:** open a pull request and wait for human review before cleanup.
 
 Because the whole process is modeled explicitly, you can follow it from one place instead of losing state inside a long conversation, and the system can resume from storage rather than from a model's memory.
 
@@ -60,7 +60,7 @@ Because the whole process is modeled explicitly, you can follow it from one plac
 
 **Summary:** LoopTroop is an orchestration layer around AI coding agents. You attach repositories, create tickets, configure models, review generated planning artifacts, approve execution, inspect logs, and follow implementation progress without leaving the app.
 
-The value is not only "AI writes code." The value is that the whole coding workflow becomes structured, inspectable, restartable, and reviewable. Projects (attached repositories), tickets, phase artifacts, execution attempts, model sessions, and errors are all first-class records. Configuration — including which model is the main implementer and which models form the council — is attached to projects and tickets, so each piece of work runs under a known, auditable setup.
+LoopTroop goes beyond AI code generation by making the full coding workflow structured, inspectable, restartable, and reviewable. Projects (attached repositories), tickets, phase artifacts, execution attempts, model sessions, and errors are all first-class records. Configuration, including which model is the main implementer and which models form the council, is attached to projects and tickets, so each piece of work runs under a known, auditable setup.
 
 This is the difference between a coding assistant and a coding *orchestrator*: LoopTroop manages the lifecycle, the artifacts, and the recovery, not just the next message.
 
@@ -70,7 +70,7 @@ This is the difference between a coding assistant and a coding *orchestrator*: L
 
 **Summary:** LoopTroop fights context rot by avoiding one huge, growing conversation. Instead of constantly appending history, it stores durable artifacts outside the model and rebuilds minimal context for each phase. During implementation, the model focuses on the active bead and compact retry notes, not the entire previous workflow.
 
-Long-context models are useful, but they are still vulnerable to positional bias and long-run context drift. Performance can drop severely well before the maximum context window is reached — excessive conversational history and irrelevant files overwhelm the model, leading to missing files, broken imports, and "AI slop." LoopTroop treats this as a systems problem, not as a prompt-wording problem.
+Long-context models are useful, but they are still vulnerable to positional bias and long-run context drift. Performance can drop severely well before the maximum context window is reached because excessive conversational history and irrelevant files overwhelm the model, leading to missing files, broken imports, and "AI slop." LoopTroop treats this as a systems problem, not a prompt-wording problem, and addresses it through context management.
 
 That leads to three hard rules:
 
@@ -84,7 +84,7 @@ This keeps the agent focused and reduces drift during long-running tasks.
 
 ## 6. LLM Council Planning
 
-**Summary:** LoopTroop uses an LLM Council for the major planning phases — interview, PRD, and beads. Multiple configured models draft independently; their outputs are compared, scored, and voted on; the winning result is refined by incorporating the strongest ideas from the losing drafts, then checked for coverage before moving forward. This reduces single-model bias and makes planning more robust.
+**Summary:** LoopTroop uses an LLM Council for the major planning phases: interview, PRD, and beads. Multiple configured models draft independently; their outputs are compared, scored, and voted on; the winning result is refined by incorporating the strongest ideas from the losing drafts, then checked for coverage before moving forward. This reduces single-model bias and makes planning more robust.
 
 The council runs as a constrained pipeline, not a free-form model group chat:
 
@@ -95,17 +95,17 @@ The council runs as a constrained pipeline, not a free-form model group chat:
 5. **Refinement** by the winner, which folds in the strongest ideas from the losing drafts.
 6. **Coverage verification** before the phase is allowed to advance.
 
-Early planning quality dominates downstream execution quality, so the council is deliberately applied at the three planning phases — interview, PRD, and beads — where a single model's blind spots would be most costly.
+Early planning quality dominates downstream execution quality, so the council is deliberately applied at the three planning phases (interview, PRD, and beads), where a single model's blind spots would be most costly.
 
 `LLM council` is a useful current label, not a universal standard term. In LoopTroop it specifically means this draft-vote-refine pipeline, not any arbitrary multi-agent conversation.
 
-**Read more:** [LLM Council](llm-council.md), and the per-phase pages it feeds — [Interview](interview.md), [PRD](prd.md), and [Beads & Execution](beads.md).
+**Read more:** [LLM Council](llm-council.md), and the per-phase pages it feeds: [Interview](interview.md), [PRD](prd.md), and [Beads & Execution](beads.md).
 
 ## 7. Interview Before Spec
 
 **Summary:** Before writing the PRD, LoopTroop asks targeted questions to resolve ambiguity. The interview clarifies requirements, intent, edge cases, constraints, and design choices, so the final implementation matches what you actually wanted instead of guessing from an incomplete ticket.
 
-The interview phase generates questions whose job is to remove meaningful ambiguity — establishing intent, target user, core value, constraints and non-goals first, then going feature-by-feature into behavior, edge cases, acceptance criteria, test intent, and dependencies. The question budget is treated as a hard upper bound, never a target: the system asks only as many questions as are genuinely needed, and a coverage check can surface follow-ups if gaps remain.
+The interview phase generates questions to remove meaningful ambiguity by first establishing intent, target user, core value, constraints, and non-goals, then going feature by feature into behavior, edge cases, acceptance criteria, test intent, and dependencies. The question budget is treated as a hard upper bound, never a target: the system asks only as many questions as needed, and a coverage check can surface follow-ups if gaps remain.
 
 You answer in the GUI, and only an approved interview proceeds to PRD generation. This is where the system buys down the risk of building the wrong thing.
 
@@ -117,7 +117,7 @@ You answer in the GUI, and only an approved interview proceeds to PRD generation
 
 The PRD is a structured document, not prose: it records what is in and out of scope, organizes work into epics and user stories, attaches acceptance criteria and verification to each story, and captures technical direction and constraints. It is produced through the council pipeline (draft → vote → refine → coverage check) so the contract itself is reviewed before it is trusted.
 
-Everything downstream — bead decomposition and execution — references this PRD. It is the single agreed statement of what the ticket means, which is why it gets its own approval gate.
+Everything downstream, including bead decomposition and execution, references this PRD. It is the single agreed statement of what the ticket means, which is why it gets its own approval gate.
 
 **Read more:** [PRD](prd.md), especially [What The PRD Contains](prd.md#_5-what-the-prd-contains) and [Approval, Editing, And Downstream Impact](prd.md#_7-approval-editing-and-downstream-impact).
 
@@ -197,7 +197,7 @@ The idea is simple: plan carefully, execute narrowly, recover cleanly, and revie
 
 ## 14. Human-In-The-Loop Delivery
 
-**Summary:** LoopTroop keeps you in control at important boundaries. You can review and approve the interview, PRD, bead plan, and execution setup, and you inspect diffs, logs, test results, the final implementation, and the PR output. The result is not hidden automation — it is a transparent, auditable ticket lifecycle from raw requirement to reviewable pull request.
+**Summary:** LoopTroop keeps you in control at important boundaries. You can review and approve the interview, PRD, bead plan, and execution setup, and you inspect diffs, logs, test results, the final implementation, and the PR output. The result is transparent, auditable automation that takes a ticket from raw requirement to reviewable pull request.
 
 Explicit approval gates sit before the most expensive and hardest-to-reverse transitions:
 
@@ -207,7 +207,7 @@ Explicit approval gates sit before the most expensive and hardest-to-reverse tra
 - approve the execution setup plan before environment mutation and coding
 - review the pull request before cleanup completes
 
-This keeps the system honest. The model is allowed to move quickly inside a phase, but you decide when the pipeline is good enough to cross into the next expensive stage, and the final result is always a reviewable diff and PR rather than a silent merge.
+Explicit approval gates keep the system accountable: the model can move quickly inside a phase, but you decide when the pipeline is ready to cross into the next expensive stage. The final result is always a reviewable diff and PR rather than a silent merge.
 
 **Read more:** [Pre-Implementation](pre-implementation.md) for the setup-plan approval gate and [Post-Implementation](post-implementation.md#_5-waiting-pr-review-human-merge-or-finish-gate) for the PR review gate.
 
@@ -215,13 +215,13 @@ This keeps the system honest. The model is allowed to move quickly inside a phas
 
 **Summary:** LoopTroop offers an optional Manual QA checkpoint after final tests pass. Instead of assuming automated tests are enough, it generates a human-facing verification checklist from the approved PRD and bead work, hands it to you to run the application and record results, and turns any failures into AI-planned QA-fix beads that re-enter the coding loop. Non-blocking observations become improvement tickets in the backlog.
 
-Automated tests catch regressions, but they cannot verify that the application actually feels right to a human user — layout, interaction flow, visual correctness, and real-world behavior often need a person at the screen. Manual QA fills that gap as a structured, auditable checkpoint rather than an ad-hoc "try it and see" step:
+Automated tests catch regressions, but they cannot verify that the application actually feels right to a human user: layout, interaction flow, visual correctness, and real-world behavior often need a person at the screen. Manual QA fills that gap with a structured, auditable checkpoint instead of an ad-hoc "try it and see" step:
 
-1. **Checklist generation** — after final tests pass, LoopTroop assembles a versioned checklist from the approved PRD, bead metadata, and final-test report, with advisory PRD coverage states (covered, partially covered, uncovered, not applicable).
-2. **Human verification** — you run the application yourself, mark each item as Pass, Fail, or Waive, attach optional evidence (screenshots, files, links), and record observations for any failures.
-3. **Failure → fix beads** — submitted failures are grouped and fed to the main implementer, which plans full QA-fix beads that re-enter the standard coding pipeline, followed by a fresh final-test attempt and a new checklist version.
-4. **Improvements → backlog** — non-blocking observations can be turned into prioritized improvement tickets in the same project, keeping the current ticket unblocked while capturing the insight.
-5. **Versioned rounds** — each QA round is recorded with timestamps, outcomes, evidence references, and created work, so the full verification history is inspectable and resumable.
+1. **Checklist generation:** after final tests pass, LoopTroop assembles a versioned checklist from the approved PRD, bead metadata, and final-test report, with advisory PRD coverage states (covered, partially covered, uncovered, not applicable).
+2. **Human verification:** you run the application yourself, mark each item as Pass, Fail, or Waive, attach optional evidence (screenshots, files, links), and record observations for any failures.
+3. **Failures become fix beads:** submitted failures are grouped and fed to the main implementer, which plans full QA-fix beads that re-enter the standard coding pipeline, followed by a fresh final-test attempt and a new checklist version.
+4. **Improvements go to the backlog:** non-blocking observations can be turned into prioritized improvement tickets in the same project, keeping the current ticket unblocked while capturing the insight.
+5. **Versioned rounds:** each QA round is recorded with timestamps, outcomes, evidence references, and created work, so the full verification history is inspectable and resumable.
 
 Manual QA is configured per profile, project, or ticket and locked when the ticket starts, so the pipeline behavior is known and auditable from the beginning. When disabled, tickets proceed directly from final tests to integration.
 

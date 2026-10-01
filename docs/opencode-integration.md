@@ -1,7 +1,7 @@
 # OpenCode Integration
 
 > [!IMPORTANT]
-> **TL;DR** — OpenCode is LoopTroop's only interface to AI models. LoopTroop creates and owns sessions, assembles phase-specific prompt context, applies tool policy, streams and normalizes events, and decides when retries or human recovery are required. It never calls model providers directly.
+> **TL;DR**: OpenCode is LoopTroop's only interface to AI models. LoopTroop creates and owns sessions, assembles phase-specific prompt context, applies tool policy, streams and normalizes events, and decides when retries or human recovery are required. It never calls model providers directly.
 
 LoopTroop uses OpenCode as the model-execution layer, but it wraps that layer heavily so ticket state, retries, approvals, and recovery remain durable outside any one model transcript.
 
@@ -100,7 +100,7 @@ binds its port.
 | --- | --- | --- |
 | **adopted** | Something is already answering at the configured base URL | Uses it, and never tries to start or stop it |
 | **managed** | Nothing is answering, but the `opencode` CLI is on PATH | Starts `opencode serve` in its own process group, restarts it if it crashes, and stops it when the daemon stops |
-| **mock** | `LOOPTROOP_OPENCODE_MODE=mock` | Skips OpenCode entirely — enough to look around the interface, not to run a ticket |
+| **mock** | `LOOPTROOP_OPENCODE_MODE=mock` | Skips OpenCode entirely, which is enough to look around the interface but not to run a ticket |
 | **degraded** | Neither reachable nor launchable | The daemon refuses to start, rather than serving an interface that cannot run a single coding operation |
 
 Restarts are bounded at three consecutive attempts; after that the supervisor
@@ -116,7 +116,7 @@ keeps startup blocked and the record is preserved. Startup can proceed if the
 recorded OpenCode child is confirmed dead or its PID now belongs to another
 process. A stored PID alone never authorizes a signal.
 
-This is why an installed user is never told to run `opencode serve` by hand — see
+This is why an installed user is never told to run `opencode serve` by hand. See
 the [Operations Guide](operations.md#opencode-is-managed-for-you).
 
 ## 4. OpenCode Configuration Pass-Through
@@ -220,7 +220,7 @@ assistant-message read does not discard that completed reply. The runner falls
 back to the accumulated stream text, while abort errors still propagate so a
 cancelled prompt cannot look successful.
 
-Retry-status handling is driven by OpenCode stream events, not only by log text. The runner watches `session.status` retry events across OpenCode-backed phases and treats matching rate-limit, usage-limit, resource-exhaustion, overload/capacity, temporary-unavailability, timeout/deadline, fetch, network, and socket-reset messages as continuable provider interruptions. The profile's `OpenCode Retry Limit` blocks after a configured number of matching retry events, and `OpenCode Retry Grace Window` blocks when a matching retry state produces no progress for the configured window. A zero retry limit blocks on the first matching retry event; a zero grace window disables the timer.
+Retry-status handling uses OpenCode stream events as well as log text. The runner watches `session.status` retry events across OpenCode-backed phases and treats matching rate-limit, usage-limit, resource-exhaustion, overload/capacity, temporary-unavailability, timeout/deadline, fetch, network, and socket-reset messages as continuable provider interruptions. The profile's `OpenCode Retry Limit` blocks after a configured number of matching retry events, and `OpenCode Retry Grace Window` blocks when a matching retry state produces no progress for the configured window. A zero retry limit blocks on the first matching retry event; a zero grace window disables the timer.
 
 When a ticket is blocked by a resumable OpenCode/provider interruption, the prompt runner can preserve the active owned session instead of abandoning it. Eligible interruptions include retryable diagnostics, HTTP 402/408/429/500/502/503/504/529, rate or usage limits, overload/capacity messages, timeouts, and transport failures. `HTTP 402 Payment Required` is treated as externally clearable, so Continue can resume the same session after payment or workspace access is restored. Auth, invalid request, request-size, permission, missing API key, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt remain non-continuable because acceptance cannot be proven. Missing replay payloads alone do not block continuation when LoopTroop has verified a starting boundary and continuously observed the later event sequence.
 
@@ -318,7 +318,7 @@ local session record.
 
 **Non-continuable errors:** Auth failures, invalid requests, permission errors, missing API keys, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt are not eligible for Continue.
 
-When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please` — no context rebuild and no new attempt version.
+When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please`. It does not rebuild context or create a new attempt version.
 
 Blocked execution setup also has a same-session action called **Retry with extra note...**. It uses the same exact session ownership checks, but sends only the user's entered text instead of `continue please`. The action keeps the current runtime phase attempt and allows one manual setup attempt beyond the automatic retry budget. It does not add the text to future setup context. Coding uses its existing fresh-bead recovery path for the button with the same label.
 
@@ -466,8 +466,8 @@ OpenCode questions produce multiple log entries: when a question is asked, repli
 
 `buildOpenCodeQuestionLogIdentity()` builds a stable identity from the session ID, the request ID, and the action (`asked`, `replied`, `rejected`, `reply_failed`, `reject_failed`). Both values are plain composed strings, not hashes:
 
-- **`entryId`** — `<sessionId>:question:<requestId>:<action>`, falling back to `opencode-question:<requestId>:<action>` when no session is known. The same question and action always produce the same `entryId`.
-- **`fingerprint`** — `opencode-question:<sessionId>:<requestId>:<action>`, with `no-session` standing in for a missing session.
+- **`entryId`:** `<sessionId>:question:<requestId>:<action>`, falling back to `opencode-question:<requestId>:<action>` when no session is known. The same question and action always produce the same `entryId`.
+- **`fingerprint`:** `opencode-question:<sessionId>:<requestId>:<action>`, with `no-session` standing in for a missing session.
 
 Both carry the action, so the fingerprint identifies one stage of one question rather than the question as a whole. That is what the dedupe needs: the same pending question observed twice produces the same identity and is written once, while the later reply or rejection is a different identity and is written as its own entry.
 

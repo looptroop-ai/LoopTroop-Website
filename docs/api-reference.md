@@ -1,7 +1,7 @@
 # API Reference
 
 > [!IMPORTANT]
-> **TL;DR** — LoopTroop exposes a local REST API for ticket lifecycle actions, artifact access, settings, and real-time SSE streams. The frontend and external tools use this API — there is no separate internal protocol.
+> **TL;DR**: LoopTroop exposes a local REST API for ticket lifecycle actions, artifact access, settings, and real-time SSE streams. The frontend and external tools use the same API; there is no separate internal protocol.
 
 All backend routes are mounted under `/api`.
 
@@ -17,7 +17,7 @@ This page documents the current HTTP surface exposed by `server/index.ts` and th
 
 An installed LoopTroop serves the interface and the API from **one address**,
 `http://127.0.0.1:3000` by default. There is no separate API port, and no
-cross-origin headers are sent in production — the interface and the API are the
+cross-origin headers are sent in production. The interface and API share the
 same origin.
 
 ### Authenticating
@@ -39,7 +39,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/api/projects
 > `/api/health` is deliberately **not** authenticated on an installed daemon: a
 > container health probe holds no credentials, and the response carries nothing
 > worth protecting behind a loopback-only bind. It is therefore the one endpoint
-> that cannot tell you whether your token works — use a real route like
+> that cannot tell you whether your token works. Use a real route like
 > `/api/projects` to check a credential.
 
 > [!IMPORTANT]
@@ -56,12 +56,12 @@ last 12 hours.
 There is no way to authenticate by query string, including for `EventSource`.
 Requests are also restricted to this machine and to this daemon's own address,
 so a page served from a different port on the same loopback interface cannot
-drive it with a cookie the browser would otherwise attach — cookies carry no
-port scope of their own.
+drive it with a cookie the browser would otherwise attach. Cookies carry no port
+scope of their own.
 
 ### Browser cookies and remote mode
 
-Now, remote browser sessions require an explicit HTTPS
+Remote browser sessions require an explicit HTTPS
 `LOOPTROOP_PUBLIC_ORIGIN` (or `publicOrigin` in `config.json`) alongside remote
 API opt-in. The backend may use HTTP internally. Cookie-bearing Origins must
 match the configured origin; cookie-bearing requests without Origin require
@@ -256,7 +256,7 @@ Example profile update payload:
 
 `opencodeRetryLimit` and `opencodeRetryDelay` control prompt-level OpenCode retry handling for continuable provider interruptions across all phases that use OpenCode. The limit defaults to `10` retry status events and accepts `0` through `50`; the delay defaults to `60000` ms and accepts `0` through `3600000`. Exhaustion of either budget blocks with diagnostics and preserves the active session for Continue when the interruption is resumable.
 
-`opencodeSteps` sets the maximum number of steps OpenCode is allowed to perform per session. When the limit is reached, OpenCode instructs the model to summarize its work and close the session; LoopTroop then starts a fresh session to continue. Defaults to `0` (no limit — OpenCode default), accepts `0` through `500`.
+`opencodeSteps` sets the maximum number of steps OpenCode is allowed to perform per session. When the limit is reached, OpenCode instructs the model to summarize its work and close the session; LoopTroop then starts a fresh session to continue. Defaults to `0` (no limit; OpenCode default), accepts `0` through `500`.
 
 Selected validation ranges that are easy to miss when calling the API directly:
 
@@ -455,7 +455,7 @@ Project deletion (`DELETE /api/projects/:id`) returns 409 when any ticket in the
 > dependency folders and build output. Explicit ticket and project deletion do
 > not use this housekeeping protection.
 
-Now, this endpoint returns HTTP `200` after processing eligible
+This endpoint returns HTTP `200` after processing eligible
 worktrees, with `skipped: [{ "externalId": "PROJECT-1", "reason": "..." }]`
 for entries it kept. `skipped` is empty when no entries failed or were protected.
 `freedBytes` counts only successfully removed worktrees. A failure to inspect
@@ -635,7 +635,7 @@ not guaranteed to arrive.
 
 Evidence upload/remove calls carry `X-Action-Id`, `X-Checklist-Hash`, and `X-Draft-Revision` (query/body equivalents are supported). The raw upload body is streamed; `X-Checklist-Item-Id`, `X-File-Name`, and optional stable `X-Evidence-Id` identify it. The client publishes a successful upload into the active item immediately and initially discloses five evidence entries, with the rest controlled locally by Show more/Show less. HTTP(S) link evidence is created on demand from separate Link and Details fields rather than from a default blank row.
 
-Submit, skip, and drift decisions carry `actionId`, `expectedChecklistHash`, and `expectedDraftRevision` in JSON. Improvement drafts also carry priority `1–5` and an explicit Manual QA enabled/disabled snapshot. Submit validation permits multi-select merge-group drafts to refer to any checklist item while editing, but returns item number/title diagnostics if a selected member is not Fail. For failures, model/tool/parser errors occur before any child side effect and route to `BLOCKED_ERROR`; Retry resumes the same journal action. Evidence uploads/removals must settle before Submit or Skip. On Submit, the durable evidence index is canonical: stored files and their metadata are retained, dangling optional IDs are omitted, and known cross-item references remain integrity errors that identify both checklist items and the original filename without exposing internal evidence IDs. Skip intentionally ignores incomplete result-specific fields and group membership because it creates neither fix beads nor Improvement tickets; it still archives the entered draft read-only. Action IDs contain 1–160 ASCII letters, digits, `.`, `_`, `:` or `-`, start with a letter or digit, and are rejected before any reservation or filesystem mutation if invalid. Mutations are allowed only during `WAITING_MANUAL_QA` and return `409` for stale guards or detected workspace drift. Interrupted Submit/Skip calls must resume the journal's same action and operation type. The client retains upload, removal, and drift action/evidence identities until confirmation, but refreshes the checklist/revision CAS guards on every retry. Ambiguous failures refetch the round, and failed uploads retain the exact selected `File` in an explicit retry state; the server uses the stable identities to reconcile contained file/index/receipt windows without duplicate effects.
+Submit, skip, and drift decisions carry `actionId`, `expectedChecklistHash`, and `expectedDraftRevision` in JSON. Improvement drafts also carry priority `1–5` and an explicit Manual QA enabled/disabled snapshot. Submit validation permits multi-select merge-group drafts to refer to any checklist item while editing, but returns item number/title diagnostics if a selected member is not Fail. For failures, model/tool/parser errors occur before any child side effect and route to `BLOCKED_ERROR`; Retry resumes the same journal action. Evidence uploads/removals must settle before Submit or Skip. On Submit, the durable evidence index is canonical: stored files and their metadata are retained, dangling optional IDs are omitted, and known cross-item references remain integrity errors that identify both checklist items and the original filename without exposing internal evidence IDs. Skip intentionally ignores incomplete result-specific fields and group membership because it creates neither fix beads nor Improvement tickets; it still archives the entered draft read-only. Action IDs contain 1 to 160 ASCII letters, digits, `.`, `_`, `:` or `-`, start with a letter or digit, and are rejected before any reservation or filesystem mutation if invalid. Mutations are allowed only during `WAITING_MANUAL_QA` and return `409` for stale guards or detected workspace drift. Interrupted Submit/Skip calls must resume the journal's same action and operation type. The client retains upload, removal, and drift action/evidence identities until confirmation, but refreshes the checklist/revision CAS guards on every retry. Ambiguous failures refetch the round, and failed uploads retain the exact selected `File` in an explicit retry state; the server uses the stable identities to reconcile contained file/index/receipt windows without duplicate effects.
 
 Only PNG, JPEG, GIF, WebP, and AVIF may be served inline. SVG, HTML, executable/unknown content, and all other files are sent with `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, and `Cache-Control: private, no-store`. Evidence links in results accept HTTP or HTTPS only.
 
@@ -647,7 +647,7 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 | --- | --- | --- |
 | `POST` | `/api/tickets/:id/start` | Starts a `DRAFT` ticket using locked profile and project settings. Malformed metadata returns `409` and leaves the ticket in `DRAFT` with the file intact; an unreadable file returns `500`. Model selection may also return `409 OPENCODE_BUSY` if OpenCode is active. |
 | `POST` | `/api/tickets/:id/approve` | Generic workflow approval endpoint |
-| `POST` | `/api/tickets/:id/cancel` | Cancel active work — accepts an optional JSON body (see below) |
+| `POST` | `/api/tickets/:id/cancel` | Cancel active work: accepts an optional JSON body (see below) |
 | `POST` | `/api/tickets/:id/approve-interview` | Approve interview artifact |
 | `POST` | `/api/tickets/:id/approve-prd` | Approve PRD artifact |
 | `POST` | `/api/tickets/:id/approve-beads` | Approve bead plan artifact |
@@ -655,8 +655,8 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 | `POST` | `/api/tickets/:id/edit-execution-setup-plan` | After UI confirmation, rewind a blocked workspace runtime setup to setup-plan approval |
 | `POST` | `/api/tickets/:id/coverage/fix-gaps` | Run one approval-screen extra fix for unresolved PRD or beads coverage gaps |
 | `POST` | `/api/tickets/:id/merge` | Merge delivered PR |
-| `POST` | `/api/tickets/:id/close-unmerged` | Close without merge — accepts an optional `{ "reason": "..." }` body, stored as `closeReason` on the `merge_report` artifact. Unknown fields return `400`, so a retry note cannot be sent here by mistake |
-| `POST` | `/api/tickets/:id/verify` | Alias for the merge handler — both routes call the same handler |
+| `POST` | `/api/tickets/:id/close-unmerged` | Close without merge: accepts an optional `{ "reason": "..." }` body, stored as `closeReason` on the `merge_report` artifact. Unknown fields return `400`, so a retry note cannot be sent here by mistake |
+| `POST` | `/api/tickets/:id/verify` | Alias for the merge handler: both routes call the same handler |
 | `POST` | `/api/tickets/:id/retry` | Retry a blocked ticket or failed phase; an optional `{ "note": "..." }` body adds CODING bead guidance or sends one direct message to a preserved execution setup session |
 | `POST` | `/api/tickets/:id/continue` | Continue a blocked ticket only when eligible OpenCode/provider diagnostics, including `HTTP 402 Payment Required`, have a matching active preserved OpenCode session |
 | `POST` | `/api/tickets/:id/dev-event` | Disabled by default; requires `LOOPTROOP_ENABLE_DEV_EVENT=1`, `LOOPTROOP_DEV_EVENT_TOKEN`, and `X-LoopTroop-Dev-Event-Token` |
@@ -755,11 +755,11 @@ The cancel endpoint accepts an optional JSON request body to trigger cleanup or 
 | `deleteContent` | `boolean` | `false` | Permanently removes all AI-generated artifacts (interview Q&A, PRD drafts, beads plan) from the database and deletes the isolated git worktree and its branch |
 | `deleteLog` | `boolean` | `false` | Permanently removes the execution log files (`.ticket/runtime/execution-log.jsonl`, `.ticket/runtime/execution-log.debug.jsonl`, and `.ticket/runtime/execution-log.ai.jsonl`) for this ticket. This is only effective when the worktree still exists; if `deleteContent` is also `true` the worktree removal already covers the logs |
 | `deleteTicket` | `boolean` | `false` | Permanently deletes the ticket record from the database and removes all related files (equivalent to the DELETE ticket action once canceled) |
-| `reason` | `string` | — | Optional. Why the ticket was cancelled, up to 20,000 characters. Stored on the ticket's own `cancel_reason` column, so it survives `deleteContent`. Nothing survives `deleteTicket` |
+| `reason` | `string` | - | Optional. Why the ticket was cancelled, up to 20,000 characters. Stored on the ticket's own `cancel_reason` column, so it survives `deleteContent`. Nothing survives `deleteTicket` |
 
 The body is validated strictly. A malformed or oversized field returns `400` and the ticket is left running. It previously fell back to defaults and cancelled anyway, which silently dropped the rejected field while still performing the destructive part of the request.
 
-Now, the cancel endpoint will return `409` while the ticket is
+The cancel endpoint will return `409` while the ticket is
 in `CLEANING_ENV` and after a verified merge has been recorded. In either case,
 the ticket remains unchanged.
 
@@ -822,7 +822,7 @@ Current batch-answer payload:
 
 `selectedOptions` is checked against the question it answers. An option ID the question does not offer, more than one option on a single-choice question, or any selection at all on a free-text question returns `400` listing what was wrong. Repeated IDs are collapsed rather than rejected.
 
-A ticket processes one answer batch at a time. Both answer and skip submissions carry a positive `batchNumber` for the active batch. A missing or schema-invalid `batchNumber` returns `400`; a valid but stale batch number returns `409`, both before claim acquisition or mutation. Unknown question, option, or skip-reason IDs return `400`. A submission that arrives while one is still in flight returns `409` and changes nothing. The claim is recorded in the project database rather than daemon memory, so two daemons opened on one project cannot both accept the same submission. A foreign claim can be reclaimed after its ordinary lease expires—the fallback even when liveness cannot be checked—or when its recorded PID is proven gone; a live lease protects live, invalid, or otherwise unverified owners. A pending-stop marker is separate non-expiring safety ownership and cannot be bypassed by lease expiry. A timeout that cannot confirm its remote stop restores the durable current batch and keeps it retryable. The marker carries the exact claim token observed before the remote await, so a delayed callback cannot promote a newer generation. `POST /api/tickets/:id/skip` takes the same claim and returns the same `409`: skipping the remaining questions rewrites the interview session and moves the ticket on, so a batch still running underneath cannot overwrite that transition.
+A ticket processes one answer batch at a time. Both answer and skip submissions carry a positive `batchNumber` for the active batch. A missing or schema-invalid `batchNumber` returns `400`; a valid but stale batch number returns `409`, both before claim acquisition or mutation. Unknown question, option, or skip-reason IDs return `400`. A submission that arrives while one is still in flight returns `409` and changes nothing. The claim is recorded in the project database rather than daemon memory, so two daemons opened on one project cannot both accept the same submission. A foreign claim can be reclaimed after its ordinary lease expires, even when liveness cannot be checked. It can also be reclaimed when its recorded PID is proven gone. A live lease protects live, invalid, or otherwise unverified owners. A pending-stop marker is separate non-expiring safety ownership and cannot be bypassed by lease expiry. A timeout that cannot confirm its remote stop restores the durable current batch and keeps it retryable. The marker carries the exact claim token observed before the remote await, so a delayed callback cannot promote a newer generation. `POST /api/tickets/:id/skip` takes the same claim and returns the same `409`: skipping the remaining questions rewrites the interview session and moves the ticket on, so a batch still running underneath cannot overwrite that transition.
 
 Possible `answer-batch` response shapes:
 
@@ -973,7 +973,7 @@ Execution setup plan reads may select archived versions with `phaseAttempt`. Dra
 
 Successful `PUT /execution-setup-plan` responses return the saved `raw`, normalized `plan`, `contentSha256`, and current route state (`status`, `state`, `ticket`) so the client does not need an immediate follow-up fetch.
 
-Now, approval-time and runtime evidence refreshes also compare
+Approval-time and runtime evidence refreshes also compare
 the loaded plan's hash before writing. A concurrent user edit is preserved;
 the approval request returns `409` and requires the current plan to be reloaded.
 
@@ -1136,7 +1136,7 @@ recovered. Returned native rows are bounded by the page `LIMIT`, while lineage
 visibility checks grow with ancestry depth; the route does not promise constant
 total query work or a bounded archive.
 
-Now, file growth is treated as an append only after verifying
+File growth is treated as an append only after verifying
 the previously indexed prefix. A larger rewrite creates a fresh generation;
 retained cursors keep their earlier rows. This verification reads the indexed
 prefix, so its cost grows with that prefix even though returned pages remain
@@ -1366,7 +1366,7 @@ while those diagnostics are present.
 
 The stream endpoint emits two categories of events:
 
-**Stream control events** — sent directly by the stream handler, not through the broadcaster:
+**Stream control events:** sent directly by the stream handler, not through the broadcaster:
 
 | Event type | When emitted | Key payload fields |
 | --- | --- | --- |
@@ -1374,7 +1374,7 @@ The stream endpoint emits two categories of events:
 | `heartbeat` | Every 30 seconds while the connection stays open | `timestamp` |
 | `replay_gap` | The requested replay cursor cannot be used | `ticketId`, `reason` (`invalid_cursor` or `cursor_unavailable`); sent with an empty SSE `id:` to reset cursor state |
 
-**Typed ticket events** — broadcast through `server/sse/broadcaster.ts` and defined in `server/sse/eventTypes.ts`:
+**Typed ticket events:** broadcast through `server/sse/broadcaster.ts` and defined in `server/sse/eventTypes.ts`:
 
 | Event type | When emitted | Key payload fields |
 | --- | --- | --- |

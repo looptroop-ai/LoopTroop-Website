@@ -1,7 +1,7 @@
 # System Architecture
 
 > [!IMPORTANT]
-> **TL;DR** — LoopTroop is a local control plane: a React browser client talks to a Hono backend, durable state lives in SQLite plus `.ticket/**` artifacts, each ticket executes in its own git worktree, and all model work goes through OpenCode behind a session-ownership layer. On restart, the backend rebuilds runtime projections, hydrates ticket actors, and reconnects only the sessions it still owns.
+> **TL;DR**: LoopTroop is a local control plane: a React browser client talks to a Hono backend, durable state lives in SQLite plus `.ticket/**` artifacts, each ticket executes in its own git worktree, and all model work goes through OpenCode behind a session-ownership layer. On restart, the backend rebuilds runtime projections, hydrates ticket actors, and reconnects only the sessions it still owns.
 
 This document is the canonical architecture reference for the current LoopTroop application.
 
@@ -131,7 +131,7 @@ work grows with ancestry depth.
 
 ### Durable State Beats Conversational Memory
 
-The reason state is split across these layers is a deliberate design commitment: durable storage beats conversational memory. LoopTroop stores meaningful workflow state in places that can be inspected, queried, and rebuilt — SQLite, `.ticket/**` YAML and JSONL artifacts, durable execution logs, and worktree state tied to git snapshots. If the process restarts, the system recovers from storage, not from a model trying to remember what happened (see [Restart And Session Ownership](#_8-restart-and-session-ownership)).
+The reason state is split across these layers is a deliberate design commitment: durable storage beats conversational memory. LoopTroop stores meaningful workflow state in places that can be inspected, queried, and rebuilt: SQLite, `.ticket/**` YAML and JSONL artifacts, durable execution logs, and worktree state tied to git snapshots. If the process restarts, the system recovers from storage, not from a model trying to remember what happened (see [Restart And Session Ownership](#_8-restart-and-session-ownership)).
 
 For the per-table breakdown of which database owns what, see the [Database Schema](database-schema.md).
 
@@ -274,7 +274,7 @@ Prompt acquisition is bounded by timeout and abort signals. OpenCode `create`, `
 
 When a durable ownership record and the remote session survive a restart, the questions attached to that session can be rebuilt. On startup, LoopTroop asks OpenCode what is still outstanding for each project with active sessions. A reconnected request is restored from its persisted `opencode_question_timer:` artifact: a stopped question stays stopped, a live deadline resumes with its remaining time, and an overdue deadline fires immediately. No fresh full countdown is promised after restart. If neither remote rejection nor fallback abort can be confirmed, the question remains visible for retry rather than being treated as stopped. Both outcomes are counted in the startup report.
 
-Those phase timeouts exist to catch a stuck model, and a model blocked on a question is not stuck: it is waiting on a person. While any question is pending, `server/workflow/workBudget.ts` holds every clock on the ticket still and credits the elapsed wall time back when the question resolves. The ledger is keyed by ticket rather than by session because there is no single clock to key — PRD drafting runs two prompts in two sessions under one deadline, and the council drafter and voter own their own race timers. Consumers subscribe to the budget and re-arm from `remainingMs()` when it changes, so a `setTimeout` cannot fire in the middle of a wait.
+Those phase timeouts exist to catch a stuck model, and a model blocked on a question is not stuck: it is waiting on a person. While any question is pending, `server/workflow/workBudget.ts` holds every clock on the ticket still and credits the elapsed wall time back when the question resolves. The ledger is keyed by ticket rather than by session because there is no single clock to key: PRD drafting runs two prompts in two sessions under one deadline, and the council drafter and voter own their own race timers. Consumers subscribe to the budget and re-arm from `remainingMs()` when it changes, so a `setTimeout` cannot fire in the middle of a wait.
 
 ## 9. Module Map
 
@@ -364,7 +364,7 @@ by `npm run dev` instead.
 | Daemon process and handoff | `server/daemon/startDaemon.ts`, `server/cli/daemonProcess.ts`, `server/cli/daemonHandoff.ts` |
 | Single-instance ownership | `server/lib/daemonLock.ts`, `server/lib/daemonPaths.ts`, `server/lib/processIdentity.ts`, `server/cli/processControl.ts` |
 | Configuration directory and settings | `server/lib/appConfigDir.ts`, `server/lib/appSettings.ts` |
-| OpenCode supervision | `server/opencode/supervisor.ts` — adopts a running server, or starts one and restarts it if it crashes |
+| OpenCode supervision | `server/opencode/supervisor.ts`: adopts a running server, or starts one and restarts it if it crashes |
 | Install channel and update checks | `server/lib/installChannel.ts`, `server/lib/updateCheck.ts` |
 | Standalone executable | `server/lib/isSea.ts`, `server/lib/seaAssets.ts` |
 
@@ -544,9 +544,9 @@ On startup, LoopTroop restores durable state through `server/startup.ts` and `se
 
 | Kind | Meaning |
 | --- | --- |
-| `fresh` | First-ever startup — no prior app database exists. |
+| `fresh` | First-ever startup: no prior app database exists. |
 | `empty_existing` | App database exists but has no attached projects. |
-| `restored` | Database found with existing projects — full state restoration. |
+| `restored` | Database found with existing projects: full state restoration. |
 
 ### Restore Flow
 
@@ -565,10 +565,10 @@ The IO layer provides crash-safe file operations and recovery used by the workfl
 
 | Module | Purpose | Key Export |
 | --- | --- | --- |
-| `atomicWrite.ts` | Crash-safe file writes | `safeAtomicWrite(filePath, content, options)` — writes to a `.tmp` file, calls `fsync`, renames to the target path, then best-effort fsyncs the parent directory. Prevents partial overwrites on system failure. `options.mode` sets POSIX permissions on the temp file before the rename, so a restricted file is never briefly readable by everyone. It also publishes the temp naming rule (`makeAtomicTmpPath` / `parseAtomicTmpPath`) that `recovery.ts` reads back. |
-| `atomicAppend.ts` | Crash-safe line appends | `safeAtomicAppend(filePath, line)` — opens the contained file, loops until the exact bytes are appended, rejects zero-progress writes, and calls `fsync` after completion. Used for durable JSONL log appends. |
-| `jsonl.ts` | JSON Lines I/O | `readJsonl<T>()`, `writeJsonl<T>()`, `appendJsonl<T>()` — type-safe JSONL read/write/append with graceful malformed-line skipping and newline integrity. |
-| `recovery.ts` | Crash recovery | `recoverOrphanTmpFiles(folder)` — scans the canonical root and known config/ticket allowlists, recognizes only current temp names, validates JSON and whole-file JSONL completeness, and requires a byte-length/SHA-256 `.proof` for YAML. An unproved orphan YAML or torn whole-file JSONL is reported and left unpromoted. Promotion never replaces an existing target. Fallback copies use an exclusive no-follow target plus a complete matching `.recovery` ownership marker; an unresolved in-progress fallback marker raises `RecoveryBlockedError` before projections, hydration, or timers, while unreadable, oversized, legacy, unknown, or symlink artifacts remain visible with diagnostics. `fixTrailingLineCorruption(filePath)` is limited to append logs and validates/truncates only a safe trailing corrupt JSONL range. |
+| `atomicWrite.ts` | Crash-safe file writes | `safeAtomicWrite(filePath, content, options)`: writes to a `.tmp` file, calls `fsync`, renames to the target path, then best-effort fsyncs the parent directory. Prevents partial overwrites on system failure. `options.mode` sets POSIX permissions on the temp file before the rename, so a restricted file is never briefly readable by everyone. It also publishes the temp naming rule (`makeAtomicTmpPath` / `parseAtomicTmpPath`) that `recovery.ts` reads back. |
+| `atomicAppend.ts` | Crash-safe line appends | `safeAtomicAppend(filePath, line)`: opens the contained file, loops until the exact bytes are appended, rejects zero-progress writes, and calls `fsync` after completion. Used for durable JSONL log appends. |
+| `jsonl.ts` | JSON Lines I/O | `readJsonl<T>()`, `writeJsonl<T>()`, `appendJsonl<T>()`: type-safe JSONL read/write/append with graceful malformed-line skipping and newline integrity. |
+| `recovery.ts` | Crash recovery | `recoverOrphanTmpFiles(folder)`: scans the canonical root and known config/ticket allowlists, recognizes only current temp names, validates JSON and whole-file JSONL completeness, and requires a byte-length/SHA-256 `.proof` for YAML. An unproved orphan YAML or torn whole-file JSONL is reported and left unpromoted. Promotion never replaces an existing target. Fallback copies use an exclusive no-follow target plus a complete matching `.recovery` ownership marker; an unresolved in-progress fallback marker raises `RecoveryBlockedError` before projections, hydration, or timers, while unreadable, oversized, legacy, unknown, or symlink artifacts remain visible with diagnostics. `fixTrailingLineCorruption(filePath)` is limited to append logs and validates/truncates only a safe trailing corrupt JSONL range. |
 
 These utilities form the durability backbone: atomic writes protect mutable state files (YAML and JSON artifacts), atomic appends protect append-only logs, and recovery handles the edge case where a process stops mid-write.
 
@@ -576,14 +576,14 @@ These utilities form the durability backbone: atomic writes protect mutable stat
 
 OpenCode session status events are translated into normalized log entries by `server/workflow/sessionStatusLogging.ts`. Each entry captures a retry event or phase change as a structured execution-log record so live SSE views and reload-time log reads converge on the same timeline.
 
-`buildSessionStatusLogEntries()` converts OpenCode `SessionStatusStreamEvent` objects into `SessionStatusLogEntry[]` — ordered, typed log entries with:
+`buildSessionStatusLogEntries()` converts OpenCode `SessionStatusStreamEvent` objects into `SessionStatusLogEntry[]`: ordered, typed log entries with:
 
 | Field | Meaning |
 | --- | --- |
 | `id` | Stable entry identifier |
 | `type` | `info` or `error` |
 | `kind` | `session` or `error` |
-| `op` | `append`, `upsert`, or `finalize` — determines how the log viewer merges this entry |
+| `op` | `append`, `upsert`, or `finalize`: determines how the log viewer merges this entry |
 | `content` | Human-readable description of the status event |
 
 The log builder handles retry status events (rate limits, usage limits, timeouts, transport errors) and session phase transitions. These entries feed the normal execution log alongside phase log entries, while the separate AI-detail log keeps prompt/tool-call depth when that channel is needed.
@@ -604,7 +604,7 @@ The backend domain under `server/phases/manualQa/*` owns strict schemas, PRD ref
 
 The candidate checkpoint is the boundary between final tests and user verification. Accepted candidate effects are committed locally through exact-file staging, while known untracked generated, cache, and setup-local outputs remain usable in the worktree and are excluded from totals, checkpoints, and delivery; arbitrary untracked-file exemptions are not supported. The saved delivery baseline still detects application-created drift before submit/skip. This design affects final-test classification, Git integration/squashing, candidate exclusions, and the first subsequent QA-fix commit without requiring a completely empty worktree.
 
-Submission stages immutable results and its operation journal first. For failed merge groups, one main-implementer prompt receives focused ticket/PRD/bead/final-test/checklist/evidence/diff context and must complete at least one successful read-only repository inspection. Strict parsing validates complete normal-bead fields, safe project-relative targets, references, dependencies, and exact merge-group coverage. The full candidate set is persisted to `fix-beads.yaml` before any child side effect; only then are Improvement tickets created and application-owned IDs/lifecycle metadata applied to normal `qa-fix` beads. Generation/tool/parser failure therefore creates no child records, moves the ticket to recoverable `BLOCKED_ERROR`, and Retry resumes the exact action. Improvements retain the chosen P1–P5 priority and explicit Manual QA setting. Advisory PRD coverage includes reasoned `not_applicable` criteria, and the selected-version phase log is collapsed by default.
+Submission stages immutable results and its operation journal first. For failed merge groups, one main-implementer prompt receives focused ticket/PRD/bead/final-test/checklist/evidence/diff context and must complete at least one successful read-only repository inspection. Strict parsing validates complete normal-bead fields, safe project-relative targets, references, dependencies, and exact merge-group coverage. The full candidate set is persisted to `fix-beads.yaml` before any child side effect; only then are Improvement tickets created and application-owned IDs/lifecycle metadata applied to normal `qa-fix` beads. Generation/tool/parser failure therefore creates no child records, moves the ticket to recoverable `BLOCKED_ERROR`, and Retry resumes the exact action. Improvements retain the chosen P1 to P5 priority and explicit Manual QA setting. Advisory PRD coverage includes reasoned `not_applicable` criteria, and the selected-version phase log is collapsed by default.
 
 This adds one model session and focused read-only tool activity to failed Manual QA submission, increasing failure-submit latency and model usage. Downstream scheduling, coding, metrics, commit, final-test, integration, and delivery consumers still receive normal bead records; typed `qaOrigin` remains supplemental provenance. The change deliberately does not migrate or repair pre-existing testing tickets or Manual QA artifacts.
 

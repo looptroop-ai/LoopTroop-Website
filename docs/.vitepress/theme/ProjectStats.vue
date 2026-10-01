@@ -156,8 +156,8 @@ onMounted(async () => {
         <p>
           Fetching a script is not installing. These are excluded from the total
           because a run that gets as far as installing then downloads the release
-          tarball or a standalone archive, both counted above — and most fetches
-          never get that far.
+          tarball or a standalone archive, both counted above. Most fetches never
+          get that far.
         </p>
       </div>
 
@@ -191,7 +191,7 @@ onMounted(async () => {
             </tr>
             <tr>
               <td>Installer script, default mode</td>
-              <td>GitHub release-tarball downloads — it installs that file rather than contacting the registry</td>
+              <td>GitHub release-tarball downloads: the installer uses that file rather than contacting the registry</td>
               <td>Yes</td>
             </tr>
             <tr>
@@ -235,9 +235,10 @@ onMounted(async () => {
     </div>
 
     <p class="project-stats__disclaimer">
-      These are package downloads, image pulls, and release-asset downloads—not
-      unique people or confirmed successful installations. Counts can include
-      upgrades, automated CI, and repeated retrievals by the same user or system.
+      These are package downloads, image pulls, and release-asset downloads, not
+      counts of unique people or confirmed successful installations. Counts can
+      include upgrades, automated CI, and repeated retrievals by the same user or
+      system.
     </p>
   </section>
 </template>

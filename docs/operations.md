@@ -4,7 +4,7 @@
 > **This page has two halves, and most people only need the first.**
 > [Part 1](#part-1-operating-an-installed-looptroop) is operating an **installed**
 > LoopTroop: the service, its state, backups, worktree cleanup.
-> [Part 2](#part-2-the-development-stack) is the **development stack** — running
+> [Part 2](#part-2-the-development-stack) is the **development stack**, running
 > from a checkout with `npm run dev` to work on LoopTroop itself. The preflight,
 > maintenance, dependency and script material in Part 2 does not apply to an
 > installed copy, and several of its commands are not even present in one.
@@ -29,8 +29,8 @@ and uninstalling are in [Installation](installation.md).
 ## Where an installed LoopTroop keeps its state
 
 Everything lives in one [configuration directory](configuration.md#where-looptroop-keeps-its-state),
-outside the installation — so upgrading, or switching channels entirely, never
-loses it. The directory is `0700` and the files in it `0600`.
+outside the installation, so upgrading or switching channels never loses it.
+The directory is `0700` and the files in it `0600`.
 
 | File | What it is |
 | --- | --- |
@@ -50,7 +50,7 @@ stacks.
 
 | Task | Command |
 | --- | --- |
-| Check the machine can run it | `looptroop doctor` — see [Runtime Diagnostics](diagnostics.md) |
+| Check the machine can run it | `looptroop doctor`; see [Runtime Diagnostics](diagnostics.md) |
 | Find out whether an update exists and how to apply it | `looptroop doctor` shows current/latest versions, names the channel, and prints its ordered upgrade and restart steps |
 | Remove worktrees left by cancelled tickets | `looptroop clean`, then `looptroop clean --apply` |
 
@@ -78,7 +78,7 @@ its own `LOOPTROOP_CONFIG_DIR` and port. Stale-state cleanup re-reads the
 instance under that same lock, and a concurrent start cannot claim another
 invocation's ready daemon.
 
-Now, log following recognizes a completed live rotation even
+Log following recognizes a completed live rotation even
 when the same file has already grown beyond the previous read offset. It waits
 while copying and truncation are in progress, then reads the new generation
 from its beginning. A read window interrupted by rotation is not treated as
@@ -86,7 +86,7 @@ verified output; earlier lines remain in the rotated log files. Copying and
 truncating still has its existing writer race: bytes written between the copy
 and truncation can be lost.
 
-Now, a start command can also recognize its own still-live
+A start command can also recognize its own still-live
 child through the process handle it holds when Windows' start-time lookup is
 temporarily unavailable. This readiness fallback does not apply to exited
 children or tokenless records found by a later command, and does not authorize
@@ -97,7 +97,7 @@ missing, recycled, or unverifiable process. Windows termination uses forceful
 `taskkill /T /F`; platforms without retained descendant enumeration do not
 promise that unknown descendants have exited.
 
-Now, a daemon that cannot confirm its owned OpenCode process
+A daemon that cannot confirm its owned OpenCode process
 stopped stays alive, keeps its ownership records, and accepts another stop
 request. The stop command reports incomplete cleanup instead of forcing an
 exit after an accepted shutdown request. A new daemon cannot take its place
@@ -131,7 +131,7 @@ either **adopts** an OpenCode already listening at the configured base URL, or
 **starts and supervises one itself**, restarting it if it crashes and stopping it
 when the daemon stops. With no OpenCode to reach and no CLI to launch, the daemon
 refuses to start rather than serving an interface that cannot run a single coding
-operation — `LOOPTROOP_OPENCODE_MODE=mock` looks around without one.
+operation. `LOOPTROOP_OPENCODE_MODE=mock` lets you look around without one.
 
 `looptroop doctor` reports which of those happened.
 
@@ -206,7 +206,7 @@ permissions during remote operations and connection checks. Only select
 repositories whose code and Git configuration you trust; worktrees do not
 sandbox these commands.
 
-Now, asynchronous Git operations read that setting without
+Asynchronous Git operations read that setting without
 blocking the server's event loop. The value is checked for each operation, so
 editing the repository's SSH configuration does not require a daemon restart.
 
@@ -296,7 +296,7 @@ unknown untracked additions before restoring anything. Ambiguous work stays in
 place and reentry waits for it to be resolved. A completed restore removes the
 marker so a later retry cannot replay it over newer edits.
 
-Now, a refused recovery reports the retained marker's location
+A refused recovery reports the retained marker's location
 and the worktree changes that need attention. It blocks both Check and Require;
 Check treats ordinary command failures as warnings, not unresolved recovery.
 
@@ -476,7 +476,7 @@ The maintainers consider research conducted under this policy lawful, helpful to
 ## 5. Scripts Reference
 
 Run any of these with `npm run <name>`. This is the subset worth knowing, not the
-full list — `package.json` currently declares far more, mostly the `verify:*`,
+full list: `package.json` currently declares far more, mostly the `verify:*`,
 `build:*` and `release:*` families that the release pipeline drives. `npm run`
 with no arguments prints all of them.
 
@@ -485,7 +485,7 @@ with no arguments prints all of them.
 | Script | Purpose |
 | --- | --- |
 | `dev` | Full stack: frontend, backend, OpenCode watcher, and dev preflight. **Standard start command.** In-app documentation links point at the hosted docs site. |
-| `dev:app` | Frontend and backend only — no OpenCode watcher. Use when OpenCode is already running externally. Note: this bypasses the `predev` preflight (the `predev` hook only runs for `dev`), so dependency sync, npm audit, OpenCode upgrade, port-conflict cleanup, and the auto-generated `OPENCODE_SERVER_PASSWORD` / `LOOPTROOP_API_TOKEN` are skipped — set those yourself when needed. |
+| `dev:app` | Frontend and backend only: no OpenCode watcher. Use when OpenCode is already running externally. Note: this bypasses the `predev` preflight (the `predev` hook only runs for `dev`), so dependency sync, npm audit, OpenCode upgrade, port-conflict cleanup, and the auto-generated `OPENCODE_SERVER_PASSWORD` / `LOOPTROOP_API_TOKEN` are skipped. Set those yourself when needed. |
 | `dev:frontend` | Vite dev server only. |
 | `dev:backend` | Backend Hono API server only. |
 | `dev:opencode` | OpenCode watcher only. |
@@ -504,7 +504,7 @@ The frontend dev server pre-optimizes its complete declared browser dependency s
 | Script | Purpose |
 | --- | --- |
 | `predev` | Automatic dev preflight hook that runs before `npm run dev`. Usually invoked through `npm run dev`, not by hand. |
-| `verify:published` | Install a **published** release from its real feed using the documented command, start it, check the health endpoint, and remove it again. Needs network access and a version that is actually published — `-- --channel npm --version X.Y.Z`, or `-- --plan --tier weekly` to list the legs without running any. Normally driven by the Published install smoke workflow rather than by hand. |
+| `verify:published` | Install a **published** release from its real feed using the documented command, start it, check the health endpoint, and remove it again. Needs network access and a version that is actually published; for example, `-- --channel npm --version X.Y.Z` runs a channel, while `-- --plan --tier weekly` lists the legs without running any. The Published install smoke workflow normally drives this rather than a person. |
 | `deps:sync` | Preview direct dependency updates with npm peer resolution, apply compatible releases with `npm ci`, hold conflicts, then refresh the daily-maintenance stamp. |
 | `audit:remediate` | Preview the gated npm audit remediation in isolation, hold incompatible proposals, and apply accepted lockfiles with `npm ci`. |
 | `opencode:upgrade` | Run only the OpenCode CLI upgrade step within the installed major when a stable target and supported install method are verified, then refresh the daily-maintenance stamp. |
@@ -523,10 +523,10 @@ The frontend dev server pre-optimizes its complete declared browser dependency s
 
 `vitest.config.ts` defines four test projects:
 
-- **`client-dom`** — React component tests that require a JSDOM environment
-- **`client-node`** — client-side logic tests that do not need a DOM
-- **`server-pure`** — server unit tests with no I/O or database
-- **`server-integration`** — server integration tests running against a real local SQLite instance
+- **`client-dom`:** React component tests that require a JSDOM environment
+- **`client-node`:** client-side logic tests that do not need a DOM
+- **`server-pure`:** server unit tests with no I/O or database
+- **`server-integration`:** server integration tests running against a real local SQLite instance
 
 Run `test:client` and `test:server` separately when you only want to validate one layer. Run `test` to validate both together.
 
@@ -598,7 +598,7 @@ LoopTroop accepts API tokens through either `x-looptroop-token` or `Authorizatio
 > server-side, so native browser `EventSource` connections do not need access to
 > the token. An installed browser instead sends its same-origin session cookie.
 > An installed daemon's bearer token is the one it minted into `daemon.json`,
-> not `LOOPTROOP_API_TOKEN` — see the [API Reference](api-reference.md) for both
+> not `LOOPTROOP_API_TOKEN`; see the [API Reference](api-reference.md) for both
 > models side by side.
 
 ### Useful Health Endpoints
@@ -633,8 +633,8 @@ After cleanup, `git status --short .looptroop` should not show tracked `.looptro
 
 Other ticket initialization errors from the Git hygiene check:
 
-- `INIT_LOOPTROOP_EXCLUDE_FAILED` — LoopTroop could not apply the project's saved `.looptroop/` and `.ticket/` ignore policy. Check that the selected `.gitignore` or Git exclude destination is writable.
-- `INIT_LOOPTROOP_TRACKED_CHECK_FAILED` — The `git ls-files` check itself failed. Verify that the attached project path is a valid, accessible Git repository.
+- `INIT_LOOPTROOP_EXCLUDE_FAILED`: LoopTroop could not apply the project's saved `.looptroop/` and `.ticket/` ignore policy. Check that the selected `.gitignore` or Git exclude destination is writable.
+- `INIT_LOOPTROOP_TRACKED_CHECK_FAILED`: The `git ls-files` check itself failed. Verify that the attached project path is a valid, accessible Git repository.
 
 ## 9. Worktree Disk Cleanup
 
@@ -656,12 +656,12 @@ Use the UI cleanup flow:
 > Move or remove those files manually before retrying. An inspection failure
 > also blocks removal. Explicit ticket or project deletion remains destructive.
 
-Now, Free Disk Space continues with eligible worktrees when
+Free Disk Space continues with eligible worktrees when
 another worktree is protected or cannot be removed. The dialog stays open with
 the skipped ticket IDs and reasons. Its result counts only removed worktrees;
 the size preview includes protected worktrees and is not a promise of freed space.
 
-Now, a pre-start directory containing only LoopTroop's `.ticket`
+A pre-start directory containing only LoopTroop's `.ticket`
 skeleton is checked directly, so unrelated ignored files in the parent repository
 do not block it. The same check runs immediately before removal. Any other
 entry in that directory keeps it in place. A timed-out Git removal is reported
@@ -715,7 +715,7 @@ transient roots and is not unlinked by cleanup or recovery code.
 > `diagnose:stall` is a **checkout-only** tool. It lives in `scripts/`, which the
 > published package does not ship, so an installed LoopTroop has no such command.
 > From an installed copy, use `looptroop doctor`, `looptroop status --json` and
-> `looptroop logs -f` — see [Runtime Diagnostics](diagnostics.md).
+> `looptroop logs -f`; see [Runtime Diagnostics](diagnostics.md).
 
 If the UI feels slow, tickets disappear after refresh, or the app appears to stall, run the diagnostic command while `npm run dev` is still running:
 
@@ -758,7 +758,7 @@ When using `npm run dev`, port resolution and basic auth are handled automatical
 
 > [!NOTE]
 > **An installed daemon does not need step 1.** It adopts a running OpenCode or
-> starts and supervises one itself — see
+> starts and supervises one itself. See
 > [OpenCode is managed for you](#opencode-is-managed-for-you). Step 2's
 > `X-LoopTroop-Token` is also the wrong credential there: an installed daemon
 > mints its own into `daemon.json`.
@@ -771,7 +771,7 @@ When using `npm run dev`, port resolution and basic auth are handled automatical
 
 ## 12. Watcher and WSL Performance Notes
 
-Both the frontend (Vite) and backend watchers prefer native file watching on normal local filesystems — Linux (including a remote VPS), macOS, and native Windows all use fast native OS file-system events by default. Polling is only enabled automatically when it is genuinely required: a WSL runtime whose workspace lives on a Windows-mounted drive such as `/mnt/c/...`, where native watching is unreliable.
+Both the frontend (Vite) and backend watchers prefer native file watching on normal local filesystems: Linux (including a remote VPS), macOS, and native Windows all use fast native OS file-system events by default. Polling is only enabled automatically when it is required: a WSL runtime whose workspace lives on a Windows-mounted drive such as `/mnt/c/...`, where native watching is unreliable.
 
 > [!NOTE]
 > Earlier versions forced polling for the frontend on every platform, which wasted CPU and added refresh latency on native Linux/macOS/Windows (most noticeable on remote hosts). Both watchers now share a single OS-agnostic decision (`resolveWatchPollingDecision()` in `shared/wslPerformance.ts`) so native watching is used everywhere unless polling is actually needed.
@@ -786,12 +786,12 @@ You can also force native watching off a mounted drive with `CHOKIDAR_USEPOLLING
 
 ### Windows-Mounted Drive Warning (WSL Users Only)
 
-If you run LoopTroop inside Windows Subsystem for Linux (WSL), ensure that your attached target projects — and, if you are working from a checkout, the checkout itself — reside on the native Linux file system (e.g., under `/home/username/...` or another path in `\wsl$`). The project half of this applies to an installed LoopTroop too.
+If you run LoopTroop inside Windows Subsystem for Linux (WSL), ensure that your attached target projects (and, if you are working from a checkout, the checkout itself) reside on the native Linux file system (e.g., under `/home/username/...` or another path in `\wsl$`). The project half of this applies to an installed LoopTroop too.
 
 > [!WARNING]
 > **Avoid Windows-mounted drives (like `/mnt/c/...` or `/mnt/d/...`) in WSL.**
 >
-> Keeping attached projects — or a LoopTroop checkout — on Windows-mounted drives severely degrades disk I/O performance. This slows down Git operations, codebase scanning, and test execution. It also disables native file-watching, forcing a fallback to chokidar polling (`CHOKIDAR_USEPOLLING=1`). For optimal performance, always store your workspaces and repositories inside the Linux home directory.
+> Keeping attached projects (or a LoopTroop checkout) on Windows-mounted drives severely degrades disk I/O performance. This slows down Git operations, codebase scanning, and test execution. It also disables native file-watching, forcing a fallback to chokidar polling (`CHOKIDAR_USEPOLLING=1`). For optimal performance, always store your workspaces and repositories inside the Linux home directory.
 
 The path detection logic is implemented in `shared/wslPerformance.ts`, which exports `isWslWindowsMountPath()` to identify Windows-mounted paths, `resolveWatchPollingDecision()` to choose native watching vs. polling for both the frontend and backend watchers, and `buildWslAppMountedDriveWarning()` / `buildWslProjectMountedDriveWarning()` to generate targeted performance warnings.
 
@@ -807,8 +807,8 @@ Do not run `npm audit fix --force` as routine maintenance for these warnings. Th
 
 ## Related Docs
 
-- [Installation](installation.md) — every channel, upgrading, uninstalling, and the development checkout
-- [CLI Reference](cli.md) — every command an installed LoopTroop has
+- [Installation](installation.md): every channel, upgrading, uninstalling, and the development checkout
+- [CLI Reference](cli.md): every command an installed LoopTroop has
 - [Getting Started](getting-started.md)
 - [System Architecture](system-architecture.md)
 - [Runtime Diagnostics](diagnostics.md)

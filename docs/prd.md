@@ -1,7 +1,7 @@
 # PRD
 
 > [!IMPORTANT]
-> **TL;DR** — After interview approval, LoopTroop runs a two-part PRD loop: each council member first completes skipped interview answers into its own Full Answers artifact, then drafts, votes, refines, and coverage-checks a structured PRD. The approved PRD becomes the implementation contract that beads planning decomposes.
+> **TL;DR:** After interview approval, LoopTroop runs a two-part PRD loop: each council member first completes skipped interview answers into its own Full Answers artifact, then drafts, votes, refines, and coverage-checks a structured PRD. The approved PRD becomes the implementation contract that beads planning decomposes.
 
 The PRD is the ticket's implementation contract. It turns approved interview intent into a durable, reviewable spec that later phases can decompose, verify, and trace back to what the user actually meant.
 

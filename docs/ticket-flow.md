@@ -1,7 +1,7 @@
 # Ticket Flow
 
 > [!IMPORTANT]
-> **TL;DR** — A ticket flows through: scanning → interview → PRD → beads planning → execution setup → bead-by-bead coding → final test → optional Manual QA → integration → PR → cleanup. Manual QA failures create fix beads and loop through coding plus fresh final tests.
+> **TL;DR:** A ticket flows through: scanning → interview → PRD → beads planning → execution setup → bead-by-bead coding → final test → optional Manual QA → integration → PR → cleanup. Manual QA failures create fix beads and loop through coding plus fresh final tests.
 
 LoopTroop does not move a ticket through a tiny backlog -> coding -> done list. It runs a staged lifecycle with planning loops, approval gates, execution setup, bead-scoped coding, PR delivery, and explicit error recovery.
 
@@ -133,7 +133,7 @@ editing or note-bearing retry; those actions appear only for the live blocked
 runtime setup when the server includes them. Unknown statuses advertise no
 actions.
 
-Manual QA adds a deliberate reverse transition rather than treating a reported product failure as a workflow error. Any explicit Fail—required or optional—first generates and persists a complete validated `fix-beads.yaml` candidate, then creates pending `qa-fix` beads, archives the current final-test/generation/waiting attempts, and returns to `CODING`. Improvements from the same submission are independent Draft tickets with their chosen priority and Manual QA setting. If bead generation, required read-only repository inspection, or validation fails, no child work is created and the ticket enters recoverable `BLOCKED_ERROR`; Retry resumes the exact submission action. After successful fixes, LoopTroop creates a fresh final-test attempt and allocates the next checklist version.
+Manual QA adds a deliberate reverse transition rather than treating a reported product failure as a workflow error. Any explicit Fail (required or optional) first generates and persists a complete validated `fix-beads.yaml` candidate, then creates pending `qa-fix` beads, archives the current final-test/generation/waiting attempts, and returns to `CODING`. Improvements from the same submission are independent Draft tickets with their chosen priority and Manual QA setting. If bead generation, required read-only repository inspection, or validation fails, no child work is created and the ticket enters recoverable `BLOCKED_ERROR`; Retry resumes the exact submission action. After successful fixes, LoopTroop creates a fresh final-test attempt and allocates the next checklist version.
 
 ### 3.7 Coverage Control
 
@@ -144,7 +144,7 @@ Interview, PRD, and beads coverage loops are managed by `server/workflow/coverag
 - **Budget**: The follow-up budget percentage that limits interview coverage depth.
 
 `resolveCoverageGapDisposition()` determines whether the pass loop should:
-- **Continue**: Gaps were found and the pass limit has not been reached — return to refinement.
+- **Continue**: Gaps were found and the pass limit has not been reached; return to refinement.
 - **Terminate as clean**: No gaps remain; advance to approval.
 - **Terminate as capped**: Gaps remain but the pass limit is exhausted; advance to approval with warnings.
 
@@ -223,40 +223,40 @@ The canonical properties for every workflow phase are detailed in the inventory 
 
 | Phase | Label | Group | `uiView` | `kanbanPhase` | Review Artifact | Editable | Multi-Model Logs | Progress Indicator |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `DRAFT` | Backlog | `todo` | `draft` | `todo` | — | yes | no | — |
-| `SCANNING_RELEVANT_FILES` | Scanning Files | `discovery` | `council` | `in_progress` | — | yes | no | — |
-| `COUNCIL_DELIBERATING` | Drafting Questions | `interview` | `council` | `in_progress` | — | yes | yes | — |
-| `COUNCIL_VOTING_INTERVIEW` | Voting on Questions | `interview` | `council` | `in_progress` | — | yes | yes | — |
-| `COMPILING_INTERVIEW` | Refining Interview | `interview` | `council` | `in_progress` | — | yes | no | — |
-| `WAITING_INTERVIEW_ANSWERS` | Interviewing | `interview` | `interview_qa` | `needs_input` | — | yes | no | `questions` |
-| `VERIFYING_INTERVIEW_COVERAGE` | Interview Coverage | `interview` | `council` | `in_progress` | — | yes | no | — |
-| `WAITING_INTERVIEW_APPROVAL` | Approving Interview | `interview` | `approval` | `needs_input` | `interview` | yes | no | — |
-| `DRAFTING_PRD` | Drafting Specs | `prd` | `council` | `in_progress` | — | yes | yes | — |
-| `COUNCIL_VOTING_PRD` | Voting on Specs | `prd` | `council` | `in_progress` | — | yes | yes | — |
-| `REFINING_PRD` | Refining Specs | `prd` | `council` | `in_progress` | — | yes | no | — |
-| `VERIFYING_PRD_COVERAGE` | PRD Coverage | `prd` | `council` | `in_progress` | — | yes | no | — |
-| `WAITING_PRD_APPROVAL` | Approving Specs | `prd` | `approval` | `needs_input` | `prd` | yes | no | — |
-| `DRAFTING_BEADS` | Drafting Blueprint | `beads` | `council` | `in_progress` | — | yes | yes | — |
-| `COUNCIL_VOTING_BEADS` | Voting on Blueprint | `beads` | `council` | `in_progress` | — | yes | yes | — |
-| `REFINING_BEADS` | Refining Blueprint | `beads` | `council` | `in_progress` | — | yes | no | — |
-| `VERIFYING_BEADS_COVERAGE` | Beads Coverage | `beads` | `council` | `in_progress` | — | yes | no | — |
-| `EXPANDING_BEADS` | Expanding Blueprint | `beads` | `council` | `in_progress` | — | yes | no | — |
-| `WAITING_BEADS_APPROVAL` | Approving Blueprint | `beads` | `approval` | `needs_input` | `beads` | yes | no | — |
-| `PRE_FLIGHT_CHECK` | Checking Readiness | `pre_implementation` | `coding` | `in_progress` | — | yes | no | — |
-| `GENERATING_EXECUTION_SETUP_PLAN` | Drafting Workspace Setup Plan | `pre_implementation` | `phase_review` | `in_progress` | — | no | no | — |
-| `WAITING_EXECUTION_SETUP_APPROVAL` | Approving Workspace Setup | `pre_implementation` | `approval` | `needs_input` | `execution_setup_plan` | yes | no | — |
-| `PREPARING_EXECUTION_ENV` | Preparing Workspace Runtime | `pre_implementation` | `coding` | `in_progress` | — | no | no | — |
-| `CODING` | Implementing | `implementation` | `coding` | `in_progress` | — | no | no | `beads` |
-| `RUNNING_FINAL_TEST` | Testing | `post_implementation` | `coding` | `in_progress` | — | no | no | — |
-| `GENERATING_QA_CHECKLIST` | Preparing Manual QA | `post_implementation` | `coding` | `in_progress` | `manual_qa_checklist` | no | no | — |
-| `WAITING_MANUAL_QA` | Manual QA | `post_implementation` | `manual_qa` | `needs_input` | `manual_qa_checklist` | no | no | — |
-| `INTEGRATING_CHANGES` | Squashing Commits | `post_implementation` | `coding` | `in_progress` | — | no | no | — |
-| `CREATING_PULL_REQUEST` | Creating PR | `post_implementation` | `coding` | `in_progress` | — | no | no | — |
-| `WAITING_PR_REVIEW` | Reviewing PR | `post_implementation` | `coding` | `needs_input` | — | no | no | — |
-| `CLEANING_ENV` | Cleaning Up | `post_implementation` | `coding` | `in_progress` | — | no | no | — |
-| `COMPLETED` | Done | `done` | `done` | `done` | — | no | no | — |
-| `CANCELED` | Canceled | `done` | `canceled` | `done` | — | no | no | — |
-| `BLOCKED_ERROR` | Error | `errors` | `error` | `needs_input` | — | no | no | — |
+| `DRAFT` | Backlog | `todo` | `draft` | `todo` | - | yes | no | - |
+| `SCANNING_RELEVANT_FILES` | Scanning Files | `discovery` | `council` | `in_progress` | - | yes | no | - |
+| `COUNCIL_DELIBERATING` | Drafting Questions | `interview` | `council` | `in_progress` | - | yes | yes | - |
+| `COUNCIL_VOTING_INTERVIEW` | Voting on Questions | `interview` | `council` | `in_progress` | - | yes | yes | - |
+| `COMPILING_INTERVIEW` | Refining Interview | `interview` | `council` | `in_progress` | - | yes | no | - |
+| `WAITING_INTERVIEW_ANSWERS` | Interviewing | `interview` | `interview_qa` | `needs_input` | - | yes | no | `questions` |
+| `VERIFYING_INTERVIEW_COVERAGE` | Interview Coverage | `interview` | `council` | `in_progress` | - | yes | no | - |
+| `WAITING_INTERVIEW_APPROVAL` | Approving Interview | `interview` | `approval` | `needs_input` | `interview` | yes | no | - |
+| `DRAFTING_PRD` | Drafting Specs | `prd` | `council` | `in_progress` | - | yes | yes | - |
+| `COUNCIL_VOTING_PRD` | Voting on Specs | `prd` | `council` | `in_progress` | - | yes | yes | - |
+| `REFINING_PRD` | Refining Specs | `prd` | `council` | `in_progress` | - | yes | no | - |
+| `VERIFYING_PRD_COVERAGE` | PRD Coverage | `prd` | `council` | `in_progress` | - | yes | no | - |
+| `WAITING_PRD_APPROVAL` | Approving Specs | `prd` | `approval` | `needs_input` | `prd` | yes | no | - |
+| `DRAFTING_BEADS` | Drafting Blueprint | `beads` | `council` | `in_progress` | - | yes | yes | - |
+| `COUNCIL_VOTING_BEADS` | Voting on Blueprint | `beads` | `council` | `in_progress` | - | yes | yes | - |
+| `REFINING_BEADS` | Refining Blueprint | `beads` | `council` | `in_progress` | - | yes | no | - |
+| `VERIFYING_BEADS_COVERAGE` | Beads Coverage | `beads` | `council` | `in_progress` | - | yes | no | - |
+| `EXPANDING_BEADS` | Expanding Blueprint | `beads` | `council` | `in_progress` | - | yes | no | - |
+| `WAITING_BEADS_APPROVAL` | Approving Blueprint | `beads` | `approval` | `needs_input` | `beads` | yes | no | - |
+| `PRE_FLIGHT_CHECK` | Checking Readiness | `pre_implementation` | `coding` | `in_progress` | - | yes | no | - |
+| `GENERATING_EXECUTION_SETUP_PLAN` | Drafting Workspace Setup Plan | `pre_implementation` | `phase_review` | `in_progress` | - | no | no | - |
+| `WAITING_EXECUTION_SETUP_APPROVAL` | Approving Workspace Setup | `pre_implementation` | `approval` | `needs_input` | `execution_setup_plan` | yes | no | - |
+| `PREPARING_EXECUTION_ENV` | Preparing Workspace Runtime | `pre_implementation` | `coding` | `in_progress` | - | no | no | - |
+| `CODING` | Implementing | `implementation` | `coding` | `in_progress` | - | no | no | `beads` |
+| `RUNNING_FINAL_TEST` | Testing | `post_implementation` | `coding` | `in_progress` | - | no | no | - |
+| `GENERATING_QA_CHECKLIST` | Preparing Manual QA | `post_implementation` | `coding` | `in_progress` | `manual_qa_checklist` | no | no | - |
+| `WAITING_MANUAL_QA` | Manual QA | `post_implementation` | `manual_qa` | `needs_input` | `manual_qa_checklist` | no | no | - |
+| `INTEGRATING_CHANGES` | Squashing Commits | `post_implementation` | `coding` | `in_progress` | - | no | no | - |
+| `CREATING_PULL_REQUEST` | Creating PR | `post_implementation` | `coding` | `in_progress` | - | no | no | - |
+| `WAITING_PR_REVIEW` | Reviewing PR | `post_implementation` | `coding` | `needs_input` | - | no | no | - |
+| `CLEANING_ENV` | Cleaning Up | `post_implementation` | `coding` | `in_progress` | - | no | no | - |
+| `COMPLETED` | Done | `done` | `done` | `done` | - | no | no | - |
+| `CANCELED` | Canceled | `done` | `canceled` | `done` | - | no | no | - |
+| `BLOCKED_ERROR` | Error | `errors` | `error` | `needs_input` | - | no | no | - |
 
 **Note:** `editable: yes` means the review artifact or planning document can be manually saved from that phase. Interview answers and active approval-editor drafts autosave, with visible save state and last-save time. In approval phases, autosave only preserves the draft; **Save** still applies it to the authoritative artifact and triggers any downstream workflow effects. Interview and PRD edits are accepted only before `PRE_FLIGHT_CHECK`; setup-plan edits are also accepted during `PREPARING_EXECUTION_ENV`, where they trigger a one-step rewind back to setup approval.
 
@@ -315,7 +315,7 @@ The state machine metadata directly drives the React user interface. Developers 
 ### Post-Implementation & Delivery
 - **`RUNNING_FINAL_TEST`:** The implementer constructs a whole-ticket test plan, executes it with the approved runtime profile, and records a final-test file-effects audit alongside the test outputs. Explicit candidate intent and tracked/staged changes are preserved. Known untracked generated/cache/setup-local outputs stay usable on disk but are excluded from totals and delivery; unknown untracked files receive one classification retry and then continue as local-only with a warning. These known exclusions also apply at merge; arbitrary untracked-file exemptions are not supported.
 - **`GENERATING_QA_CHECKLIST`:** “LoopTroop is preparing a candidate-only checkpoint and human-facing Manual QA checklist while keeping local generated/cache outputs available to tests and outside delivery.” It is automation-only: LoopTroop resolves final-test effects, creates a candidate-only local checkpoint/baseline while retaining local-only outputs, reserves `vN`, generates one strict tagged YAML checklist with focused read-only repository access, validates stable PRD refs, and computes advisory coverage in code. Coverage distinguishes covered, partially covered, uncovered, and **Not applicable to Manual QA** criteria; the last requires a reason. Reservation-only rounds are not offered as artifacts. The status title remains version-free, and the normal selector appears only with multiple checklist-backed rounds. Generation, validation, or checkpoint failure enters recoverable `BLOCKED_ERROR`.
-- **`WAITING_MANUAL_QA`:** “LoopTroop is waiting for user-run verification in an autosaved checklist with collapsed resizable logs, explicit Not applicable PRD coverage, configurable Improvement tickets, and AI-planned full QA-fix beads for failed checks.” The user runs and controls the app. Pending is the first/default choice and stays field-free until another result is selected; required items must be resolved for Submit, Pass/Waive need no evidence, Fail needs an observation, and Pass notes/waiver reasons are optional. PRD coverage and the phase log are collapsed by default, and the log height when expanded can be manually adjusted up or down. Improvements are edited inline with a P1–P5 priority and collapsed Advanced Manual QA enabled/disabled setting. Failure groups are multi-select item number/title buttons; group drafts may include any item, but Submit identifies and blocks on every member not marked Fail. Results/evidence autosave with no Save button. Submit and Skip capture the draft, evidence, and round at click time; a later autosave remains the newer draft and does not replace submitted checks or cancel follow-up generation. This snapshot is separate from best-effort unload persistence. On Fail, one main-implementer prompt must inspect the repository with read-only tools and return complete normal-bead content for every merge group. LoopTroop validates and persists the entire candidate set before creating Improvement tickets or `qa-fix` beads; failure enters `BLOCKED_ERROR` with zero children and Retry resumes the stored action. Pass, required waiver, or skip integrates; successful Fail submission returns to Coding. **Skip Manual QA…** creates no work and archives every entered value read-only.
+- **`WAITING_MANUAL_QA`:** “LoopTroop is waiting for user-run verification in an autosaved checklist with collapsed resizable logs, explicit Not applicable PRD coverage, configurable Improvement tickets, and AI-planned full QA-fix beads for failed checks.” The user runs and controls the app. Pending is the first/default choice and stays field-free until another result is selected; required items must be resolved for Submit, Pass/Waive need no evidence, Fail needs an observation, and Pass notes/waiver reasons are optional. PRD coverage and the phase log are collapsed by default, and the log height when expanded can be manually adjusted up or down. Improvements are edited inline with a P1 to P5 priority and collapsed Advanced Manual QA enabled/disabled setting. Failure groups are multi-select item number/title buttons; group drafts may include any item, but Submit identifies and blocks on every member not marked Fail. Results/evidence autosave with no Save button. Submit and Skip capture the draft, evidence, and round at click time; a later autosave remains the newer draft and does not replace submitted checks or cancel follow-up generation. This snapshot is separate from best-effort unload persistence. On Fail, one main-implementer prompt must inspect the repository with read-only tools and return complete normal-bead content for every merge group. LoopTroop validates and persists the entire candidate set before creating Improvement tickets or `qa-fix` beads; failure enters `BLOCKED_ERROR` with zero children and Retry resumes the stored action. Pass, required waiver, or skip integrates; successful Fail submission returns to Coding. **Skip Manual QA…** creates no work and archives every entered value read-only.
 - **`INTEGRATING_CHANGES`:** Reruns approved explicit Git-hook validation when selected, then exactly stages and squashes bead-level changes plus audited candidate files into a clean candidate commit on the main ticket branch. Protected validation reentry uses an identity-bound persisted marker. Invalid or escaped markers fail before recovery writes; unknown untracked additions remain intact and recovery refuses reentry until they can be attributed safely. Local-only outputs remain in the worktree and do not block or enter delivery; unresolved tracked changes default to candidate for the later PR audit. The one exception is a local-only file, ignored or untracked, sitting on a path the merge base carries and the candidate does not: rewriting the candidate resets to that commit, which would write over it, so integration names those files and blocks instead.
 - **`CREATING_PULL_REQUEST`:** Performs a final candidate audit (reconciling inclusions/exclusions) before pushing the branch and drafting the PR title/description.
 - **`WAITING_PR_REVIEW`:** Review window. `merge` verifies the current PR and approved candidate before finishing; `close_unmerged` closes the PR without merging it. An initial remote refresh failure records a typed durable recovery receipt and leaves the ticket waiting without a decision. A verified merge checkpoint can resume through the matching **Merge** path or background recovery without repeating remote merge work. A closed-unmerged checkpoint resumes through background recovery; subsequent **Merge** or **Close Without Merge** requests are rejected until that completion finishes. Both decisions are fenced to the same PR, so conflicting Merge, Close Without Merge, and Cancel actions cannot replace them. An observed merged state remains visible even if candidate-head validation refuses completion. Restarted daemons resume GitHub polling from saved ticket state.

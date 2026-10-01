@@ -1,7 +1,7 @@
 # Runtime Diagnostics
 
 > [!IMPORTANT]
-> **TL;DR** — LoopTroop exposes three different diagnostic surfaces: a local runtime-stall report, persisted blocked-error diagnostics on ticket failures, and structured retry diagnostics on artifacts that needed correction or re-prompting. Use the surface that matches the failure mode instead of treating everything as a generic "the ticket broke" event.
+> **TL;DR:** LoopTroop exposes three different diagnostic surfaces: a local runtime-stall report, persisted blocked-error diagnostics on ticket failures, and structured retry diagnostics on artifacts that needed correction or re-prompting. Use the surface that matches the failure mode instead of treating everything as a generic "the ticket broke" event.
 
 This page covers the diagnostics that help explain slow local behavior, blocked ticket runs, and recoverable structured-output failures.
 
@@ -9,7 +9,7 @@ This page covers the diagnostics that help explain slow local behavior, blocked 
 
 | Surface | When it appears | Where to inspect it | Best for |
 | --- | --- | --- | --- |
-| `looptroop doctor` | Any time — before the first ticket, or after anything goes wrong | Your terminal | Whether this machine can run LoopTroop at all, and how this copy was installed |
+| `looptroop doctor` | Any time, before the first ticket or after anything goes wrong | Your terminal | Whether this machine can run LoopTroop at all, and how this copy was installed |
 | Runtime stall report | You run `npm run diagnose:stall` while the app is slow or behaving oddly | `tmp/diagnostics/runtime-stall-*.log` | Slow refreshes, missing tickets after reload, OpenCode reachability issues, disk / CPU / memory pressure |
 | Blocked-error diagnostics | A phase ends in `BLOCKED_ERROR` | Ticket error view and persisted error occurrence data | Provider failures, timeouts, session errors, transport failures, model output truncation |
 | Structured retry diagnostics | A structured-output phase rejects one or more model attempts before validating or finally failing | Artifact processing notices and artifact detail views | Why a response was retried, what validation failed, and what excerpt caused the retry |
@@ -48,8 +48,8 @@ failing check prints what to do about it. The floor is **Node 24.18.0 or
 newer**. The `npm` check reports the version it finds and does not hold it to
 a floor.
 
-**Versions are shown against the newest published one** — `v26.7.0 (latest
-v27.1.0)` — for LoopTroop, Node, npm and the OpenCode CLI. For OpenCode,
+**Versions are shown against the newest published one:** `v26.7.0 (latest
+v27.1.0)` for LoopTroop, Node, npm and the OpenCode CLI. For OpenCode,
 Doctor checks the package for the installed major (`opencode-ai` for v1,
 `@opencode/cli` for v2), so it does not suggest a major-version change. When the
 latest lookup is unavailable, the report says `latest unknown` instead of
@@ -69,12 +69,12 @@ it probes the configured base URL.
 `✗` is a failing check. For tool probes, the message underneath tells you which
 kind of problem it is:
 
-- **missing** — `not found on PATH`
-- **refused** — the tool exists, but LoopTroop will not trust that directory or
+- **missing:** `not found on PATH`
+- **refused:** the tool exists, but LoopTroop will not trust that directory or
   real path
-- **timed out** — ``<tool> --version`` or a similar probe did not answer within
+- **timed out:** ``<tool> --version`` or a similar probe did not answer within
   its deadline
-- **degraded** — the tool answered, but something around it is still wrong, such
+- **degraded:** the tool answered, but something around it is still wrong, such
   as `gh auth` not being signed in
 
 A refused tool is not the same as a missing one. If the directory is genuinely
@@ -93,10 +93,10 @@ the Node executable having the same unverifiable owner does not grant trust.
 > same formatting is used by `status`, `open`, and `setup`, so the displayed
 > origin is a usable URL.
 
-`git` is required and `gh` is not: a missing `git` fails the run, a missing `gh`
-only warns, because `gh` is needed for the pull-request step at the end of a
-ticket and nothing before it. A missing `gh` still prints `✗` — the mark
-describes what is there, the severity decides the exit code.
+`git` is required and `gh` is not: a missing `git` fails the run, while a
+missing `gh` only warns because `gh` is needed for the pull-request step at the
+end of a ticket and nothing before it. A missing `gh` still prints `✗`; the
+mark describes what is there, and the severity decides the exit code.
 
 > [!NOTE]
 > **`doctor` exits non-zero when any check fails.** That is what makes it usable
@@ -119,14 +119,13 @@ checks disappear.
 
 `update` contains current/latest versions, update availability, install channel,
 ordered upgrade commands, and the latest release's version, name, URL, and
-publication date. The release body is left out here — it is prose, often
-several kilobytes of it; `GET /api/health/update` returns it in full for the
+publication date. The release body is left out here because it is prose, often
+several kilobytes long. `GET /api/health/update` returns it in full for the
 interface to render.
 
 ### The install check
 
-The install-method check is not about whether LoopTroop runs — it is about which
-copy this is:
+The install-method check reports which copy this is, independently of whether LoopTroop runs:
 
 ```text
 ✓ install method  npm
@@ -141,9 +140,9 @@ not upgrade it, it installs a second copy under npm's prefix. See
 
 The channel is worked out from where the files landed, and recorded so the answer
 is stable. Some installers state it outright by leaving a marker file; the rest
-are inferred from the install path. The answer can legitimately be **unknown** —
-an archive unpacked by hand has no evidence to read — and in that case the advice
-is generic rather than confidently wrong.
+are inferred from the install path. The answer can legitimately be **unknown**:
+an archive unpacked by hand has no evidence to read. In that case the advice is
+generic rather than confidently wrong.
 
 Doctor always shows the current and latest known versions. Release discovery uses
 the latest published stable GitHub release, with a 15-minute cache shared by the
@@ -157,17 +156,17 @@ This screen means the daemon refused this browser's session. It is not a broken
 install, and there are four reasons it appears, with different fixes.
 
 **You opened the origin, not the sign-in link.** `looptroop open` prints
-`Opened http://127.0.0.1:3000` — the address, deliberately without the
-single-use nonce that actually signs a browser in, because that nonce is a live
-credential and this line ends up in scrollback and screenshots. Opening that
-address by hand therefore always lands here. Use the tab `looptroop open`
-itself opens, or `looptroop open --print-url` to get a link you can paste.
+`Opened http://127.0.0.1:3000`, which is the address without the single-use nonce that
+actually signs a browser in. The nonce is a live credential, and this line ends
+up in scrollback and screenshots. Opening that address by hand therefore
+always lands here. Use the tab `looptroop open` itself opens, or
+`looptroop open --print-url` to get a link you can paste.
 
 **No browser opened at all.** Over SSH, in WSL, in a fresh virtual machine, or on
 a machine with nothing registered for `http`, there may be no browser for
-`looptroop open` to launch. Since 0.5.7 it notices — it waits for the browser to
-sign in, and prints the sign-in link itself when none does. To ask for that link
-without an attempt:
+`looptroop open` to launch. Since 0.5.7, it waits for the browser to sign in and
+prints the sign-in link itself when none does. To ask for that link without an
+attempt:
 
 ```bash
 looptroop open --print-url
@@ -218,13 +217,13 @@ The diagnostic script runs on **Linux**, **WSL2**, **macOS**, and **Windows**.
 
 | Feature | Linux/WSL | macOS | Windows |
 | --- | --- | --- | --- |
-| Process `/proc` inspection | ✅ | — | — |
-| Pressure-stall metrics | ✅ | — | — |
-| Cgroup resource snapshot | ✅ | — | — |
+| Process `/proc` inspection | ✅ | - | - |
+| Pressure-stall metrics | ✅ | - | - |
+| Cgroup resource snapshot | ✅ | - | - |
 | TCP stats | ✅ (`ss`) | ✅ (`netstat`) | ✅ (`netstat`) |
-| FD limits | ✅ | ✅ | — |
-| Zombie process count | ✅ | ✅ | — |
-| `vm_stat` / `top` integration | — | ✅ | — |
+| FD limits | ✅ | ✅ | - |
+| Zombie process count | ✅ | ✅ | - |
+| `vm_stat` / `top` integration | - | ✅ | - |
 | Shell baseline | bash / sh | bash / sh | PowerShell |
 
 Platform-specific sections that are unavailable simply show as unavailable or `n/a`; the report still runs.
@@ -233,15 +232,15 @@ Platform-specific sections that are unavailable simply show as unavailable or `n
 
 The report combines several layers of evidence:
 
-- **Environment and startup context** — resolved ports, candidate/listener PIDs, backend env snapshot, watcher context, shell startup latency, and focused ticket path resolution.
-- **Endpoint probes** — frontend, backend health, startup status, projects, tickets, and OpenCode reachability.
-- **Short repeated samples** — repeated backend and ticket probes to confirm whether the app was actually stalled during capture.
-- **Runtime trend window** — by default a 3-minute trend that samples backend health, `/api/tickets`, watched-process CPU/RSS/I/O, Linux pressure deltas, app/project DB and log growth, and trend-wide whole-system read/write/RSS/CPU leaders.
-- **Process activity** — backend, frontend, and OpenCode memory snapshots, wait state, thread count, FD count, and I/O counters.
-- **System resource state** — load, memory, pressure-stall metrics, cgroup state, `vmstat`, disk stats, and top resource consumers.
-- **Storage and project state** — mount type, free space, inode usage, filesystem latency, SQLite / WAL / SHM sizes, project ticket/session state, and Git responsiveness.
-- **Focused ticket runtime sizing** — when `--ticket-path` is supplied, the report also tracks runtime log growth, largest runtime subdirectories, and large artifact files such as build outputs.
-- **Advanced probes** — event-loop lag, localhost DNS probe, TCP states, zombie process count, swap pressure, and a diagnostic heap snapshot.
+- **Environment and startup context:** resolved ports, candidate/listener PIDs, backend env snapshot, watcher context, shell startup latency, and focused ticket path resolution.
+- **Endpoint probes:** frontend, backend health, startup status, projects, tickets, and OpenCode reachability.
+- **Short repeated samples:** repeated backend and ticket probes to confirm whether the app was actually stalled during capture.
+- **Runtime trend window:** by default a 3-minute trend that samples backend health, `/api/tickets`, watched-process CPU/RSS/I/O, Linux pressure deltas, app/project DB and log growth, and trend-wide whole-system read/write/RSS/CPU leaders.
+- **Process activity:** backend, frontend, and OpenCode memory snapshots, wait state, thread count, FD count, and I/O counters.
+- **System resource state:** load, memory, pressure-stall metrics, cgroup state, `vmstat`, disk stats, and top resource consumers.
+- **Storage and project state:** mount type, free space, inode usage, filesystem latency, SQLite / WAL / SHM sizes, project ticket/session state, and Git responsiveness.
+- **Focused ticket runtime sizing:** when `--ticket-path` is supplied, the report also tracks runtime log growth, largest runtime subdirectories, and large artifact files such as build outputs.
+- **Advanced probes:** event-loop lag, localhost DNS probe, TCP states, zombie process count, swap pressure, and a diagnostic heap snapshot.
 
 ### 2.3 Useful Flags
 
@@ -270,15 +269,15 @@ npm run diagnose:stall -- --backend-port 3001 --frontend-port 5175 --opencode-ur
 
 The top-level sections map directly to the report banners:
 
-- **🔍 ENVIRONMENT & CONFIGURATION** — resolved ports, detected PIDs, backend env vars, shell latency baseline, and focused ticket path resolution.
-- **🌐 NETWORK & ENDPOINT HEALTH** — current HTTP probe results for frontend, backend, ticket/project routes, startup status, and OpenCode.
-- **🔁 REPEATED RUNTIME SAMPLES** — repeated backend/ticket probes plus the longer `Runtime Observation Trend` output.
-- **⚙️ APPLICATION PROCESS ACTIVITY** — backend/frontend/OpenCode candidate processes, memory snapshots, open files, and per-process CPU / I/O samples.
-- **💻 SYSTEM RESOURCES** — pressure, memory, uptime, and whole-system top CPU / RSS / read / write consumers.
-- **💾 STORAGE, MOUNTS & FILESYSTEM** — mount details, disk and inode usage, filesystem latency, and optional focused ticket-runtime sizing.
-- **🗄️ DATABASE & PROJECT STATE** — app DB pathing, project DB/WAL state, recent ticket/session state, and execution-log tailing.
-- **🔀 GIT RESPONSIVENESS** — `git status`, Trace2 perf output, branch resolution, and other responsiveness checks for attached repos.
-- **🧬 ADVANCED DIAGNOSTICS** — event-loop lag, DNS, TCP state counts, zombie counts, swap pressure, and diagnostic heap output.
+- **🔍 ENVIRONMENT & CONFIGURATION:** resolved ports, detected PIDs, backend env vars, shell latency baseline, and focused ticket path resolution.
+- **🌐 NETWORK & ENDPOINT HEALTH:** current HTTP probe results for frontend, backend, ticket/project routes, startup status, and OpenCode.
+- **🔁 REPEATED RUNTIME SAMPLES:** repeated backend/ticket probes plus the longer `Runtime Observation Trend` output.
+- **⚙️ APPLICATION PROCESS ACTIVITY:** backend/frontend/OpenCode candidate processes, memory snapshots, open files, and per-process CPU / I/O samples.
+- **💻 SYSTEM RESOURCES:** pressure, memory, uptime, and whole-system top CPU / RSS / read / write consumers.
+- **💾 STORAGE, MOUNTS & FILESYSTEM:** mount details, disk and inode usage, filesystem latency, and optional focused ticket-runtime sizing.
+- **🗄️ DATABASE & PROJECT STATE:** app DB pathing, project DB/WAL state, recent ticket/session state, and execution-log tailing.
+- **🔀 GIT RESPONSIVENESS:** `git status`, Trace2 perf output, branch resolution, and other responsiveness checks for attached repos.
+- **🧬 ADVANCED DIAGNOSTICS:** event-loop lag, DNS, TCP state counts, zombie counts, swap pressure, and diagnostic heap output.
 
 For intermittent issues, save at least one report from a healthy moment and one from a slow moment. The diff between the two is usually more useful than either report alone.
 

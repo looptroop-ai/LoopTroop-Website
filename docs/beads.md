@@ -456,7 +456,7 @@ The response enforcement distinguishes:
 
 That prevents the executor from confusing formatting errors with genuine implementation failure.
 
-This keeps command execution language-agnostic while making project-specific failures—such as unsupported flags, missing tools, or service startup errors—actionable without requiring LoopTroop to infer how the project should be run.
+This keeps command execution language-agnostic while making project-specific failures, such as unsupported flags, missing tools, or service startup errors, actionable without requiring LoopTroop to infer how the project should be run.
 
 ---
 
@@ -678,7 +678,7 @@ Each QA bead has typed `qaOrigin` containing the Manual QA version, all source i
 
 Scheduling, execution, commits, metrics, retry/reset behavior, and final tests remain the standard bead pipeline. Before the first QA bead, Manual QA generation has already checkpointed accepted final-test effects and classified generated/cache/setup-local residue as local-only. Those files remain available to tools and tests, while exact candidate staging prevents a fix bead from sweeping them into its commit. When all QA-fix beads finish, the ticket receives a fresh final-test attempt and, on success, a new checklist version.
 
-Image evidence is handled through OpenCode SDK file parts. If the locked model advertises image input, all detected image files for the bead are attached with no additional prompt-size cap; non-images remain referenced. A false/unavailable capability records `references_only`. Provider/context overflow follows normal bead error recovery—LoopTroop does not silently omit selected images.
+Image evidence is handled through OpenCode SDK file parts. If the locked model advertises image input, all detected image files for the bead are attached with no additional prompt-size cap; non-images remain referenced. A false/unavailable capability records `references_only`. Provider/context overflow follows normal bead error recovery; LoopTroop does not silently omit selected images.
 
 ---
 

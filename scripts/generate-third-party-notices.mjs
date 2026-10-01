@@ -204,7 +204,7 @@ function renderPackagesTableSection(packages) {
     '| --- | --- | --- | --- |',
   ]
   for (const entry of packages) {
-    const copyright = entry.copyright ? entry.copyright.replace(PIPE_REGEX, '\\|') : '—'
+    const copyright = entry.copyright ? entry.copyright.replace(PIPE_REGEX, '\\|') : '-'
     lines.push(`| \`${entry.name}\` | ${entry.version} | ${entry.license} | ${copyright} |`)
   }
   lines.push('')

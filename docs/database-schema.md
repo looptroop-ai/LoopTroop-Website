@@ -1,7 +1,7 @@
 # Database Schema
 
 > [!IMPORTANT]
-> **TL;DR** — LoopTroop persists durable state in two SQLite databases plus ticket-owned files: one app DB for global settings and attached-project identity, one per-project DB for workflow records, and `.ticket/**` files for review documents, logs, and runtime/recovery metadata.
+> **TL;DR:** LoopTroop persists durable state in two SQLite databases plus ticket-owned files: one app DB for global settings and attached-project identity, one per-project DB for workflow records, and `.ticket/**` files for review documents, logs, and runtime/recovery metadata.
 
 LoopTroop does **not** treat model transcripts as source of truth. Durable workflow state is split deliberately:
 
@@ -222,13 +222,13 @@ This table is the durable operation journal for a final Manual QA Submit or Skip
 
 Columns:
 
-- `id` — auto-incrementing primary key
-- `ticket_id` — source ticket foreign key with cascade deletion
-- `action_id` — caller-stable idempotency identity
-- `version` — checklist round reserved by the operation
-- `checklist_hash` and `draft_revision` — immutable optimistic-concurrency guards
-- `state` — durable journal stage (initially `staged`, then advanced as results, improvements, beads, receipts, and transition effects become durable)
-- `payload` — serialized operation/journal data used to resume incomplete stages
+- `id`: auto-incrementing primary key
+- `ticket_id`: source ticket foreign key with cascade deletion
+- `action_id`: caller-stable idempotency identity
+- `version`: checklist round reserved by the operation
+- `checklist_hash` and `draft_revision`: immutable optimistic-concurrency guards
+- `state`: durable journal stage (initially `staged`, then advanced as results, improvements, beads, receipts, and transition effects become durable)
+- `payload`: serialized operation/journal data used to resume incomplete stages
 - `created_at`, `updated_at`
 
 `(ticket_id, action_id)` has a unique index. A retry with the same identity resumes the existing state; it cannot create a second operation for that ticket/action pair or silently change the guarded checklist/draft.
@@ -241,10 +241,10 @@ This table maps one deterministic Manual QA Improvement origin to exactly one Dr
 
 Columns:
 
-- `id` — auto-incrementing primary key
-- `origin_id` — deterministic, globally unique improvement origin
-- `destination_ticket_id` — created Draft ticket foreign key with cascade deletion
-- `action_id` — parent submission identity
+- `id`: auto-incrementing primary key
+- `origin_id`: deterministic, globally unique improvement origin
+- `destination_ticket_id`: created Draft ticket foreign key with cascade deletion
+- `action_id`: parent submission identity
 - `created_at`
 
 `origin_id` is unique. The mapping is created in the same SQLite transaction as the Draft child ticket, so a restart after database creation but before filesystem provenance/evidence writes finds the same child and repairs the missing receipts instead of creating a duplicate.
@@ -262,8 +262,8 @@ This table is the one durable lock that says an interview answer batch is being 
 
 Columns:
 
-- `ticket_id` — primary key and ticket foreign key with cascade deletion
-- `token` — claim identity, used to distinguish one acquisition from a later replacement
+- `ticket_id`: primary key and ticket foreign key with cascade deletion
+- `token`: claim identity, used to distinguish one acquisition from a later replacement
 - `claimed_at`
 - `expires_at`
 
@@ -271,7 +271,7 @@ Operational notes:
 
 - `ticket_id` being the primary key means there can be only one live claim row per ticket
 - `token` identifies the holder, so a stale process cannot release a claim that expired and was reacquired by someone else
-- `expires_at` makes crash recovery self-healing: a foreign claim can be reclaimed once its ordinary lease expires—the fallback when liveness cannot be checked—and a recorded PID proven gone is a separate conservative reclaim path
+- `expires_at` makes crash recovery self-healing: a foreign claim can be reclaimed once its ordinary lease expires (the fallback when liveness cannot be checked), and a recorded PID proven gone is a separate conservative reclaim path
 - A live lease protects live, invalid, or otherwise unverified owners. A non-expiring pending-stop marker is separate safety ownership and takes precedence over ordinary lease expiry until the matching remote stop is confirmed, so a delayed timeout cannot reclaim a newer batch.
 
 ### `ticket_phase_attempts`
@@ -373,18 +373,18 @@ Columns:
 
 - `ticket_id`
 - `bead_id`
-- `size_bucket` — ticket size class by total bead count (`S` 1-5, `M` 6-12, `L` 13+)
-- `effort_tier` — the ticket's locked main-implementer reasoning variant (e.g. `medium`)
-- `iterations` — attempts including retries
-- `active_duration_ms` — bead completion time, excluding windows where the ticket was outside `CODING` and any time spent waiting on an answer to an AI question
-- `wall_clock_ms` — `completed_at - started_at` (diagnostic only)
+- `size_bucket`: ticket size class by total bead count (`S` 1 to 5, `M` 6 to 12, `L` 13+)
+- `effort_tier`: the ticket's locked main-implementer reasoning variant (e.g. `medium`)
+- `iterations`: attempts including retries
+- `active_duration_ms`: bead completion time, excluding windows where the ticket was outside `CODING` and any time spent waiting on an answer to an AI question
+- `wall_clock_ms`: `completed_at - started_at` (diagnostic only)
 - `completed_at`
 - `schema_version`
-- `input_tokens`, `output_tokens`, `cost_usd` — **reserved** for the future Cost Management feature; nullable and intentionally left unset by the ETA feature
+- `input_tokens`, `output_tokens`, `cost_usd`: **reserved** for the future Cost Management feature; nullable and intentionally left unset by the ETA feature
 
 Operational notes:
 
-- `active_duration_ms` is measured from bead start to bead completion, minus any window the ticket spent outside `CODING` and minus any time it spent waiting for a human answer to an AI question; this keeps local finalization in the ETA because the forecast represents time until the bead is actually complete, while keeping a wait for a person out of it — a question does not change the ticket's status, so without `question_waits` the wait would be indistinguishable from coding and would train the forecast on throughput that never happened
+- `active_duration_ms` is measured from bead start to bead completion, minus any window the ticket spent outside `CODING` and minus any time it spent waiting for a human answer to an AI question. This keeps local finalization in the ETA because the forecast represents time until the bead is actually complete. It also keeps a wait for a person out of the ETA: a question does not change the ticket's status, so without `question_waits` the wait would be indistinguishable from coding and would train the forecast on throughput that never happened.
 - rows with no usable timing (`active_duration_ms <= 0`) are skipped so they cannot poison future medians
 - ETA is computed **read-time** in `buildRuntime` from these rows (rich bucketed history with a `(size+effort) -> effort -> any` fallback, current-run samples while the ticket is building its own signal, sparse history before the hardcoded default); nothing about the forecast itself is persisted
 - the reserved token/cost columns let Cost Management extend the same per-bead record later without changing existing readers

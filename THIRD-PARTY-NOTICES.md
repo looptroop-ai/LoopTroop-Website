@@ -264,14 +264,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 | `@docsearch/css` | 3.8.2 | MIT | Algolia, Inc. |
 | `@docsearch/js` | 3.8.2 | MIT | Algolia, Inc. |
 | `@docsearch/react` | 3.8.2 | MIT | Algolia, Inc. |
-| `@esbuild/linux-x64` | 0.25.12 | MIT | — |
-| `@iconify-json/simple-icons` | 1.2.93 | CC0-1.0 | — |
+| `@esbuild/linux-x64` | 0.25.12 | MIT | - |
+| `@iconify-json/simple-icons` | 1.2.93 | CC0-1.0 | - |
 | `@iconify/types` | 2.0.0 | MIT | Copyright (c) 2021 - 2022 Vjacheslav Trushkin / Iconify OÜ |
 | `@iconify/utils` | 3.1.4 | MIT | Copyright (c) 2021-PRESENT Vjacheslav Trushkin |
 | `@jridgewell/sourcemap-codec` | 1.5.5 | MIT | Copyright 2024 Justin Ridgewell <justin@ridgewell.name> |
 | `@kurkle/color` | 0.3.4 | MIT | Copyright (c) 2018-2024 Jukka Kurkela |
 | `@mermaid-js/parser` | 1.2.0 | MIT | Copyright (c) 2023 Yokozuna59 |
-| `@napi-rs/lzma-linux-x64-gnu` | 1.5.1 | MIT | — |
+| `@napi-rs/lzma-linux-x64-gnu` | 1.5.1 | MIT | - |
 | `@rollup/rollup-linux-x64-gnu` | 4.62.4 | MIT | Lukas Taegert-Atkinson |
 | `@shikijs/core` | 2.5.0 | MIT | Copyright (c) 2021 Pine Wu |
 | `@shikijs/engine-javascript` | 2.5.0 | MIT | Copyright (c) 2021 Pine Wu |
@@ -404,7 +404,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 | `es-toolkit` | 1.50.0 | MIT | Copyright (c) 2024 Viva Republica, Inc. |
 | `esbuild` | 0.25.12 | MIT | Copyright (c) 2020 Evan Wallace |
 | `estree-walker` | 2.0.2 | MIT | Copyright (c) 2015-20 [these people](https://github.com/Rich-Harris/estree-walker/graphs/contributors) |
-| `fdir` | 6.4.4 | MIT | — |
+| `fdir` | 6.4.4 | MIT | - |
 | `focus-trap` | 7.8.0 | MIT | Copyright (c) 2015-2016 David Clark |
 | `hachure-fill` | 0.5.2 | MIT | Copyright (c) 2023 Preet Shihn |
 | `hast-util-to-html` | 9.0.5 | MIT | Copyright (c) Titus Wormer <tituswormer@gmail.com> |
@@ -421,8 +421,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 | `khroma` | 2.1.0 | MIT | Copyright (c) 2019-present Fabio Spampinato, Andrew Maney |
 | `layout-base` | 1.0.2 | MIT | Copyright (c) 2019 iVis@Bilkent |
 | `layout-base` | 2.0.1 | MIT | Copyright (c) 2019 iVis@Bilkent |
-| `lightningcss` | 1.32.0 | MPL-2.0 | — |
-| `lightningcss-linux-x64-gnu` | 1.32.0 | MPL-2.0 | — |
+| `lightningcss` | 1.32.0 | MPL-2.0 | - |
+| `lightningcss-linux-x64-gnu` | 1.32.0 | MPL-2.0 | - |
 | `lodash-es` | 4.18.1 | MIT | John-David Dalton <john.david.dalton@gmail.com> |
 | `magic-string` | 0.30.21 | MIT | Copyright 2018 Rich Harris |
 | `mark.js` | 8.11.1 | MIT | Copyright (c) 2014–2018 Julian Kühnel |

@@ -1,9 +1,9 @@
 # Output Normalization
 
 > [!IMPORTANT]
-> **TL;DR** — LLM outputs are messy. LoopTroop runs every model response through structured parsers, YAML repair rules, and bounded retry loops to extract valid artifacts — never trusting raw model output as-is.
+> **TL;DR:** LLM outputs are messy. LoopTroop runs every model response through structured parsers, YAML repair rules, and bounded retry loops to extract valid artifacts without trusting raw model output as-is.
 
-Every structured artifact that an AI council member produces goes through a normalization pipeline before LoopTroop trusts its content. This page catalogs all automatic repairs, cleanups, and semantic adjustments — what triggers each one and what the pipeline does about it.
+Every structured artifact that an AI council member produces goes through a normalization pipeline before LoopTroop trusts its content. This page catalogs all automatic repairs, cleanups, and semantic adjustments, with the trigger and pipeline response for each one.
 
 Repairs produce `repairWarnings` that are stored on the run record and surfaced in the diagnostics view. A repair being applied never silently discards data; it always records what changed.
 
@@ -48,7 +48,7 @@ Models that receive a conversation history sometimes echo the `[assistant]` / `[
 
 **Trigger:** Lines starting with `[assistant/…]`, `[user]`, `[system]`, `[sys]`, `[tool]`, `[model]`, `[error]` (with optional sub-segments like `[assistant/gpt-4o]`).
 
-**Repair:** Prefixes are stripped from each line before every parse attempt. A line can carry more than one — `[assistant][tool] summary: ...` — and all of them are removed, not just the first. Stopping after the first would leave a line still opening with a bracket, which YAML reads as a list.
+**Repair:** Prefixes are stripped from each line before every parse attempt. A line can carry more than one prefix (for example, `[assistant][tool] summary: ...`), and all of them are removed, not just the first. Stopping after the first would leave a line still opening with a bracket, which YAML reads as a list.
 
 #### Candidate collection from surrounding prose
 
@@ -83,7 +83,7 @@ Some artifacts (e.g. `<BEAD_STATUS>`) use an explicit XML envelope rather than a
 
 Model output piped through a terminal or TTY can accumulate ANSI escape sequences or bracketed-paste control codes at the end.
 
-**Trigger:** Trailing bytes consisting solely of ANSI escape sequences (`ESC[…`), bracketed-paste markers (`[200~` / `[201~`), or non-printable control characters (codes 0–8, 11, 12, 14–31, 127).
+**Trigger:** Trailing bytes consisting solely of ANSI escape sequences (`ESC[…`), bracketed-paste markers (`[200~` / `[201~`), or non-printable control characters (codes 0 to 8, 11, 12, 14 to 31, 127).
 
 **Repair:** For JSON candidates, the trailing noise after the balanced root JSON value is stripped. For YAML candidates, trailing lines that consist entirely of noise characters are dropped. An inline suffix of noise is also stripped.
 
@@ -146,7 +146,7 @@ questions:
 
 **Trigger:** A simple mapping key is emitted without the required space after the colon, e.g. `artifact:interview`, `skipped:false`, or `- id:Q01`. YAML can treat these as plain scalar strings instead of mapping entries.
 
-**Repair:** A single space is inserted after the colon for ordinary mapping lines. A dash-prefixed line is repaired only when its surrounding structure proves that it is a mapping item: it has an indented mapping child, or it uses the configured primary key for a known structured list. Standalone list values containing colons — such as `- style:main`, `- package:version`, URLs, and paths — are preserved exactly. Ambiguous values are left for normal validation and retry rather than being guessed into a different shape.
+**Repair:** A single space is inserted after the colon for ordinary mapping lines. A dash-prefixed line is repaired only when its surrounding structure proves that it is a mapping item: it has an indented mapping child, or it uses the configured primary key for a known structured list. Standalone list values containing colons, such as `- style:main`, `- package:version`, URLs, and paths, are preserved exactly. Ambiguous values are left for normal validation and retry rather than being guessed into a different shape.
 
 **Example:**
 ```yaml
@@ -235,7 +235,7 @@ The shared YAML candidate parser applies this repair to PRD, Beads, relevant-fil
 complete entry.
 
 **Repair:** LoopTroop removes a duplicate only when the **entire entry**
-matches — including nested mappings, lists, multiline scalar bodies, and kept
+matches, including nested mappings, lists, multiline scalar bodies, and kept
 trailing blank lines. Conflicting duplicates remain invalid for the normal
 validation/retry flow, and malformed boundaries are left untouched rather than
 guessing where an entry ends.
@@ -274,7 +274,7 @@ Two sub-cases:
 
 **b) Quoted block-scalar indicator:** A block-scalar indicator like `|-` is incorrectly quoted as `"|-"` or `'|-'`.
 
-**Repair:** The quotes are removed — the indicator is unquoted back to `|-` when the following lines clearly form an indented block body.
+**Repair:** The quotes are removed to unquote the indicator back to `|-` when the following lines clearly form an indented block body.
 
 **Warning:** *Repaired improperly quoted YAML scalar value.*
 
@@ -303,13 +303,13 @@ question: "`repo_git_mutex` behavior?"
 
 #### 19. Sequence entry indent drift repair
 
-**Trigger:** After a block scalar (`>-`, `|`), subsequent sibling list items drift by 1–3 spaces relative to the first item in the sequence.
+**Trigger:** After a block scalar (`>-`, `|`), subsequent sibling list items drift by 1 to 3 spaces relative to the first item in the sequence.
 
 **Repair:** All sibling dashes are normalized to the indent of the first `- ` in each sequence level.
 
 #### 20. Indentation repair
 
-**Trigger:** Property lines inside a list item are indented by the wrong amount (off by 1–2 spaces relative to `dash_indent + 2`).
+**Trigger:** Property lines inside a list item are indented by the wrong amount (off by 1 to 2 spaces relative to `dash_indent + 2`).
 
 **Repair:** Property lines that are clearly siblings of the list item (deeper than the dash, within 2 spaces of the expected indent) are re-indented to `dash_indent + 2`.
 
@@ -589,9 +589,9 @@ A bead with no PRD references is valid but unusual.
 
 The Part 2 expanded bead list (`normalizeBeadsJsonlOutput`) is stricter than the council blueprint subset, but it still performs a few compatibility repairs:
 
-- **Legacy status normalization** — `completed` and `skipped` become `done`; `failed` becomes `error`.
-- **Legacy dependency array handling** — a flat dependency list is treated as `blocked_by`.
-- **Notes array normalization** — `notes` may be emitted as a string array and is collapsed into a newline-joined string.
+- **Legacy status normalization:** `completed` and `skipped` become `done`; `failed` becomes `error`.
+- **Legacy dependency array handling:** a flat dependency list is treated as `blocked_by`.
+- **Notes array normalization:** `notes` may be emitted as a string array and is collapsed into a newline-joined string.
 
 Unlike the council blueprint normalizer, duplicate bead IDs or unknown/self dependencies fail validation here instead of being silently reshaped.
 
@@ -731,7 +731,7 @@ Alias collisions fail instead of choosing one value. Repairs may restore YAML st
 
 PRD criterion refs are validated against the frozen approved PRD after parsing. The canonical form is `<epic-id>/<story-id>/AC-<1-based-index>`, with a required `full | partial` level. `notApplicablePrdRefs` is a unique list of `{ ref, reason }`; reasons must be nonempty, and a ref cannot appear both there and on an item. After validation, coverage is deterministic code: any valid full reference means covered, partial-only means partially covered, an explicit reasoned exclusion means `not_applicable`, and all remaining refs are uncovered. Gaps remain advisory and no second model response is requested.
 
-Manual QA generation records its repair trail the way every other artifact-processing path does, and it is shown on the Manual QA screen itself — where the checks are run — as well as on the generating step's artifact panel. A checklist that validated on the first response shows nothing; one that was repaired or retried carries the same processing notice a repaired PRD or bead set carries, listing the attempts and what each was rejected for. A generation that used up its retries and produced no checklist still shows that trail, because the rejected attempts are what the next move depends on.
+Manual QA generation records its repair trail the way every other artifact-processing path does, and it is shown on the Manual QA screen itself, where the checks are run, as well as on the generating step's artifact panel. A checklist that validated on the first response shows nothing; one that was repaired or retried carries the same processing notice a repaired PRD or bead set carries, listing the attempts and what each was rejected for. A generation that used up its retries and produced no checklist still shows that trail, because the rejected attempts are what the next move depends on.
 
 Application-owned checklist/results YAML is loaded directly with `js-yaml` and validated against its schema; model-output repair is not applied to canonical files. Shared inline-key repair recognizes a mapping colon only when followed by whitespace or end-of-line, preserving scalar IDs such as `manual-qa-submit:<uuid>` and URLs. During model checklist parsing, a narrow context-aware repair may quote YAML-sensitive hex-color text in known prose fields and records a warning; it never invents lost words.
 
@@ -857,10 +857,10 @@ Interventions are classified into six categories, determining their purpose and 
 
 The system tracks which stage in the parsing lifecycle triggered the intervention:
 
-- **`parse`** — Applied before or during the raw parse attempt (e.g., prefix stripping, ANSI code trimming).
-- **`normalize`** — Applied during key-value normalization and type alignment (e.g., zero-padding question IDs to `Q##`).
-- **`semantic_validation`** — Applied when comparing contents against external reference sources or schemas (e.g., verifying expanded beads against a refined blueprint).
-- **`retry`** — Applied when a structured request is repeated following validation failure.
+- **`parse`:** Applied before or during the raw parse attempt (e.g., prefix stripping, ANSI code trimming).
+- **`normalize`:** Applied during key-value normalization and type alignment (e.g., zero-padding question IDs to `Q##`).
+- **`semantic_validation`:** Applied when comparing contents against external reference sources or schemas (e.g., verifying expanded beads against a refined blueprint).
+- **`retry`:** Applied when a structured request is repeated following validation failure.
 
 ### 4.3 UI and Interactive Details
 
@@ -877,7 +877,7 @@ Every repair produces one or more entries in `repairWarnings`. These are stored 
 
 A `repairApplied: true` flag is set on any result where at least one repair warning was generated or where the winning candidate was not the raw output verbatim. This flag drives the amber repair indicator shown in the council log.
 
-Repairs never silently drop required fields — if a required field cannot be recovered after all repairs, the parse fails and the run may be retried with a structured retry prompt that explains the specific validation error, up to the locked `Structured Output Retries` count.
+Repairs never silently drop required fields. If a required field cannot be recovered after all repairs, the parse fails and the run may be retried with a structured retry prompt that explains the specific validation error, up to the locked `Structured Output Retries` count.
 
 Structured retry loops store `rawAttempts` next to the artifact/report detail when model text is available. Each attempt records the attempt number, stage, outcome (`rejected` or `accepted`), raw response, and any validation error or failure class. If a failure happens before any model text exists, the attempt is still recorded diagnostically but without invented output text.
 
@@ -914,23 +914,23 @@ Companion artifacts use a naming convention: `ui_artifact_companion:{baseArtifac
 
 ### 6.3 Where Companions Are Used
 
-Companions are attached to council draft and vote artifacts. They carry UI display hints, rendering metadata, and cross-references that the base artifact schema does not define. The companion is parsed and validated at read time — if the JSON payload is malformed, parsing returns `null` rather than failing the base artifact read.
+Companions are attached to council draft and vote artifacts. They carry UI display hints, rendering metadata, and cross-references that the base artifact schema does not define. The companion is parsed and validated at read time; if the JSON payload is malformed, parsing returns `null` rather than failing the base artifact read.
 
 ### 6.4 Companion Lifecycle
 
-Companions are generated when the council phase produces its primary artifact. They are stored alongside the base artifact in the `phase_artifacts` table. When a new phase attempt archives the previous one, the companion is archived with the base artifact. Companions are never edited independently — they are replaced when the phase runs again.
+Companions are generated when the council phase produces its primary artifact. They are stored alongside the base artifact in the `phase_artifacts` table. When a new phase attempt archives the previous one, the companion is archived with the base artifact. Companions are never edited independently; they are replaced when the phase runs again.
 
 ## 7. Structured Output Schemas
 
 The canonical definitions for all parsers and validators are defined as Zod schemas under `server/structuredOutput/*`:
 
-- `voteOutput.ts` — Validates council voting scorecards.
-- `completionOutput.ts` — Validates bead completion markers, final-test command plans, and execution setup plan/result payloads.
-- `prdOutput.ts` — Validates the PRD layout, epics, user stories, and acceptance criteria.
-- `interviewDocument.ts` — Validates durable interview documents and Full Answers overlays.
-- `beadsOutput.ts` — Validates bead blueprints, expanded beads JSONL, relevant-files payloads, and bead refinement outputs.
-- `refinementChanges.ts` — Validates proposed modification overlays during planning refine phases.
-- `interviewOutput.ts` — Validates interview batches, coverage results, and interview refinement outputs.
+- `voteOutput.ts`: Validates council voting scorecards.
+- `completionOutput.ts`: Validates bead completion markers, final-test command plans, and execution setup plan/result payloads.
+- `prdOutput.ts`: Validates the PRD layout, epics, user stories, and acceptance criteria.
+- `interviewDocument.ts`: Validates durable interview documents and Full Answers overlays.
+- `beadsOutput.ts`: Validates bead blueprints, expanded beads JSONL, relevant-files payloads, and bead refinement outputs.
+- `refinementChanges.ts`: Validates proposed modification overlays during planning refine phases.
+- `interviewOutput.ts`: Validates interview batches, coverage results, and interview refinement outputs.
 
 These modules define the boundary between raw text generation and durable backend state, powering the normalizations detailed above.
 

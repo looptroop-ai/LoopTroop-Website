@@ -3,8 +3,8 @@
 `looptroop` runs LoopTroop as a background service. Installing it puts one
 command on your `PATH`; everything else happens through that.
 
-The commands people use to identify, inspect, or launch LoopTroop —
-`--version`, `status`, `doctor`, `start`, and `open` — check the cached latest
+The commands people use to identify, inspect, or launch LoopTroop
+(`--version`, `status`, `doctor`, `start`, and `open`) check the cached latest
 published GitHub release. Human-readable output adds channel-aware update steps
 only when a newer version exists. The check never installs anything.
 
@@ -15,8 +15,8 @@ from what the command prints.
 
 Every command also documents itself. `looptroop <command> --help`,
 `looptroop <command> help`, and `looptroop <command> "?"` print that command's
-own options, what it does with them, and which commands to reach for instead —
-more than fits in the summary below:
+own options, what it does with them, and which commands to reach for instead.
+That help includes more detail than the summary below:
 
 ```bash
 looptroop open --help
@@ -26,7 +26,7 @@ looptroop doctor "?"
 <!-- generated from server/cli/cli.ts; run npm run sync:cli -->
 
 ```text
-LoopTroop — local AI coding orchestration
+LoopTroop: local AI coding orchestration
 
 Usage: looptroop <command> [options]
 
@@ -60,14 +60,14 @@ Run `looptroop <command> --help`, `looptroop <command> help`, or
 for what a single command does and takes.
 ```
 
-## `start`, `stop`, `restart` — running as a service
+## `start`, `stop`, `restart`: running as a service {#start-stop-restart-—-running-as-a-service}
 
 ```bash
 looptroop start
 ```
 
 `start` detaches from the terminal. The daemon keeps running after the shell
-closes, after you log out, and until something stops it — it is not tied to the
+closes, after you log out, and until something stops it. It is not tied to the
 window you launched it from. It binds `127.0.0.1:3000` and serves both the
 interface and the API from that one address.
 
@@ -91,10 +91,10 @@ details. It remains JSON-only even when an update is available.
 > not look like an abandoned lock. Two daemons sharing one database and one set
 > of worktrees is the failure this prevents.
 
-To run more than one, give each its own configuration directory and port — see
+To run more than one, give each its own configuration directory and port. See
 [Configuration](configuration.md).
 
-## `open` — opening the interface
+## `open`: opening the interface {#open-—-opening-the-interface}
 
 ```bash
 looptroop open
@@ -106,16 +106,16 @@ sent in a request line, so it cannot reach an access log; the browser exchanges
 it for a session cookie that scripts cannot read. There is no way to sign in by
 query string, and no password to set.
 
-Against a daemon that is already running it opens that one — it will not start a
-second. `looptroop start` remains for starting the service without a browser.
+If a daemon is already running, it opens that one. It will not start a second
+daemon. `looptroop start` remains for starting the service without a browser.
 
 Sessions last 12 hours. When one ends the tab says so and names the command that
 signs in again, rather than rendering an interface whose every request is
 refused. Run `looptroop open` again.
 
-Automation uses a bearer token instead — see [API Reference](api-reference.md).
+Automation uses a bearer token instead. See [API Reference](api-reference.md).
 
-## `logs` — reading the daemon log
+## `logs`: reading the daemon log {#logs-—-reading-the-daemon-log}
 
 ```bash
 looptroop logs             # the recent log
@@ -126,7 +126,7 @@ looptroop logs --lines 200
 The log lives in the [configuration directory](configuration.md) and survives
 restarts.
 
-## `doctor` — checking the machine
+## `doctor`: checking the machine {#doctor-—-checking-the-machine}
 
 ```bash
 looptroop doctor
@@ -150,7 +150,7 @@ need to parse the human version line.
 > in a script. On a machine with no OpenCode configured yet, that is expected
 > rather than broken.
 
-## `setup` — attaching a project
+## `setup`: attaching a project {#setup-—-attaching-a-project}
 
 ```bash
 looptroop setup
@@ -166,15 +166,15 @@ clone only** (`local`).
 A project needs to be a git repository with a GitHub `origin`. LoopTroop works in
 git worktrees under `<project>/.looptroop/worktrees/`, never in your checkout.
 
-## `clean` — cleaning up worktrees
+## `clean`: cleaning up worktrees {#clean-—-cleaning-up-worktrees}
 
 ```bash
 looptroop clean           # list what could be removed
 looptroop clean --apply   # actually remove it
 ```
 
-`clean` lists abandoned worktrees — left behind by cancelled or interrupted
-tickets — and removes them only when asked. It is worktree housekeeping, not
+`clean` lists abandoned worktrees left behind by cancelled or interrupted
+tickets and removes them only when asked. It is worktree housekeeping, not
 application-data cleanup: it never touches your configuration, database, logs or
 tickets.
 
@@ -236,8 +236,8 @@ Every command prints its own reason to stderr; nothing fails silently.
 
 ## Which copy is running
 
-If two installations end up on the same machine — the usual cause is running one
-package manager's upgrade command against another's installation — `PATH` order
+If two installations end up on the same machine (usually because one package
+manager's upgrade command was run against another's installation), `PATH` order
 decides which one answers.
 
 ```bash

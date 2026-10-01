@@ -2,9 +2,9 @@
 
 The marketing site and documentation served at [looptroop.ovh](https://www.looptroop.ovh/).
 
-**This repository accepts documentation and website contributions only.** Typos, unclear wording, broken links, missing docs, layout and styling problems — those belong here.
+**This repository accepts documentation and website contributions only.** Typos, unclear wording, broken links, missing docs, layout and styling problems: those belong here.
 
-Everything about the application itself — bugs, crashes, feature requests, the changelog, the source — belongs in the [LoopTroop application repository](https://github.com/looptroop-ai/LoopTroop/issues). Issues opened here about application behavior will be redirected there.
+Everything about the application itself, including bugs, crashes, feature requests, the changelog, and source, belongs in the [LoopTroop application repository](https://github.com/looptroop-ai/LoopTroop/issues). Issues opened here about application behavior will be redirected there.
 
 ## Working on the docs
 

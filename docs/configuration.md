@@ -1,7 +1,7 @@
 # Configuration Reference
 
 > [!IMPORTANT]
-> **TL;DR** — Most runtime behavior — council size, retry budgets, timeouts, quorum rules, and model selection — is configurable through the UI settings panel. Defaults are tuned for overnight runs; adjust them to match your provider limits and cost tolerance.
+> **TL;DR**: Most runtime behavior, including council size, retry budgets, timeouts, quorum rules, and model selection, is configurable through the UI settings panel. Defaults are tuned for overnight runs; adjust them to match your provider limits and cost tolerance.
 
 The singleton profile is the baseline configuration, accessible through the **Configuration** button in the LoopTroop UI. You do not need to restart the server after editing it, but settings are not all consumed at the same moment: some are frozen when a ticket starts, while others are read later at phase or session boundaries.
 
@@ -17,7 +17,7 @@ The singleton profile is the baseline configuration, accessible through the **Co
 ## Where LoopTroop Keeps Its State
 
 Everything an installation owns lives in one directory, outside the installation
-itself — so upgrading, reinstalling, or switching channels does not lose it:
+itself, so upgrading, reinstalling, or switching channels does not lose it:
 
 | Platform | Path |
 | --- | --- |
@@ -31,12 +31,12 @@ session state are written `0600`.
 | File | What it is | Safe to delete? |
 | --- | --- | --- |
 | `config.json` | Your settings. The only file here meant to be edited by hand. | Resets settings to defaults |
-| `app.sqlite` | Projects, tickets and workflow state. The `-wal` and `-shm` files beside it belong to SQLite. | No — this is your work |
+| `app.sqlite` | Projects, tickets and workflow state. The `-wal` and `-shm` files beside it belong to SQLite. | No: this is your work |
 | `daemon.json` | Where the running daemon is: host, port, process id, and the token the interface authenticates with. Written at start, cleared at stop. | Yes, when nothing is running |
 | `daemon.lock` | Held for the lifetime of the daemon, so a second one cannot start against the same directory. | Yes, when nothing is running |
 | `logs/` | What `looptroop logs` reads. | Yes |
-| `update-check.json` | The last published LoopTroop release seen, and when it was last looked for. | Yes — costs one lookup |
-| `tool-versions.json` | The newest published Node, npm and OpenCode versions, behind the comparison `doctor` prints. | Yes — costs one lookup |
+| `update-check.json` | The last published LoopTroop release seen, and when it was last looked for. | Yes: costs one lookup |
+| `tool-versions.json` | The newest published Node, npm and OpenCode versions, behind the comparison `doctor` prints. | Yes: costs one lookup |
 | `opencode/` | State for an OpenCode that LoopTroop started, kept apart from one you run yourself. | Yes, when nothing is running |
 
 Both caches record the time of the last *attempt*, failures included, so an
@@ -63,10 +63,10 @@ one flat list.
 | Setting | `config.json` key | Environment | Flag | Default |
 | --- | --- | --- | --- | --- |
 | Port | `port` | `LOOPTROOP_BACKEND_PORT` | `--port` | `3000` |
-| Log level | `logLevel` | `LOOPTROOP_LOG_LEVEL` | — | `info` |
-| OpenCode address | `opencodeBaseUrl` | `LOOPTROOP_OPENCODE_BASE_URL` | — | `http://127.0.0.1:4096` |
-| OpenCode mode | `opencodeMode` | `LOOPTROOP_OPENCODE_MODE` | — | `live` |
-| Public browser origin (current behavior) | `publicOrigin` | `LOOPTROOP_PUBLIC_ORIGIN` | — | Unset |
+| Log level | `logLevel` | `LOOPTROOP_LOG_LEVEL` | - | `info` |
+| OpenCode address | `opencodeBaseUrl` | `LOOPTROOP_OPENCODE_BASE_URL` | - | `http://127.0.0.1:4096` |
+| OpenCode mode | `opencodeMode` | `LOOPTROOP_OPENCODE_MODE` | - | `live` |
+| Public browser origin (current behavior) | `publicOrigin` | `LOOPTROOP_PUBLIC_ORIGIN` | - | Unset |
 
 Resolved elsewhere, and **not** through that chain:
 
@@ -76,7 +76,7 @@ Resolved elsewhere, and **not** through that chain:
 | `LOOPTROOP_APP_DB_PATH` | Moves the application database. |
 | `LOOPTROOP_ALLOW_REMOTE_API` | Permits a non-loopback bind. Requires a token as well. |
 | `LOOPTROOP_BACKEND_HOST` | The bind address, once the above allows one. |
-| `LOOPTROOP_API_TOKEN` | Authorises the wider bind. **Not** the token the API accepts — see [API Reference](api-reference.md). |
+| `LOOPTROOP_API_TOKEN` | Authorises the wider bind. It is **not** the token the API accepts. See [API Reference](api-reference.md). |
 | `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS` | Extra directories to look in for `git`, `gh`, `opencode` and the rest, ahead of `PATH`. See below. |
 
 ### Where LoopTroop looks for its tools
@@ -95,11 +95,11 @@ An extensionless Windows path is resolved through the executable siblings listed
 by `PATHEXT`, in that order, before the normal path trust checks run. The
 extensionless file itself is never run.
 
-Now, that search uses only `.exe`, `.com`, `.cmd` and `.bat`
+That search uses only `.exe`, `.com`, `.cmd` and `.bat`
 entries. Scripts that need another interpreter, such as `.ps1` or `.vbs`, no
 longer hide a supported executable later in `PATHEXT`.
 
-Now, an unmapped Linux owner does not establish trust. The same
+An unmapped Linux owner does not establish trust. The same
 overflow UID can represent host root or a different host user, so LoopTroop
 cannot use it to verify ownership. This also applies when Node's own executable
 has that owner. If you trust the tool's directory, name that absolute directory
@@ -114,8 +114,7 @@ trusted owner, the binary and directory chain are not writable by group or
 others, and the binary is protected inside a private directory (such as `/root`
 or `~` with mode `0700` denying group and other traversal; mode `0555` alone or
 sticky directories like `/tmp` are not excused). Sibling binaries in that
-directory must still pass normal ownership checks. Now, this
-exception does not accept an unmapped owner; that still needs an explicit
+directory must still pass normal ownership checks. This exception does not accept an unmapped owner; that still needs an explicit
 trusted-directory setting.
 
 If a tool lives somewhere else on purpose, for example a toolchain owned by a
@@ -191,7 +190,7 @@ API or browser-session token minted by the daemon and recorded in owner-only
 daemon state. See [API Reference](api-reference.md) for the credentials used by
 callers after the daemon starts.
 
-Now, remote browser sessions require one explicit HTTPS origin
+Remote browser sessions require one explicit HTTPS origin
 in `LOOPTROOP_PUBLIC_ORIGIN` or the `publicOrigin` setting. It must be an origin,
 not a URL with credentials, a route, query, or fragment. Enable remote API access
 for the browser-facing deployment; the backend can still bind to loopback and
@@ -332,7 +331,7 @@ This is meant to answer three quick questions without opening logs or artifacts:
 
 ## Prompts
 
-Prompts are configured separately from the profile, through the **Prompts** button in the top-right header (route `/prompts`). Unlike profile settings, prompt edits are stored as YAML files on disk under `<config dir>/templates` — one file per prompt — rather than in the application database.
+Prompts are configured separately from the profile, through the **Prompts** button in the top-right header (route `/prompts`). Unlike profile settings, prompt edits are stored as YAML files on disk under `<config dir>/templates` (one file per prompt) rather than in the application database.
 
 Prompt edits are read when a phase builds its prompt, so a save applies to runs started afterwards; a phase already in flight keeps the prompt it was launched with. A corrupt or invalid template file never blocks a run: LoopTroop falls back to the built-in default for that prompt and reports it as a warning banner in the Prompts screen.
 
@@ -343,29 +342,29 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | Setting | Default | Range | Group | Read timing |
 | --- | --- | --- | --- | --- |
 | [Main Implementer Model](#main-implementer-model) | _(required)_ | any available model | AI Models | ticket start lock |
-| [Council Members](#council-members) | _(required, 1–3 additional)_ | any available models | AI Models | ticket start lock |
-| [OpenCode Retry Limit](#opencode-retry-limit) | 10 | 0–50 | OpenCode Provider Recovery | next OpenCode prompt/session |
-| [OpenCode Retry Grace Window](#opencode-retry-grace-window) | 60 s | 0–3600 s | OpenCode Provider Recovery | next OpenCode prompt/session |
-| [OpenCode Max Steps](#opencode-max-steps) | 0 (no limit) | 0–500 | OpenCode Provider Recovery | next coding/final-test session |
-| [AI Response Timeout](#ai-response-timeout) | 1200 s | 10–3600 s | AI Thinking | next planning/final-test model phase |
-| [Min Council Quorum](#min-council-quorum) | 2 | 1–4 | AI Thinking | next planning phase |
-| [Max Interview Questions](#max-interview-questions) | 50 | 0–50 | AI Thinking | ticket start lock |
-| [Structured Output Retries](#structured-output-retries) | 1 | 0–5 | AI Thinking | ticket start lock |
+| [Council Members](#council-members) | _(required, 1 to 3 additional)_ | any available models | AI Models | ticket start lock |
+| [OpenCode Retry Limit](#opencode-retry-limit) | 10 | 0 to 50 | OpenCode Provider Recovery | next OpenCode prompt/session |
+| [OpenCode Retry Grace Window](#opencode-retry-grace-window) | 60 s | 0 to 3600 s | OpenCode Provider Recovery | next OpenCode prompt/session |
+| [OpenCode Max Steps](#opencode-max-steps) | 0 (no limit) | 0 to 500 | OpenCode Provider Recovery | next coding/final-test session |
+| [AI Response Timeout](#ai-response-timeout) | 1200 s | 10 to 3600 s | AI Thinking | next planning/final-test model phase |
+| [Min Council Quorum](#min-council-quorum) | 2 | 1 to 4 | AI Thinking | next planning phase |
+| [Max Interview Questions](#max-interview-questions) | 50 | 0 to 50 | AI Thinking | ticket start lock |
+| [Structured Output Retries](#structured-output-retries) | 1 | 0 to 5 | AI Thinking | ticket start lock |
 | [AI Questions](#ai-questions) | On | On / Off | AI Questions | ticket start lock |
-| [AI Question Wait](#ai-question-wait) | 300 s | 60–3600 s | AI Questions | ticket start lock |
-| [Coverage Follow-Up Budget](#coverage-follow-up-budget) | 20 % | 0–100 % | Coverage | ticket start lock |
-| [Interview Coverage Passes](#interview-coverage-passes) | 2 | 1–10 | Coverage | ticket start lock |
-| [PRD Coverage Passes](#prd-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
-| [Beads Coverage Passes](#beads-coverage-passes) | 5 | 2–20 | Coverage | ticket start lock |
+| [AI Question Wait](#ai-question-wait) | 300 s | 60 to 3600 s | AI Questions | ticket start lock |
+| [Coverage Follow-Up Budget](#coverage-follow-up-budget) | 20 % | 0 to 100 % | Coverage | ticket start lock |
+| [Interview Coverage Passes](#interview-coverage-passes) | 2 | 1 to 10 | Coverage | ticket start lock |
+| [PRD Coverage Passes](#prd-coverage-passes) | 5 | 2 to 20 | Coverage | ticket start lock |
+| [Beads Coverage Passes](#beads-coverage-passes) | 5 | 2 to 20 | Coverage | ticket start lock |
 | [Manual QA](#manual-qa) | enabled | enabled / disabled | Advanced | ticket start lock |
 | [Git Hook Policy](#git-hook-policy) | Check | Observe / Check / Require / Run | Advanced | ticket start lock |
 | [LoopTroop Folder Ignore Policy](#looptroop-folder-ignore-policy) | This clone | Repository / This clone / Nowhere | Advanced | project attachment |
-| [Per-Iteration Timeout](#per-iteration-timeout) | 1200 s | 0–3600 s | Implementation & Workspace Setup | next coding/final-test attempt |
-| [Execution Setup Timeout](#execution-setup-timeout) | 1200 s | 0–3600 s | Implementation & Workspace Setup | next execution-setup attempt |
-| [Max Bead Retries](#max-bead-retries) | 5 | 0–20 | Implementation & Workspace Setup | next execution/final-test attempt |
-| [Tool Input Max Chars](#tool-input-max-chars) | 4,000 | 500–50,000 | Logging | live log formatting (cached briefly) |
-| [Tool Output Max Chars](#tool-output-max-chars) | 12,000 | 1,000–100,000 | Logging | live log formatting (cached briefly) |
-| [Tool Error Max Chars](#tool-error-max-chars) | 6,000 | 500–50,000 | Logging | live log formatting (cached briefly) |
+| [Per-Iteration Timeout](#per-iteration-timeout) | 1200 s | 0 to 3600 s | Implementation & Workspace Setup | next coding/final-test attempt |
+| [Execution Setup Timeout](#execution-setup-timeout) | 1200 s | 0 to 3600 s | Implementation & Workspace Setup | next execution-setup attempt |
+| [Max Bead Retries](#max-bead-retries) | 5 | 0 to 20 | Implementation & Workspace Setup | next execution/final-test attempt |
+| [Tool Input Max Chars](#tool-input-max-chars) | 4,000 | 500 to 50,000 | Logging | live log formatting (cached briefly) |
+| [Tool Output Max Chars](#tool-output-max-chars) | 12,000 | 1,000 to 100,000 | Logging | live log formatting (cached briefly) |
+| [Tool Error Max Chars](#tool-error-max-chars) | 6,000 | 500 to 50,000 | Logging | live log formatting (cached briefly) |
 
 ## Manual QA
 
@@ -381,7 +380,7 @@ Resolution is deterministic:
 
 On Start, LoopTroop persists both `lockedManualQaEnabled` and `lockedManualQaSource` (`ticket`, `project`, or `profile`). Only Draft tickets may change their override, and later profile/project edits cannot change the route of a started ticket. Existing in-progress tickets that do not have a locked value behave as disabled.
 
-Manual QA Improvement drafts use the same explicit Enabled/Disabled choice for the new child ticket. Their collapsed Advanced control starts from the current effective project/profile value and is stored with the chosen P1–P5 priority, so child creation does not depend on a later configuration change.
+Manual QA Improvement drafts use the same explicit Enabled/Disabled choice for the new child ticket. Their collapsed Advanced control starts from the current effective project/profile value and is stored with the chosen P1 to P5 priority, so child creation does not depend on a later configuration change.
 
 When the lock is disabled, `TESTS_PASSED` keeps the direct `RUNNING_FINAL_TEST → INTEGRATING_CHANGES` route. When enabled, it enters `GENERATING_QA_CHECKLIST → WAITING_MANUAL_QA`; a submitted failure creates QA-fix beads and loops through Coding and fresh final tests before the next checklist version.
 
@@ -399,7 +398,7 @@ The profile field is `ignoreMode`, and its built-in default is `local` (**This c
 | **This clone** (default) | `local` | Appends the rules to this clone's Git exclude file, normally `.git/info/exclude`. Nothing is added to the project's tracked files. |
 | **Nowhere** | `skip` | Does not add ignore rules. LoopTroop warns that its runtime folders can appear in Git status and must not be committed. |
 
-Rules are appended safely without deleting existing ignore content, and LoopTroop does not remove a rule automatically if the project setting later changes. Ticket initialization reapplies the project's saved destination to the main checkout. For either non-skip mode, if a new worktree still lacks effective rules—for example because a repository `.gitignore` change has not been committed yet—LoopTroop closes that gap through the shared Git exclude.
+Rules are appended safely without deleting existing ignore content, and LoopTroop does not remove a rule automatically if the project setting later changes. Ticket initialization reapplies the project's saved destination to the main checkout. For either non-skip mode, if a new worktree still lacks effective rules, for example because a repository `.gitignore` change has not been committed yet, LoopTroop closes that gap through the shared Git exclude.
 
 Both scopes present the policy as a single row, matching the other **Advanced** options: a short description on the left and a **Repository / This clone / Nowhere** selector on the right. Hovering a choice explains where it writes and what that costs, and choosing **Nowhere** adds a warning below the row. The `?` beside the label summarizes what `/.looptroop/` and `/.ticket/` contain and where each choice writes; activating it opens this section.
 
@@ -424,7 +423,7 @@ The main implementer is the primary model LoopTroop assigns to a ticket. LoopTro
 **What it does:**
 
 - Runs the initial single-model groundwork (`SCANNING_RELEVANT_FILES`) before any council phase starts.
-- Is automatically included in every council phase — it always participates in drafting and voting.
+- Is automatically included in every council phase and always participates in drafting and voting.
 - Handles all coding iterations during `CODING`.
 - Runs the final verification pass in `RUNNING_FINAL_TEST`.
 
@@ -450,7 +449,7 @@ You can change the main implementer between tickets. The choice is locked per-ti
 
 ### Council Members
 
-**Type:** model selector (1–5 slots, in addition to the main implementer)
+**Type:** model selector (1 to 5 slots, in addition to the main implementer)
 **Required:** at least 1 additional member
 
 Council members are the additional models that participate in independent drafting and structured voting during the interview, PRD, and beads planning phases.
@@ -503,13 +502,13 @@ The selected named variant is passed as part of the model configuration when Loo
 
 ## OpenCode Provider Recovery
 
-These settings apply to OpenCode prompt execution across the workflow, not only to `CODING`. They cover planning, council/coverage prompts, execution setup generation, coding prompts, final-test generation, PR drafting, and other phases that use OpenCode.
+These settings apply to OpenCode prompt execution across the workflow, including `CODING`. They cover planning, council/coverage prompts, execution setup generation, coding prompts, final-test generation, PR drafting, and other phases that use OpenCode.
 
 ### OpenCode Retry Limit
 
 **Type:** integer
 **Default:** 10
-**Range:** 0–50
+**Range:** 0 to 50
 
 How many continuable OpenCode `session.status` retry events LoopTroop allows before it stops waiting for provider recovery and blocks the active prompt for human decision.
 
@@ -519,7 +518,7 @@ When the limit is reached, LoopTroop routes the active phase to `BLOCKED_ERROR` 
 
 **Trade-offs:**
 
-| Lower (0–2) | Higher (10–50) |
+| Lower (0 to 2) | Higher (10 to 50) |
 | --- | --- |
 | Blocks quickly when a provider is unavailable | Gives OpenCode more room to recover internally |
 | Saves time and tokens during hard rate limits | May wait longer before manual recovery is offered |
@@ -533,7 +532,7 @@ When the limit is reached, LoopTroop routes the active phase to `BLOCKED_ERROR` 
 
 **Type:** integer (seconds)
 **Default:** 60 s
-**Range:** 0–3600 s
+**Range:** 0 to 3600 s
 
 How long LoopTroop lets an OpenCode prompt sit in a continuable retry state with no real progress before it blocks, even if the retry count has not yet reached `OpenCode Retry Limit`.
 
@@ -541,7 +540,7 @@ The timer starts when OpenCode reports a matching retry status and is cleared by
 
 **Trade-offs:**
 
-| Lower (0–10 s) | Higher (60–3600 s) |
+| Lower (0 to 10 s) | Higher (60 to 3600 s) |
 | --- | --- |
 | Surfaces stuck retry loops quickly | Allows longer provider backoff windows |
 | Better for interactive supervision | Better for unattended runs with temporary provider load |
@@ -554,12 +553,12 @@ The timer starts when OpenCode reports a matching retry status and is cleared by
 ### OpenCode Max Steps
 
 **Type:** integer  
-**Default:** 0 (no limit — OpenCode default)  
-**Range:** 0–500
+**Default:** 0 (no limit; OpenCode default)\
+**Range:** 0 to 500
 
 Maximum number of steps OpenCode is allowed to perform per session. When the limit is reached, OpenCode instructs the model to summarize its work and close the session; LoopTroop then starts a fresh session to continue.
 
-**Steps vs messages:** Each step is one full round-trip — the model reads the full context, decides which tools to call, and receives their results. Each step generates approximately two messages in the execution log (one assistant message with tool calls, one with tool results). So `messages=25` in the log corresponds roughly to 12–13 steps.
+**Steps vs messages:** Each step is one full round-trip: the model reads the full context, decides which tools to call, and receives their results. Each step generates approximately two messages in the execution log (one assistant message with tool calls, one with tool results). So `messages=25` in the log corresponds roughly to 12 to 13 steps.
 
 **What 0 means:** LoopTroop does not touch `opencode.json` at all. OpenCode runs with no step cap and the model stops whenever it decides naturally. This is the default behavior. When a session ends without producing a text response (the model stopped mid-step), LoopTroop will automatically start a new session and show a visible notification in the **ALL** tab.
 
@@ -574,15 +573,15 @@ original file was absent and stays beside the edited file. Recovery refuses to
 remove or reset it until the ownership conflict is resolved; it does not treat
 the edited file as disposable just because LoopTroop created it.
 
-If the project ships its own `opencode.json`, the cap is merged into it. Everything else in the file — MCP servers, providers, permissions, other agents — stays in force for the whole run. On an ordinary non-conflicting completion, the file is put back as it was; if LoopTroop is killed outright before that happens, the sidecar lets the next start restore it when the run-owned bytes are still unchanged. A conflicting edit remains visible with its sidecar for deliberate recovery. How the file is tracked in git is left alone.
+If the project ships its own `opencode.json`, the cap is merged into it. Everything else in the file, including MCP servers, providers, permissions, and other agents, stays in force for the whole run. On an ordinary non-conflicting completion, the file is put back as it was; if LoopTroop is killed outright before that happens, the sidecar lets the next start restore it when the run-owned bytes are still unchanged. A conflicting edit remains visible with its sidecar for deliberate recovery. How the file is tracked in git is left alone.
 
-The cap never reaches your git history. For as long as a valid marker is in place, `opencode.json` is kept out of the commits LoopTroop makes for each bead and listed among that commit's skipped files — restoring the file afterwards would put the worktree right, but it could not take back a commit. During an ordinary non-conflicting retry, the worktree reset leaves the capped file alone and the cap is reapplied for the next attempt. If current bytes conflict with the marker, the destructive reset/recovery is refused instead; the edited file and sidecar remain available until the conflict is resolved.
+The cap never reaches your git history. For as long as a valid marker is in place, `opencode.json` is kept out of the commits LoopTroop makes for each bead and listed among that commit's skipped files. Restoring the file afterwards would put the worktree right, but it could not take back a commit. During an ordinary non-conflicting retry, the worktree reset leaves the capped file alone and the cap is reapplied for the next attempt. If current bytes conflict with the marker, the destructive reset/recovery is refused instead; the edited file and sidecar remain available until the conflict is resolved.
 
 A file LoopTroop cannot merge into is left exactly as it is, and the run continues with no step cap: unreadable JSON, a top level that is not a JSON object, an `agent` section shaped some other way, or a symlink. The ticket log says which it was. The same holds if the file changes while the run is going: that change is yours, so it is reported rather than overwritten, and your version from before the run is kept in the ticket directory until you deal with it. Ordinary capped retries continue when there is no conflict. A later bead can run without applying a fresh cap when no destructive reset is needed, while valid marker evidence keeps the root config out of bead and final staging. If the sidecar is missing after a restart, LoopTroop has no durable ownership evidence and leaves the file unattributed rather than guessing. Filesystem-equivalent casing follows the actual worktree paths; native Windows/macOS equivalent-case behavior is not claimed here.
 
 **Trade-offs:**
 
-| Lower (5–15) | Higher (30–100) |
+| Lower (5 to 15) | Higher (30 to 100) |
 | --- | --- |
 | Sessions wrap up and summarize more frequently | Fewer session restarts overall |
 | More predictable restart points | Model may run longer before being forced to summarize |
@@ -599,7 +598,7 @@ A file LoopTroop cannot merge into is left exactly as it is, and the run continu
 
 **Type:** integer (seconds)  
 **Default:** 1200 s (20 minutes)  
-**Range:** 10–3600 s
+**Range:** 10 to 3600 s
 
 The maximum time LoopTroop will wait for a model response in non-coding model-output phases. It covers relevant-files scanning, council drafting/voting/refinement, coverage and expansion prompts, interview QA prompts, execution setup-plan drafting/regeneration, final-test model prompts, and PR title/body drafting.
 
@@ -630,7 +629,7 @@ The request is abandoned and the active phase handles the timeout according to i
 
 **Type:** integer  
 **Default:** 2  
-**Range:** 1–4
+**Range:** 1 to 4
 
 The minimum number of valid council responses LoopTroop requires before it trusts a drafting or voting phase.
 
@@ -640,11 +639,11 @@ A model response is valid if it returns within `AI Response Timeout` and its str
 
 **What happens when quorum is not met:**
 
-The phase enters `BLOCKED_ERROR`. This is intentional — a plan built from one draft when you configured two is not trustworthy, so LoopTroop refuses to advance silently.
+The phase enters `BLOCKED_ERROR`. This is intentional: a plan built from one draft when you configured two is not trustworthy, so LoopTroop refuses to advance silently.
 
 **Trade-offs:**
 
-| Lower (1) | Higher (3–4) |
+| Lower (1) | Higher (3 to 4) |
 | --- | --- |
 | Survives when one model is unavailable | Requires all models to be healthy and responsive |
 | Lower diversity guarantee | Stronger diversity guarantee |
@@ -662,13 +661,13 @@ Setting quorum higher than your total council size guarantees permanent blocks. 
 
 **Type:** integer  
 **Default:** 50  
-**Range:** 0–50
+**Range:** 0 to 50
 
 Caps how many initial clarifying questions the compiled interview document can contain before the UI starts presenting them to you across one or more batches.
 
 **What it controls:**
 
-After `COMPILING_INTERVIEW` finishes, the interview document can have up to this many questions in the initial compiled checklist. The UI may present that checklist across multiple batches, but questions beyond the cap are not generated — this is a hard ceiling on initial intake depth.
+After `COMPILING_INTERVIEW` finishes, the interview document can have up to this many questions in the initial compiled checklist. The UI may present that checklist across multiple batches, but questions beyond the cap are not generated. This is a hard ceiling on initial intake depth.
 
 **Trade-offs:**
 
@@ -691,7 +690,7 @@ After `COMPILING_INTERVIEW` finishes, the interview document can have up to this
 
 **Type:** integer
 **Default:** 1
-**Range:** 0–5
+**Range:** 0 to 5
 
 Controls how many automatic retry prompts LoopTroop may send after the first model response fails structured-output validation. The value is locked onto each ticket when it starts, so profile changes affect future tickets and unstarted tickets only.
 
@@ -705,7 +704,7 @@ This setting applies to structured-output repair paths such as council drafts/vo
 
 **Trade-offs:**
 
-| Lower (0) | Higher (2–5) |
+| Lower (0) | Higher (2 to 5) |
 | --- | --- |
 | Fails fast and spends fewer tokens | More tolerance for malformed YAML/JSON or transient provider output |
 | 0 disables automatic structured repair prompts | Higher values can delay surfacing persistent prompt/parser issues |
@@ -759,14 +758,14 @@ OpenCode's reject call carries only a request id, so a reason stays on the LoopT
 
 **Type:** integer (seconds)  
 **Default:** 300 s (5 minutes)  
-**Range:** 60–3600 s  
+**Range:** 60 to 3600 s\
 **Profile field:** `aiQuestionWindow` (stored in milliseconds)
 
 How long a question waits for you before the run carries on.
 
 **Waiting does not use up the step's working time.** While a question is pending, every clock on the ticket stops, and the elapsed wall time is credited back when it resolves. A step can therefore take its full timeout *plus* the time it spent waiting on you. The wait does not have to fit inside [Per-Iteration Timeout](#per-iteration-timeout), [Execution Setup Timeout](#execution-setup-timeout), or [AI Response Timeout](#ai-response-timeout), and there is no validation tying it to any of them. This holds in every step that can ask, including the ones that do not manage a clock of their own.
 
-**Waiting is not counted as implementation time either.** A question does not change the ticket's status, so a wait inside `CODING` would otherwise be recorded as coding — inflating the ticket's active duration and training the delivery estimate on throughput that never happened. It is recorded separately and shown on its own line in the ticket header when there is any.
+**Waiting is not counted as implementation time either.** A question does not change the ticket's status, so a wait inside `CODING` would otherwise be recorded as coding, inflating the ticket's active duration and training the delivery estimate on throughput that never happened. It is recorded separately and shown on its own line in the ticket header when there is any.
 
 **One countdown per step**, shared by every model asking inside it. It cannot be one per question: OpenCode's reply carries every answer in a single payload, so expiring question 2 would discard the answers already typed into 1 and 3. It is not one per request either, because a council seats several models in one step and that would put three countdowns on screen for one decision. A new model asking resets a running clock to full; it does not restart a stopped one.
 
@@ -774,7 +773,7 @@ How long a question waits for you before the run carries on.
 
 **The deadline belongs to the server.** Close the browser, come back two minutes later, and two minutes are gone. The page corrects for clock skew against a `serverNow` field sent with every timer update, but it never owns the clock.
 
-Sessions survive a daemon restart, so questions do too — and so does the clock they were on. A countdown you had stopped stays stopped. One still inside its window keeps the time it had left. One whose wait ran out while the daemon was down is refused immediately rather than being handed another full window, so a restart cannot postpone an expiry indefinitely. A question whose session did not come back is refused under a `system` actor.
+Sessions survive a daemon restart, so questions and their countdown clocks do too. A countdown you had stopped stays stopped. One still inside its window keeps the time it had left. One whose wait ran out while the daemon was down is refused immediately rather than being handed another full window, so a restart cannot postpone an expiry indefinitely. A question whose session did not come back is refused under a `system` actor.
 
 **Trade-offs:**
 
@@ -793,7 +792,7 @@ Coverage settings control the self-checking loops that run after drafting. LoopT
 
 **Type:** integer (percent)  
 **Default:** 20 %  
-**Range:** 0–100 %
+**Range:** 0 to 100 %
 
 Limits how many additional coverage follow-up questions the `VERIFYING_INTERVIEW_COVERAGE` pass can add relative to the original compiled interview size.
 
@@ -808,7 +807,7 @@ After the initial compiled interview is complete, the coverage pass checks wheth
 
 **Trade-offs:**
 
-| Lower (0–10 %) | Higher (50–100 %) |
+| Lower (0 to 10 %) | Higher (50 to 100 %) |
 | --- | --- |
 | Minimal extra questions after first round | Deep coverage at the cost of more follow-up rounds |
 | Risks shipping a PRD with unresolved ambiguities | May feel exhaustive for simple tickets |
@@ -826,7 +825,7 @@ After the initial compiled interview is complete, the coverage pass checks wheth
 
 **Type:** integer  
 **Default:** 2  
-**Range:** 1–10
+**Range:** 1 to 10
 
 Caps how many times `VERIFYING_INTERVIEW_COVERAGE` may run follow-up cycles before LoopTroop stops extending the loop and advances to interview approval regardless of remaining gaps.
 
@@ -836,7 +835,7 @@ When this limit is reached, LoopTroop moves to `WAITING_INTERVIEW_APPROVAL` with
 
 **Trade-offs:**
 
-| Lower (1–2) | Higher (5–10) |
+| Lower (1 to 2) | Higher (5 to 10) |
 | --- | --- |
 | Faster path to interview approval | More thorough gap-filling before approval |
 | May leave small coverage gaps for you to notice at approval | Can feel slow on well-scoped tickets |
@@ -849,7 +848,7 @@ When this limit is reached, LoopTroop moves to `WAITING_INTERVIEW_APPROVAL` with
 
 **Type:** integer  
 **Default:** 5  
-**Range:** 2–20
+**Range:** 2 to 20
 
 Caps how many revision cycles `VERIFYING_PRD_COVERAGE` may run while reconciling the PRD against the winning model's Full Answers artifact.
 
@@ -861,7 +860,7 @@ If the cap was reached before coverage was clean, unresolved gap warnings appear
 
 **Trade-offs:**
 
-| Lower (2–3) | Higher (10–20) |
+| Lower (2 to 3) | Higher (10 to 20) |
 | --- | --- |
 | Faster PRD approval, smaller token cost | Higher chance of a complete PRD before you review |
 | More manual editing may be needed at approval | Slower for large PRDs with many gaps |
@@ -874,19 +873,19 @@ If the cap was reached before coverage was clean, unresolved gap warnings appear
 
 **Type:** integer  
 **Default:** 5  
-**Range:** 2–20
+**Range:** 2 to 20
 
 Caps how many revision cycles `VERIFYING_BEADS_COVERAGE` may run while reconciling the semantic bead blueprint against the PRD.
 
 Once coverage is clean or this cap is reached, LoopTroop advances to `EXPANDING_BEADS`, which is a separate step that converts the blueprint into execution-ready bead records. If unresolved gaps are still visible on the later beads approval screen, you can click `Fix gaps with AI` to run one fresh targeted extra fix and one fresh coverage check; if the semantic blueprint changes, expansion is rerun so the approval plan stays current. These approval-screen extra fixes are manual and unlimited; this pass setting only controls the automatic coverage loop before approval.
 
 ::: tip
-`EXPANDING_BEADS` runs independently after `VERIFYING_BEADS_COVERAGE` finishes. Increasing this setting does not affect the expansion step — it only controls the semantic blueprint revision loop.
+`EXPANDING_BEADS` runs independently after `VERIFYING_BEADS_COVERAGE` finishes. Increasing this setting does not affect the expansion step; it only controls the semantic blueprint revision loop.
 :::
 
 **Trade-offs:**
 
-| Lower (2–3) | Higher (10–20) |
+| Lower (2 to 3) | Higher (10 to 20) |
 | --- | --- |
 | Faster path to beads approval | Higher chance of a coverage-clean blueprint |
 | More likely to miss PRD requirements in the bead plan | Slower for large or complex PRDs |
@@ -921,7 +920,7 @@ Check and Require run their approved commands under a snapshot of the worktree a
 
 This policy affects only LoopTroop's internal Git operations. It does not alter the repository's hook configuration for your own Git commands. The `?` beside each control opens this section.
 
-Now, an unresolved restore from a previous validation blocks
+An unresolved restore from a previous validation blocks
 both Check and Require. The refusal includes the retained recovery marker's
 location and explains which worktree changes need attention before retrying.
 
@@ -933,13 +932,13 @@ location and explains which worktree changes need attention before retrying.
 
 **Type:** integer (seconds)  
 **Default:** 1200 s (20 minutes)  
-**Range:** 0–3600 s
+**Range:** 0 to 3600 s
 
 The maximum runtime for a single bead attempt in `CODING`, including implementation, agent-owned bead-scoped checks, and structured completion. Planned test commands are starting guidance and may be adapted when repository evidence requires it; LoopTroop does not independently rerun them after `done/pass`. If the deadline expires before valid completion, LoopTroop treats it as a failed iteration and routes it through the standard Ralph retry path. This timeout is separate from OpenCode/provider interruption handling, which can preserve an addressable session for Continue. Ticket-level Final Testing remains a separate mandatory gate.
 
 **What retry means here:**
 
-LoopTroop generates a context wipe note summarizing the failure when possible, abandons the timed-out session so stale completions cannot finalize the bead, and attempts a safe reset to the bead's start snapshot before opening a fresh OpenCode session and retrying — up to `Max Bead Retries` times. A conflicting OpenCode step-cap marker can refuse that destructive reset and leave CODING blocked until recovery is safe. Repeated iteration timeouts consume this same attempt budget; once it is exhausted, CODING blocks with `BEAD_RETRY_BUDGET_EXHAUSTED`.
+LoopTroop generates a context wipe note summarizing the failure when possible, abandons the timed-out session so stale completions cannot finalize the bead, and attempts a safe reset to the bead's start snapshot before opening a fresh OpenCode session and retrying up to `Max Bead Retries` times. A conflicting OpenCode step-cap marker can refuse that destructive reset and leave CODING blocked until recovery is safe. Repeated iteration timeouts consume this same attempt budget; once it is exhausted, CODING blocks with `BEAD_RETRY_BUDGET_EXHAUSTED`.
 
 **Trade-offs:**
 
@@ -962,7 +961,7 @@ LoopTroop generates a context wipe note summarizing the failure when possible, a
 
 **Type:** integer (seconds)  
 **Default:** 1200 s (20 minutes)  
-**Range:** 0–3600 s
+**Range:** 0 to 3600 s
 
 The maximum total active-work budget for one `PREPARING_EXECUTION_ENV` attempt, which runs after the current-host setup plan is approved and before coding begins. One deadline is shared by session acquisition, prompts, provider recovery, continuations, structured-output corrections, setup-scoped online lookup, backend command/probe/hook validation, worktree inspection, and retry-note generation. None of those steps restarts the current attempt's clock.
 
@@ -997,7 +996,7 @@ When the deadline expires, LoopTroop stops scheduling new setup work and returns
 
 **Type:** integer  
 **Default:** 5  
-**Range:** 0–20
+**Range:** 0 to 20
 
 > [!NOTE]
 > **Current behavior.** The automatic bead-response continuation scope and
@@ -1008,13 +1007,13 @@ How many iteration attempts LoopTroop allows for a failing bead before it enters
 
 **What "fresh session" means:**
 
-Each ordinary, safe retry discards the polluted conversational state from the failed attempt, resets the worktree to the bead's start commit, opens a brand-new OpenCode session, and starts over with the context wipe note from the previous attempt as context. A conflicting step-cap marker can refuse the destructive reset and preserve the edited config and sidecar instead. See [Beads & Execution — Bounded Ralph-Style Retry](/beads#bounded-ralph-style-retry) for the full design rationale.
+Each ordinary, safe retry discards the polluted conversational state from the failed attempt, resets the worktree to the bead's start commit, opens a brand-new OpenCode session, and starts over with the context wipe note from the previous attempt as context. A conflicting step-cap marker can refuse the destructive reset and preserve the edited config and sidecar instead. See [Beads & Execution: Bounded Ralph-Style Retry](/beads#bounded-ralph-style-retry) for the full design rationale.
 
 Startup and manual-retry recovery can avoid a fresh attempt when the interrupted bead already has a current matching `bead_execution` checkpoint or an explicitly preserved session continuation. In those cases LoopTroop finalizes the checkpointed result or continues the exact session. An otherwise unresumable in-progress attempt is appended to Failed Iteration Notes, safely reset, and advanced to the next iteration under this retry budget. Its replacement receives a fresh per-iteration timeout window.
 
 **Trade-offs:**
 
-| Lower (0–2) | Higher (10–20) |
+| Lower (0 to 2) | Higher (10 to 20) |
 | --- | --- |
 | Fails fast, lower token cost | More attempts before giving up |
 | Less tolerance for transient model failures | Useful for flaky tests or non-deterministic environments |
@@ -1032,7 +1031,7 @@ Startup and manual-retry recovery can avoid a fresh attempt when the interrupted
 
 ## Logging
 
-These three settings control how much of each tool call is stored in the LoopTroop logs. They do not affect what the model sees during execution — only what is persisted for display in the UI and diagnostics.
+These three settings control how much of each tool call is stored in the LoopTroop logs. They do not affect what the model sees during execution; they only control what is persisted for display in the UI and diagnostics.
 
 The backend reads these caps live from the profile, but it caches them briefly to avoid a database read on every stream event. In practice, a change usually shows up quickly without requiring a restart, but it may not affect lines already emitted moments earlier.
 
@@ -1040,7 +1039,7 @@ The backend reads these caps live from the profile, but it caches them briefly t
 
 **Type:** integer (characters)  
 **Default:** 4,000  
-**Range:** 500–50,000
+**Range:** 500 to 50,000
 
 Hard cap on the number of characters stored for tool inputs in the execution log. Input beyond this limit is truncated at log write time.
 
@@ -1055,7 +1054,7 @@ Hard cap on the number of characters stored for tool inputs in the execution log
 
 **Type:** integer (characters)  
 **Default:** 12,000  
-**Range:** 1,000–100,000
+**Range:** 1,000 to 100,000
 
 Hard cap on the number of characters stored for tool outputs in the execution log.
 
@@ -1074,7 +1073,7 @@ Internal `SYS > CMD` entries are logged after command completion. Quiet determin
 
 **Type:** integer (characters)  
 **Default:** 6,000  
-**Range:** 500–50,000
+**Range:** 500 to 50,000
 
 Hard cap on the number of characters stored for tool errors in the execution log.
 

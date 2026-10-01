@@ -74,10 +74,10 @@ change. It is waiting on somebody else:
 The channels above without a ⏳ are not only built and installed by CI from
 locally built files. Each one is also installed on a clean machine using the
 command printed here, started, checked on its health endpoint, and uninstalled
-again — **every week**, because a channel can break long after it was published
+again **every week**, because a channel can break long after it was published
 without anybody changing anything.
 
-The most common of them — npm, both one-line installers, Homebrew and Scoop —
+The most common of them, npm, both one-line installers, Homebrew and Scoop,
 additionally run immediately after every release.
 
 That covers the failures a build cannot see: a tap that never received its
@@ -101,12 +101,12 @@ Everything else differs by channel, so read the row you are actually using.
 
 | Channel | Node | git | `gh` |
 | --- | --- | --- | --- |
-| **Installer script** | you provide **24.18.0+** — the installer is a Node program, never installs Node, and hands the package to npm | you provide it | you provide it |
+| **Installer script** | you provide **24.18.0+**; the installer is a Node program that never installs Node and hands the package to npm | you provide it | you provide it |
 | **npm, bun, pnpm, Yarn** | you provide **24.18.0+** | you provide it | you provide it |
 | **Homebrew** | installed for you (`node@24`) | from the OS | installed for you |
 | **Scoop** | installed for you (`nodejs-lts`) | installed for you | installed for you |
 | **Chocolatey** | installed for you (`nodejs-lts`) | installed for you | installed for you |
-| **WinGet** | not needed — the executable carries its own | installed for you | installed for you |
+| **WinGet** | not needed: the executable carries its own | installed for you | installed for you |
 | **AUR** ⏳ | installed for you (`nodejs>=24`) | installed for you | installed for you |
 | **Standalone executable** | needed to *install*, not to *run* | you provide it | you provide it |
 | **Container** | in the image | in the image | in the image |
@@ -181,7 +181,7 @@ Installer flags supported by the current installer:
 | --- | --- | --- |
 | `--binary` | `-Binary` | Install the standalone executable instead of going through npm |
 | `--version X.Y.Z` | `-Version X.Y.Z` | Install an exact version rather than the newest release |
-| `--prefix DIR` | `-Prefix DIR` | Choose where the executable goes, instead of `~/.looptroop`. Applies only with `--binary` — an npm install goes wherever npm's global prefix points, which you change with `npm config set prefix` |
+| `--prefix DIR` | `-Prefix DIR` | Choose where the executable goes, instead of `~/.looptroop`. Applies only with `--binary`. An npm install goes wherever npm's global prefix points, which you change with `npm config set prefix` |
 | `--tarball PATH` | `-Tarball PATH` | Install a tarball you already have, skipping the download |
 | `--dry-run` | `-DryRun` | Report what it would do and change nothing |
 | `--help` | `-Help` | Show the installer usage text and exit |
@@ -202,7 +202,7 @@ the download against the checksum the release published, stops a running daemon
 and confirms it exited, replaces the file by rename rather than writing over it,
 and checks the new executable reports the version that was asked for. If anything
 fails, the previous version is put back and the daemon it stopped is started
-again — so a bad upgrade leaves you on the version you already had rather than
+again, so a bad upgrade leaves you on the version you already had rather than
 with nothing.
 
 > [!NOTE]
@@ -267,14 +267,14 @@ Get-FileHash looptroop-<version>-win-x64.zip -Algorithm SHA256
 > [!WARNING]
 > A plain `sha256sum -c checksums.sha256` reports every asset you did *not*
 > download as `FAILED open or read` and exits non-zero. That looks like a
-> corrupted release and is not one — it is the checksum file describing every
+> corrupted release and is not one. It is the checksum file describing every
 > asset in the release while you have one. GNU coreutils can skip them with
 > `sha256sum --ignore-missing -c checksums.sha256`; macOS `shasum` has no such
 > flag, which is why the single-line form above is the one that works
 > everywhere.
 
 `release-manifest.json` records the same hashes alongside each asset's size, and
-is what the installers check against — `checksums.sha256` is generated from it,
+is what the installers check against. `checksums.sha256` is generated from it,
 so the two cannot disagree.
 
 The release workflow publishes `release-provenance.sigstore.json` with the
@@ -344,7 +344,7 @@ keep the existing installation and retry later.
 
 Use the detected command rather than guessing: **each package manager only
 upgrades its own installation.** Running `npm install -g looptroop@latest`
-against a bun or pnpm installation does not upgrade it — it installs a second
+against a bun or pnpm installation does not upgrade it. It installs a second
 copy under npm's prefix, leaves the first one where it is, and which one runs
 afterwards depends on the order of your `PATH`.
 
@@ -359,13 +359,13 @@ running container.
 Channel caveats worth knowing in advance:
 
 - **pnpm arrives about a day late.** pnpm will not resolve a tag to a version
-  published within roughly the last 24 hours — a supply-chain protection, on by
-  default — so `pnpm add -g looptroop@latest` installs the newest release older
+  published within roughly the last 24 hours. This supply-chain protection is on
+  by default, so `pnpm add -g looptroop@latest` installs the newest release older
   than that window. Asking for an exact version (`pnpm add -g looptroop@1.2.3`)
   bypasses it.
 - **Yarn means Yarn Classic.** Yarn 2 removed `yarn global` and never replaced
-  it, so there is no global install in modern Yarn — `yarn global add looptroop`
-  on Yarn 4 does not report an unknown command, it reads `global` as a package
+  it, so modern Yarn has no global install. On Yarn 4, `yarn global add looptroop`
+  does not report an unknown command. It reads `global` as a package
   name and fails with a confusing lockfile error. On modern Yarn, either run it
   without installing (`yarn dlx looptroop`) or install it with one of the other
   channels on this page.
@@ -382,8 +382,8 @@ Channel caveats worth knowing in advance:
   Yarn Classic also runs on Windows, but its PowerShell PATH setup is not
   documented here. Use npm there, which is the recommended documented channel.
 
-  Put that `export` in your shell profile — `~/.bashrc`, `~/.zshrc` — or the next
-  terminal will have forgotten it. npm, bun and pnpm each install into a
+  Put that `export` in your shell profile (`~/.bashrc` or `~/.zshrc`), or the
+  next terminal will have forgotten it. npm, bun and pnpm each install into a
   directory that is normally already on `PATH`, which is why this catches people
   out on Yarn specifically.
 - **On Windows, a Node installed by unpacking an archive leaves npm's global
@@ -425,12 +425,12 @@ looptroop stop
 | **Chocolatey** | `choco uninstall looptroop` |
 | **WinGet** | `winget uninstall LoopTroopAI.LoopTroop` |
 | ⏳ **AUR** | `yay -R looptroop-bin`, or `paru -R looptroop-bin` |
-| **Installer script (default mode)** | `npm uninstall -g looptroop` — it installs through npm, so npm removes it |
+| **Installer script (default mode)** | `npm uninstall -g looptroop`: it installs through npm, so npm removes it |
 | **Installer script (`--binary`)** | no command; remove the install directory, below |
 | **Container** | `docker rmi looptroopai/looptroop:latest` or `docker rmi ghcr.io/looptroop-ai/looptroop:latest` |
 
 **The standalone executable has no uninstall command.** Remove the whole install
-directory by hand — the executable lives in `bin/` inside it, but other files
+directory by hand: the executable lives in `bin/` inside it, but other files
 from the archive sit alongside, so deleting only `bin/` leaves them behind:
 
 ```bash
@@ -444,12 +444,12 @@ Remove-Item -Recurse -Force "$env:USERPROFILE\.looptroop"
 ```
 
 If you installed with `--prefix` or `LOOPTROOP_INSTALL_DIR`, remove that
-directory instead. This is the *install* directory only — your configuration,
+directory instead. This is the *install* directory only. Your configuration,
 database and logs live somewhere else entirely, and are covered below.
 
 ### What uninstalling leaves behind
 
-None of the commands above delete your configuration, database or logs — which is
+None of the commands above delete your configuration, database or logs. This is
 deliberate, so reinstalling does not lose your projects and tickets. They live in
 the [configuration directory](configuration.md):
 
@@ -459,14 +459,14 @@ the [configuration directory](configuration.md):
 | **Windows** | `%APPDATA%\looptroop` |
 
 Delete that directory too for a clean removal. Your projects are untouched by any
-of this — LoopTroop works in git worktrees under `<project>/.looptroop/`, and
+of this. LoopTroop works in git worktrees under `<project>/.looptroop/`, and
 `looptroop clean` lists and removes abandoned ones while it is still installed.
 
 ## Running in a container
 
 Published for `linux/amd64` and `linux/arm64`, to **Docker Hub** and to
 **GitHub Container Registry**. A container runtime is the only thing the host
-needs — Node, git and `gh` are in the image:
+needs. Node, git and `gh` are in the image:
 
 ```bash
 docker pull looptroopai/looptroop:latest
@@ -511,7 +511,7 @@ Two things it still needs from you, both deliberately not baked in.
 provider and your credentials, and bundling it would tie LoopTroop's releases to
 OpenCode's. A container with no OpenCode to reach exits at startup instead of
 serving an interface that cannot run a single coding operation, so pass
-`-e LOOPTROOP_OPENCODE_BASE_URL=…` pointing at a server you run — or
+`-e LOOPTROOP_OPENCODE_BASE_URL=…` pointing at a server you run, or
 `-e LOOPTROOP_OPENCODE_MODE=mock` to look around without one.
 
 That server has to be able to open the files LoopTroop gives it. LoopTroop works
@@ -547,7 +547,7 @@ docker run --network host \
 
 On Docker Desktop for Mac and Windows the containers run in a VM, so
 `--network host` is that VM's loopback rather than yours. There the daemon has to
-bind wider, which it will not do by omission — it refuses a non-loopback bind
+bind wider, which it will not do by omission: it refuses a non-loopback bind
 unless both variables are set, and refuses it without a token:
 
 ```bash
@@ -577,7 +577,7 @@ docker run -p 127.0.0.1:3000:3000 `
 
 Windows needs one more decision than the others, because of the path rule above.
 `C:\path\to\project` is not a path a Linux container can be given, and an
-OpenCode server running natively on Windows cannot open a Linux one — so the two
+OpenCode server running natively on Windows cannot open a Linux one, so the two
 sides cannot meet by mounting the same string. Either run OpenCode as a container
 sidecar with the identical mount, or keep the project inside WSL and run both
 from there, where `/home/you/project` means the same thing on both sides. A
@@ -588,8 +588,8 @@ cannot be made to work.
 host interface, which on a shared network offers that control plane to everyone
 on it.
 
-`LOOPTROOP_API_TOKEN` is what authorises the wider bind. It is **not** the token
-the API accepts — the daemon mints its own at startup and records it owner-only.
+`LOOPTROOP_API_TOKEN` authorises the wider bind. It is **not** the token the API
+accepts. The daemon mints its own at startup and records it owner-only.
 Read the one that works with:
 
 ```bash
@@ -600,7 +600,7 @@ Keep the `looptroop-config` volume. It holds the database and the daemon record;
 without it every restart is a fresh install.
 
 The container runs as uid 1000. If your host user is a different uid, git refuses
-the mounted checkout with "detected dubious ownership" — match the uid rather
+the mounted checkout with "detected dubious ownership", so match the uid rather
 than relaxing `safe.directory` inside the image for everyone. The named config
 volume is then no longer writable either, so put the config somewhere that uid
 owns:
@@ -620,15 +620,15 @@ write into a home directory it does not own.
 
 Commits carry their identity per invocation, so no global git config is needed.
 `gh` does need credentials for the pull-request step: pass `-e GH_TOKEN=…`. The
-push uses the same token, through `gh`'s credential helper — git does not read
+push uses the same token, through `gh`'s credential helper. Git does not read
 `GH_TOKEN` itself, and nothing else in the image supplies a credential, so
 without that the pull request would be prepared and never pushed.
 
 ## Working on LoopTroop itself
 
 Everything above installs LoopTroop to use it. To develop LoopTroop, run it from
-a checkout instead — this is the development stack, with Vite on port 5173 and
-hot reload, not the installed service:
+a checkout instead. This is the development stack, with Vite on port 5173 and
+hot reload, rather than the installed service:
 
 ```bash
 git clone https://github.com/looptroop-ai/LoopTroop.git
@@ -647,8 +647,8 @@ daily maintenance.
 | **OpenCode** | `http://127.0.0.1:4096` |
 
 The dev stack is several processes with hot reload, not one daemon. `looptroop
-start` plays no part in it, and the two have **different authentication rules** —
-see the [API Reference](api-reference.md).
+start` plays no part in it, and the two have **different authentication rules**.
+See the [API Reference](api-reference.md).
 
 ::: details What happens during startup?
 
@@ -659,8 +659,8 @@ For the full preflight specification, see [Operations Guide](operations.md).
 
 ::: details Useful startup flags
 
-- **`npm run dev --opencode-logs=all`** — full OpenCode DEBUG logs in your terminal (starts OpenCode with `--print-logs --log-level DEBUG`).
-- **`npm run dev --lan`** — binds the frontend to the local network, prints LAN URLs and a QR code. Backend and OpenCode stay on loopback, while documentation links continue to use the hosted site. This way you can connect to the app via mobile or another computer on the same network.
+- **`npm run dev --opencode-logs=all`:** full OpenCode DEBUG logs in your terminal (starts OpenCode with `--print-logs --log-level DEBUG`).
+- **`npm run dev --lan`:** binds the frontend to the local network, prints LAN URLs and a QR code. Backend and OpenCode stay on loopback, while documentation links continue to use the hosted site. This way you can connect to the app via mobile or another computer on the same network.
 
 For non-mutating startup, forced maintenance, and manual maintenance commands, see [Operations Guide](operations.md).
 :::

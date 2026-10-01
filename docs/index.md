@@ -5,7 +5,7 @@
 
 LoopTroop helps you turn a coding ticket into a planned, reviewable, agent-executed pull request.
 
-Instead of trusting a single, endless AI chat session - where the conversation history gets bloated, the AI gets confused, and code quality falls off a cliff - LoopTroop breaks the job into clean, separate stages. **Planning** turns an interview into a PRD, which is then split into the smallest manageable milestones, called "beads." **Execution** runs each bead through multiple targeted auto-fix loops. A **final review** ties it all together.
+Instead of trusting a single, endless AI chat session, where the conversation history gets bloated, the AI gets confused, and code quality falls off a cliff, LoopTroop breaks the job into clean, separate stages. **Planning** turns an interview into a PRD, which is then split into the smallest manageable milestones, called "beads." **Execution** runs each bead through multiple targeted auto-fix loops. A **final review** ties it all together.
 
 | Architectural Layer | Core | Technical Lifecycle |
 | :--- | :--- | :--- |
@@ -20,7 +20,7 @@ LoopTroop executes agent code changes with full local user privileges to allow u
 :::
 ## Start Here
 
-Install it, then run `looptroop open` — that starts LoopTroop in the background
+Install it, then run `looptroop open`. This starts LoopTroop in the background
 if it is not already running and opens a signed-in browser on it.
 
 ::: code-group
@@ -90,7 +90,7 @@ If you are new to LoopTroop, use this order:
 
 ## What LoopTroop Is
 
-LoopTroop is a **local GUI orchestrator for long-running, high-correctness AI software delivery** - taking you from a raw idea to merged code.
+LoopTroop is a **local GUI orchestrator for long-running, high-correctness AI software delivery**, taking you from a raw idea to merged code.
 
 Unlike high-speed coding tools that optimize for immediate chat responses, LoopTroop is built for **complex, multi-file feature work** where alignment and correctness are paramount. It optimizes for a "slow and perfect" paradigm, intentionally sacrificing raw speed to deliver a final result that matches exactly how you envisioned it.
 
@@ -100,7 +100,7 @@ Unlike high-speed coding tools that optimize for immediate chat responses, LoopT
 
 LoopTroop is early alpha software, but it is usable for real work. The full ticket lifecycle is implemented, but some bugs are still likely. The core primitives (planning, execution, retries) are functional.
 
-**Configured limitations:** In LoopTroop alpha, LLM Councils support 2–10 distinct models, including the main implementer. Each project may have only one active ticket in the execution band at a time; additional tickets must wait until it finishes or is canceled.
+**Configured limitations:** In LoopTroop alpha, LLM Councils support 2 to 10 distinct models, including the main implementer. Each project may have only one active ticket in the execution band at a time; additional tickets must wait until it finishes or is canceled.
 
 ## How It Works
 
@@ -206,9 +206,9 @@ flowchart TD
 
 LoopTroop uses a mix of established and newer terms:
 
-- **[Bead](beads.md)** - the smallest, independently implementable unit of work. Borrowed from Steve Yegge's *Beads Project* methodology. Each bead contains a clear purpose, acceptance criteria, target files, and validation steps.
-- **[git worktree](system-architecture.md)** - a standard Git capability for working on multiple linked trees from one repository. LoopTroop uses it as the main execution-isolation primitive.
-- **[Ralph-style retry](beads.md)** - community shorthand for abandoning a degraded coding session, keeping a compact failure note, and retrying in fresh context instead of continuing the same transcript.
-- **[LLM council](llm-council.md)** - LoopTroop's name for its multi-model draft, vote, and refine pattern. The idea overlaps with newer multi-model consensus research, but the exact workflow here is LoopTroop-specific.
-- **[PRD](prd.md)** - Product Requirements Document. The structured spec (epics + user stories) that the LLM Council produces from your ticket and interview answers before any coding starts.
-- **AI orchestrator** - descriptive, not magical. In this repo it means a system that owns workflow state, artifact boundaries, retries, approvals, and delivery mechanics around model calls.
+- **[Bead](beads.md):** the smallest, independently implementable unit of work. Borrowed from Steve Yegge's *Beads Project* methodology. Each bead contains a clear purpose, acceptance criteria, target files, and validation steps.
+- **[git worktree](system-architecture.md):** a standard Git capability for working on multiple linked trees from one repository. LoopTroop uses it as the main execution-isolation primitive.
+- **[Ralph-style retry](beads.md):** community shorthand for abandoning a degraded coding session, keeping a compact failure note, and retrying in fresh context instead of continuing the same transcript.
+- **[LLM council](llm-council.md):** LoopTroop's name for its multi-model draft, vote, and refine pattern. The idea overlaps with newer multi-model consensus research, but the exact workflow here is LoopTroop-specific.
+- **[PRD](prd.md):** Product Requirements Document. The structured spec (epics + user stories) that the LLM Council produces from your ticket and interview answers before any coding starts.
+- **AI orchestrator:** descriptive, not magical. In this repo it means a system that owns workflow state, artifact boundaries, retries, approvals, and delivery mechanics around model calls.

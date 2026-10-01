@@ -1,7 +1,7 @@
 # Interview
 
 > [!IMPORTANT]
-> **TL;DR** — Before PRD drafting starts, LoopTroop runs a council-designed, adaptive interview that turns a vague ticket into an approved, structured requirements artifact. Downstream planning relies on that approved artifact as the authoritative record of user intent instead of carrying forward a raw chat transcript.
+> **TL;DR:** Before PRD drafting starts, LoopTroop runs a council-designed, adaptive interview that turns a vague ticket into an approved, structured requirements artifact. Downstream planning relies on that approved artifact as the authoritative record of user intent instead of carrying forward a raw chat transcript.
 
 The interview is LoopTroop's ambiguity-removal stage. A ticket often starts as a short request, but implementation usually depends on decisions that are still missing: expected behavior, target users, constraints, edge cases, integrations, testing expectations, explicit non-goals, and what should stay out of scope.
 
@@ -116,8 +116,8 @@ valid but stale batch number returns `409`, before mutation. Question IDs,
 option IDs, and skip reasons are checked against that batch before a claim is
 acquired. Generation and answer edits use the same durable claim, so an answer
 edit returns `409` while generation owns the batch. A foreign claim can be
-reclaimed after ordinary lease expiry—the fallback when liveness cannot be
-checked—or when its recorded process is proven gone; a live lease protects
+reclaimed after ordinary lease expiry (the fallback when liveness cannot be
+checked) or when its recorded process is proven gone; a live lease protects
 live, invalid, or otherwise unverified owners. The pending-stop marker is
 separate non-expiring safety ownership and cannot be bypassed by lease expiry.
 The browser uses one in-flight guard for submit and skip, sets it before the
@@ -161,7 +161,7 @@ A reason is stored in two places, deliberately:
 - **On the answer**, as `answer.skip_reason` in `interview.yaml`. This is the current state, and it is what the interface reads back.
 - **In an append-only receipt**, recording who skipped the question, when, from which surface, and what the reason said at that moment. Editing a reason at the approval screen adds a new receipt; it does not rewrite the earlier one. Answering a question you had skipped adds a receipt too, so the trail stops reporting a decision you reversed.
 
-Reasons are read by exactly one prompt. PROM10a, which fills skipped answers during PRD drafting, receives them as a separate read-only section of its prompt — not as part of the interview artifact it is asked to reproduce, so it has no field to write one back into. They are stripped from the interview everywhere else, so PRD drafting, PRD voting, interview coverage and every downstream prompt see the interview without them. Where a prompt reads a reason it is shortened to 500 characters, because forty skipped questions at the full storage limit is a great deal of prompt spent on notes.
+Reasons are read by exactly one prompt. PROM10a, which fills skipped answers during PRD drafting, receives them as a separate read-only section of its prompt (not as part of the interview artifact it is asked to reproduce), so it has no field to write one back into. They are stripped from the interview everywhere else, so PRD drafting, PRD voting, interview coverage and every downstream prompt see the interview without them. Where a prompt reads a reason it is shortened to 500 characters, because forty skipped questions at the full storage limit is a great deal of prompt spent on notes.
 
 The full trail for a ticket is visible in the Full Log under **Skips**.
 
@@ -184,7 +184,7 @@ If coverage is clean, the interview moves to approval. A clean result means
 there are no unresolved gaps left to record and no follow-up questions left to
 ask.
 
-If the follow-up budget is exhausted — including the deliberate `0%` case — the
+If the follow-up budget is exhausted, including the deliberate `0%` case, the
 interview still moves to approval, but the remaining gaps stay visible in the
 resulting artifacts instead of being hidden. In that case coverage can still
 report `status: gaps`, but it must leave `follow_up_questions` empty.

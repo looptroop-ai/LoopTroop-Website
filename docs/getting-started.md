@@ -3,7 +3,7 @@
 Welcome to LoopTroop! This guide takes you from zero to your first AI-driven development cycle.
 
 > [!TIP]
-> You don't need expensive API keys to get started. LoopTroop supports free-tier models from OpenRouter, NVIDIA NIM, or OpenCode — see [Setting Up Your AI Council](#4-setting-up-your-ai-council) below.
+> You don't need expensive API keys to get started. LoopTroop supports free-tier models from OpenRouter, NVIDIA NIM, or OpenCode. See [Setting Up Your AI Council](#4-setting-up-your-ai-council) below.
 
 ## 1. Prerequisites
 
@@ -13,14 +13,14 @@ Two things every channel needs, because none of them install it for you:
   an available model.
 - A local git repository with an `origin` pointing to GitHub.
 
-**Everything else depends on how you install it** — Homebrew and Scoop bring
+**Everything else depends on how you install it.** Homebrew and Scoop bring
 their own Node, git and `gh`, while npm, bun and pnpm expect you to have them.
 Each tab in the next section states its own requirements, so you only read the
 one you are using.
 
 ### Why a VM?
 
-LoopTroop runs OpenCode in `dangerously-skip-permissions` (or YOLO) mode so that long-running autonomous tasks can proceed without human prompts. This means the agent executes with your local user privileges — and AI agents are not perfect.
+LoopTroop runs OpenCode in `dangerously-skip-permissions` (or YOLO) mode so that long-running autonomous tasks can proceed without human prompts. This means the agent executes with your local user privileges. AI agents are not perfect.
 
 > [!WARNING]
 > **Run LoopTroop inside a disposable VM, cloud dev machine, or sandboxed environment.**
@@ -77,14 +77,14 @@ docker pull looptroopai/looptroop:latest
 
 | Channel | What it needs first |
 | --- | --- |
-| **curl / PowerShell** | Node 24.18.0+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm — it never installs Node and never asks for sudo. |
+| **curl / PowerShell** | Node 24.18.0+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm. It never installs Node or asks for sudo. |
 | **npm** | Node 24.18.0+, git, `gh` |
-| **Homebrew** | Nothing else — it pulls in `node@24` and `gh`, and takes git from the OS |
-| **Scoop** | Nothing else — it depends on `nodejs-lts`, `git` and `gh` |
+| **Homebrew** | Nothing else: it pulls in `node@24` and `gh`, and takes git from the OS |
+| **Scoop** | Nothing else: it depends on `nodejs-lts`, `git` and `gh` |
 | **bun** | bun *and* Node 24.18.0+ (the launcher is a Node program), git, `gh` |
 | **pnpm** | pnpm *and* Node 24.18.0+, git, `gh`. pnpm will not resolve a tag to a version published in the last 24 hours |
 | **Yarn (Bash/zsh)** | Yarn **Classic** *and* Node 24.18.0+, git, `gh`. Yarn 2 removed global installs, so modern Yarn cannot install a CLI at all |
-| **Docker** | Only Docker — Node, git and `gh` are in the image, but it needs an OpenCode server it can reach |
+| **Docker** | Only Docker. The image includes Node, git and `gh`, but still needs an OpenCode server it can reach |
 
 [Installation](installation.md) covers every channel in full: upgrading,
 uninstalling, the standalone executable that carries its own Node runtime, and
@@ -114,9 +114,9 @@ the rest; [Installation](installation.md) covers upgrading and uninstalling; and
 
 ## 4. Setting Up Your AI Council
 
-LoopTroop works best with multiple AI models — they draft, vote on, and refine plans together before any code is written. You can configure your council models inside the app via the **Configuration** button on the dashboard.
+LoopTroop works best with multiple AI models. They draft, vote on, and refine plans together before any code is written. You can configure your council models inside the app via the **Configuration** button on the dashboard.
 
-You need at least a **Main Implementer Model** (which writes and validates code) and **1–9 additional Council Members** (which challenge and improve the plan), for a maximum council size of ten. See [Configuration](configuration.md) for all settings and trade-offs.
+You need at least a **Main Implementer Model** (which writes and validates code) and **1 to 9 additional Council Members** (which challenge and improve the plan), for a maximum council size of ten. See [Configuration](configuration.md) for all settings and trade-offs.
 
 Configure provider credentials and providers in OpenCode. LoopTroop's model
 selectors show the models OpenCode reports as available; choose one in the
@@ -124,14 +124,14 @@ Configuration screen.
 
 ### Choosing Your Main Implementer
 
-The Main Implementer is the model that actually writes, fixes, and validates your code — it needs to be the strongest model you can access. Pick a frontier-class model with strong coding benchmarks:
+The Main Implementer is the model that actually writes, fixes, and validates your code, so it needs to be the strongest model you can access. Pick a frontier-class model with strong coding benchmarks:
 
-- **OpenAI** — top models via API key or a Codex subscription through OpenCode
-- **Anthropic** — latest Claude models via API key
-- **Google** — latest Gemini model via API key
-- **Any other top-tier model** — check the [Chatbot Arena leaderboard](https://lmarena.ai/) or coding-specific benchmarks like SWE-bench to find the current best performers
+- **OpenAI:** top models via API key or a Codex subscription through OpenCode
+- **Anthropic:** latest Claude models via API key
+- **Google:** latest Gemini model via API key
+- **Any other top-tier model:** check the [Chatbot Arena leaderboard](https://lmarena.ai/) or coding-specific benchmarks like SWE-bench to find the current best performers
 
-Council members can be a mix of different providers — diversity actually improves plan quality since different models catch different blind spots (it is recommended to use models from different providers and families for the council). You can also experiment with weaker models in the council to save costs — they still provide value by catching basic mistakes and asking clarifying questions.
+Council members can come from different providers. That diversity improves plan quality because different models catch different blind spots; we recommend using models from different providers and families for the council. You can also experiment with weaker models in the council to save costs. They still provide value by catching basic mistakes and asking clarifying questions.
 
 ### Free Model Options
 
@@ -143,7 +143,7 @@ OpenRouter provides a unified API with a dynamic router that selects available z
 
 1. Create a free account at [openrouter.ai](https://openrouter.ai/).
 2. Open OpenCode and connect to OpenRouter using your API key.
-3. In LoopTroop, set your model to `openrouter/free` — it automatically routes to available free models capable of tool-calling. You can also pick specific models from the catalog; they rotate every few days.
+3. In LoopTroop, set your model to `openrouter/free`. It automatically routes to available free models capable of tool-calling. You can also pick specific models from the catalog; they rotate every few days.
 
 #### NVIDIA NIM API
 
@@ -160,9 +160,9 @@ OpenCode curates models benchmarked for agentic coding, more details at [OpenCod
 
 Free APIs can experience rate-limiting or latency spikes. Community trackers help you route efficiently:
 
-- **[free-ai-tools](https://github.com/ShaikhWarsi/free-ai-tools)** — master directory of 550+ free APIs, IDEs, and local RAG stacks.
-- **[ClawRouter](https://github.com/BlockRunAI/ClawRouter)** — open-source routing layer tracking real-time free model latency with load balancing.
-- **[frouter](https://github.com/jyoung105/frouter)** — CLI tool to ping free models and test Time To First Token (TTFT) before starting your loop.
+- **[free-ai-tools](https://github.com/ShaikhWarsi/free-ai-tools):** master directory of 550+ free APIs, IDEs, and local RAG stacks.
+- **[ClawRouter](https://github.com/BlockRunAI/ClawRouter):** open-source routing layer tracking real-time free model latency with load balancing.
+- **[frouter](https://github.com/jyoung105/frouter):** CLI tool to ping free models and test Time To First Token (TTFT) before starting your loop.
 :::
 
 ## 5. Attaching Your First Project
@@ -177,29 +177,29 @@ Once submitted, LoopTroop kicks off an **interview phase** to clarify your inten
 
 ## What Happens After Your First Ticket?
 
-Your ticket flows through a structured pipeline — each stage has a clear purpose and a human review gate:
+Your ticket flows through a structured pipeline. Each stage has a clear purpose and a human review gate:
 
-1. **Interview** — the AI council asks targeted questions to clarify ambiguities in your request.
-2. **PRD** — your answers are synthesized into a structured spec with epics, user stories, and implementation steps.
-3. **Beads** — the spec is decomposed into the smallest independently implementable units of work.
-4. **Execution** — each bead is coded, tested, and retried in an isolated worktree until it passes.
-5. **Review** — you inspect the final diff, commits, and changes before merging.
+1. **Interview:** the AI council asks targeted questions to clarify ambiguities in your request.
+2. **PRD:** your answers are synthesized into a structured spec with epics, user stories, and implementation steps.
+3. **Beads:** the spec is decomposed into the smallest independently implementable units of work.
+4. **Execution:** each bead is coded, tested, and retried in an isolated worktree until it passes.
+5. **Review:** you inspect the final diff, commits, and changes before merging.
 
 For the full lifecycle, see [Ticket Flow](ticket-flow.md).
 
 ## Next Steps
 
-- [Installation](installation.md) — every channel, upgrading, uninstalling, verifying a download
-- [CLI Reference](cli.md) — every command and option
-- [Ticket Flow](ticket-flow.md) — end-to-end lifecycle from ticket to PR
-- [Ticket Lifecycle Screenshots](ticket-lifecycle-screenshots.md) — visual walkthrough of every workflow status
-- [Core Philosophy](core-philosophy.md) — context engineering, councils, retries, approvals
-- [Configuration](configuration.md) — all profile settings with defaults, ranges, and trade-offs
-- [Operations Guide](operations.md) — runtime storage, environment variables, startup maintenance, diagnostics, and troubleshooting
+- [Installation](installation.md): every channel, upgrading, uninstalling, verifying a download
+- [CLI Reference](cli.md): every command and option
+- [Ticket Flow](ticket-flow.md): end-to-end lifecycle from ticket to PR
+- [Ticket Lifecycle Screenshots](ticket-lifecycle-screenshots.md): visual walkthrough of every workflow status
+- [Core Philosophy](core-philosophy.md): context engineering, councils, retries, approvals
+- [Configuration](configuration.md): all profile settings with defaults, ranges, and trade-offs
+- [Operations Guide](operations.md): runtime storage, environment variables, startup maintenance, diagnostics, and troubleshooting
 
 ## Is LoopTroop Right For Your Task?
 
-Before you start, it helps to know what LoopTroop is built for — and what it is not.
+Before you start, it helps to know which tasks LoopTroop is built for and which it is not.
 
 LoopTroop is at its best for:
 
@@ -212,7 +212,7 @@ LoopTroop is at its best for:
 It is **not** a magic autopilot, and it is the wrong tool for:
 
 - **One-shot trivial edits** or quick fixes, where the planning overhead will feel slow.
-- **Chat-first exploratory coding** — traditional IDE-based chat assistants are better suited here.
+- **Chat-first exploratory coding:** traditional IDE-based chat assistants are better suited here.
 - **Unbounded autonomous runs** without explicit human checkpoints.
-- **Cost-sensitive budgets** — orchestrating multi-model councils and long retry loops uses a high volume of API tokens, though costs can be mitigated by leveraging subscription plans or free-tier providers in OpenCode (see [Free Model Options](#free-model-options) above).
-- **A secure sandbox** — it does not replace process isolation, filesystem policy, or host-level blast-radius reduction. Always run in a disposable VM or cloud container (see [Why a VM?](#why-a-vm) above).
+- **Cost-sensitive budgets:** orchestrating multi-model councils and long retry loops uses a high volume of API tokens, though subscription plans or free-tier providers in OpenCode can reduce costs (see [Free Model Options](#free-model-options) above).
+- **A secure sandbox:** it does not replace process isolation, filesystem policy, or host-level blast-radius reduction. Always run in a disposable VM or cloud container (see [Why a VM?](#why-a-vm) above).

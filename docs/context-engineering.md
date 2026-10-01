@@ -1,7 +1,7 @@
 # Context Engineering
 
 > [!IMPORTANT]
-> **TL;DR** — Every single phase, every single status, and most retries use as input the smallest possible context derived from the previous status. LoopTroop almost **never** keeps the previous conversation history. This is a core principle of the project's design and implementation.
+> **TL;DR:** Every single phase, every single status, and most retries use as input the smallest possible context derived from the previous status. LoopTroop almost **never** keeps the previous conversation history. This is a core principle of the project's design and implementation.
 
 LoopTroop uses context engineering to keep model work focused. The engine does not treat an LLM session as the source of truth, and it does not keep appending every previous message to the next prompt. Each status rebuilds the smallest useful prompt from durable artifacts and the active task contract.
 
@@ -100,7 +100,7 @@ ticketState:
 
 ### Manual QA generation contract
 
-Manual QA checklist generation uses a dedicated focused builder rather than inheriting the entire generic ticket state. It supplies the ticket title/description, frozen approved PRD, selected bead behavior and verification fields, the **current** final-test report, the latest previous checklist/results/coverage/summary, and targeted metadata spanning the complete merge-base-to-clean-checkpoint candidate range. Read-only focused diff inspection is permitted, but raw whole-repository dumps are prohibited. Coverage and source-category counts come from the same strict response and are computed in code—there is no second coverage model call. Later-round output must keep stable lineage for referenced prior items, retain every failed item as `pending_recheck`, and may mark only prior passes as `previously_passed`.
+Manual QA checklist generation uses a dedicated focused builder rather than inheriting the entire generic ticket state. It supplies the ticket title/description, frozen approved PRD, selected bead behavior and verification fields, the **current** final-test report, the latest previous checklist/results/coverage/summary, and targeted metadata spanning the complete merge-base-to-clean-checkpoint candidate range. Read-only focused diff inspection is permitted, but raw whole-repository dumps are prohibited. Coverage and source-category counts come from the same strict response and are computed in code. There is no second coverage model call. Later-round output must keep stable lineage for referenced prior items, retain every failed item as `pending_recheck`, and may mark only prior passes as `previously_passed`.
 
 Checklist items receive app-assigned version IDs and stable cross-round `lineageId` values. A failed round archives its attempts; after normal fix-bead execution, generation receives a fresh final-test report instead of old round reports or retry notes.
 

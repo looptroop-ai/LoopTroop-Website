@@ -21,15 +21,15 @@ search: false
     *   Stripped data must be persisted to a companion artifact (`.looptroop/worktrees/<ticket-id>/.ticket/context/stripped-<phase>-<attempt>.json`) so it remains available for UI rendering, diagnostics, and forensic replay.
     *   The canonical context artifact passed to subsequent phases contains only the slimmed payload; the stripped companion is loaded only when the UI or an audit tool requests it.
     *   Manually classify every output field per phase into one of four ownership classes:
-        *   `required_downstream`: consumed by at least one subsequent phase, UI surface, or log contract — kept in canonical context.
-        *   `required_display_only`: not consumed by any downstream phase but needed for UI display or user-facing detail views — stripped from canonical context, preserved in stripped companion.
-        *   `app_derived`: can be deterministically produced by the LoopTroop app itself without AI involvement (e.g., timestamps, IDs, status metadata, computed totals, derived summaries from already-available data, cross-references to existing artifacts, sequence numbers, file-path resolutions, and any field whose value is a pure function of data the app already has) — removed from the AI output schema entirely so models never waste tokens generating them; the app populates these fields deterministically after model output is received.
-        *   `obsolete`: not consumed by any downstream phase, UI surface, or log contract, and cannot be produced by the app — stripped from canonical context and preserved in stripped companion with `obsolete: true` marker for future manual removal.
+        *   `required_downstream`: consumed by at least one subsequent phase, UI surface, or log contract: kept in canonical context.
+        *   `required_display_only`: not consumed by any downstream phase but needed for UI display or user-facing detail views: stripped from canonical context, preserved in stripped companion.
+        *   `app_derived`: can be deterministically produced by the LoopTroop app itself without AI involvement (e.g., timestamps, IDs, status metadata, computed totals, derived summaries from already-available data, cross-references to existing artifacts, sequence numbers, file-path resolutions, and any field whose value is a pure function of data the app already has): removed from the AI output schema entirely so models never waste tokens generating them; the app populates these fields deterministically after model output is received.
+        *   `obsolete`: not consumed by any downstream phase, UI surface, or log contract, and cannot be produced by the app: stripped from canonical context and preserved in stripped companion with `obsolete: true` marker for future manual removal.
     *   **Classify `answer.skip_reason` in `interview.yaml` before any strip pass runs over the interview artifact.** It holds the reason a user gave for skipping a question. The interview screens render it beside the skipped answer, and the prompt that invents answers for skipped questions reads it from the stored artifact through a separate read-only section of its own. No phase consumes it as an ordinary input, so an audit that only looks for downstream consumers will read it as unused and strip away both of those.
     *   After initial audit, physically remove all `obsolete` and `app_derived` fields from the AI output schema (prompt + structured-output validation) so models no longer waste tokens generating them.
     *   For every `app_derived` field, implement a deterministic derivation function in the app that produces the same value the AI would have produced (or a strictly better one, since the app has full access to runtime state). Persist the derivation function reference in the field manifest (`derivation_fn`, `derivation_inputs[]`) so audits can verify correctness.
     *   The `app_derived` classification must be conservative: only classify a field as `app_derived` when the app can produce the value with zero ambiguity (no creative/AI judgment required). If a field's value depends on interpretation, summarization, or subjective judgment, it remains in `required_downstream` or `required_display_only` even if the app could produce an approximation.
-    *   When an `app_derived` field is removed from the AI output schema, update the prompt to instruct the model that the field is no longer needed — this reduces both output tokens and prompt complexity, since the model no longer needs to be told what format to produce for that field.
+    *   When an `app_derived` field is removed from the AI output schema, update the prompt to instruct the model that the field is no longer needed; this reduces both output tokens and prompt complexity, since the model no longer needs to be told what format to produce for that field.
     *   Track estimated token savings from `app_derived` removal separately in strip receipts (`app_derived_tokens_saved_estimate`) alongside the existing `tokens_saved_estimate` so the impact of app-side derivation vs. pure stripping is measurable in isolation.
     *   Persist the field-classification manifest at `.looptroop/worktrees/<ticket-id>/.ticket/context/field-manifest-<phase>.yaml` with per-field entries: `field_path`, `class`, `consumed_by[]`, `first_audit_at`, `last_verified_at`.
     *   For every retry path (structured retry, coverage-retry loop, context-wipe retry, model-fallback retry), also audit which additional fields the retry adds to the context and classify them the same way; persist retry-specific entries in the field manifest with `retry_kind` and `retry_added_fields[]`.
@@ -38,7 +38,7 @@ search: false
     *   Add token-savings telemetry per phase: persist `tokens_saved_estimate`, `fields_stripped_count`, `fields_kept_count` in each strip receipt so the impact of slimming is measurable.
     *   Strip receipts must be deterministic: same input always produces the same slimmed output and the same stripped companion, enabling reproducible context-pack audits.
     *   UI must transparently show both the slimmed context (what the model saw) and the full context (with stripped data re-attached) so users can verify nothing important was lost.
-    *   When a downstream phase is found to need a previously stripped field, update the field manifest (`required_downstream`), add the consuming phase to `consumed_by[]`, and stop stripping that field from that point forward — no schema migration required.
+    *   When a downstream phase is found to need a previously stripped field, update the field manifest (`required_downstream`), add the consuming phase to `consumed_by[]`, and stop stripping that field from that point forward. No schema migration is required.
     *   Add `Doctor` validation that checks every field manifest against actual runtime consumption and warns on stale classifications (fields marked `required_downstream` but never consumed, or fields marked `obsolete` that are actually consumed).
     *   Audit order (status by status, starting with first): `DRAFT` → `SCANNING_RELEVANT_FILES` → `COUNCIL_DELIBERATING` → `COUNCIL_VOTING_INTERVIEW` → `COMPILING_INTERVIEW` → `WAITING_INTERVIEW_ANSWERS` → `VERIFYING_INTERVIEW_COVERAGE` → `WAITING_INTERVIEW_APPROVAL` → `DRAFTING_PRD` → `COUNCIL_VOTING_PRD` → `REFINING_PRD` → `VERIFYING_PRD_COVERAGE` → `WAITING_PRD_APPROVAL` → `DRAFTING_BEADS` → `COUNCIL_VOTING_BEADS` → `REFINING_BEADS` → `VERIFYING_BEADS_COVERAGE` → `EXPANDING_BEADS` → `WAITING_BEADS_APPROVAL` → `PRE_FLIGHT_CHECK` → `GENERATING_EXECUTION_SETUP_PLAN` → `WAITING_EXECUTION_SETUP_APPROVAL` → `PREPARING_EXECUTION_ENV` → `CODING` → `RUNNING_FINAL_TEST` → `INTEGRATING_CHANGES` → `CREATING_PULL_REQUEST` → `WAITING_PR_REVIEW` → `CLEANING_ENV` → `COMPLETED`.
     *   For each status, document: input fields consumed, output fields produced, output fields actually used downstream, and fields added by any retry path.
@@ -108,7 +108,7 @@ search: false
 *   **Date-Stamped Ticket Archive + Living Project Spec (delta-merge contract):**
     *   On transition to `COMPLETED`, copy the full ticket folder to immutable archive path `.looptroop/archive/YYYY-MM-DD-<ticket-id>/`.
     *   Persist archive index at `.looptroop/archive/index.jsonl` with `ticket_id`, `archived_at`, `source_path`, `archive_path`, `source_commit`, and `snapshot_hash`.
-    *   Add scheduled ticket-artifact backups (not only completion archive) under `.looptroop/backups/tickets/<ticket-id>/<timestamp>/` so backups stay inside the LoopTroop directory.
+    *   Add scheduled ticket-artifact backups alongside the completion archive under `.looptroop/backups/tickets/<ticket-id>/<timestamp>/` so backups stay inside the LoopTroop directory.
     *   Backup scope must include `interview.yaml`, `prd.yaml`, `beads/main/.beads/issues.jsonl`, `state.yaml`, `execution-log.jsonl`, `execution-log.debug.jsonl`, and `execution-log.ai.jsonl` with a backup manifest (`created_at`, `artifact_paths[]`, `artifact_hashes[]`, `source_state_version`).
     *   Add retention policy + pruning receipts for backups (default: last `N` snapshots + daily checkpoints).
     *   Add UI restore flow for ticket backups: list snapshots, preview metadata/diff, and restore either full snapshot or selected artifacts.
@@ -247,8 +247,8 @@ search: false
         *   constraints/non-goals,
         *   regression risks.
     *   Auto-classify scope:
-        *   `SMALL` - usually 1-3 files, no architecture impact.
-        *   `MEDIUM` - usually 4-10 files or minor architecture impact.
+        *   `SMALL` - usually 1 to 3 files, no architecture impact.
+        *   `MEDIUM` - usually 4 to 10 files or minor architecture impact.
         *   `LARGE` - 10+ files or architecture-impacting change.
     *   Route planning depth from scope using explicit planning profiles:
         *   `SMALL` -> `profile=minimal` (change request + fast-path planning with optional direct bead generation).
@@ -385,7 +385,7 @@ search: false
         *   apply blind-review protocol before scoring: strip model/provider markers, randomize anonymous labels (`candidate_1`, `candidate_2`, ...), and persist reversible mapping for audit-only use at `.looptroop/worktrees/<ticket-id>/.ticket/council/candidate-map.json`.
         *   required council pipeline for Interview/Proposal/Options/Design/Beads phases when `execution_profile=council`: `draft -> self_reflection -> adversarial_critique -> voting -> synthesis`.
         *   `execution_profile=quick` uses single-model path: `draft -> coverage_verify`; system auto-escalates to full council when quick-path escalation triggers fire.
-        *   self-reflection output is mandatory per draft: `top_weaknesses[]` (minimum 3), `assumptions[]`, `confidence_pct` (0-100), and `needs_user_input[]`.
+        *   self-reflection output is mandatory per draft: `top_weaknesses[]` (minimum 3), `assumptions[]`, `confidence_pct` (0 to 100), and `needs_user_input[]`.
         *   adversarial critique pass is mandatory: each member must record at least one concrete weakness/risk per peer draft (`issue`, `impact`, `evidence_ref`, `suggested_fix`); empty critique payloads are `invalid_output`.
         *   default decision mode is rubric scoring across required Proposal/Options/Design criteria; optional `pairwise` mode is allowed only for close finalists and must emit explicit criterion-level win/loss reasons.
         *   each vote must emit structured evidence fields: `criterion`, `score`, `confidence`, `evidence_refs[]`, `concerns[]`.
@@ -517,7 +517,7 @@ search: false
         *   enforce timeout/retry policy (`qualitative_timeout_seconds` default `120`, `max_qualitative_retries` default `2`);
         *   missing/invalid/timed-out qualitative verdict blocks bead completion unless policy explicitly allows degraded mode with receipt.
     *   Security gate contract:
-        *   strict runtime budget (default 90 seconds; configurable range 60-120 seconds).
+        *   strict runtime budget (default 90 seconds; configurable range 60 to 120 seconds).
         *   structured findings output: `severity` (`low|medium|high|critical`), `file`, `line`, `issue`, `evidence`, `fix_suggestion`.
         *   bead completion is blocked only on validated `high` or `critical` findings.
         *   `low` and `medium` findings are warnings: persist and surface in final ticket review summary.
@@ -656,7 +656,7 @@ search: false
     *   Validate every model output against schema before acceptance.
     *   Add schema-validation retry ladder for structured outputs:
         *   attempt 1: standard generation against target schema.
-        *   attempts 2-3: re-prompt with field-level validation errors from prior attempt.
+        *   attempts 2 to 3: re-prompt with field-level validation errors from prior attempt.
         *   attempt 4 (optional): escalate to higher-capability repair model for schema-conformant reconstruction.
     *   Add partial-acceptance mode for near-valid payloads: if `valid_field_ratio >= 0.90`, keep valid fields and request only missing/invalid fields in the next retry.
     *   For multi-member council phases, members that fail the retry ladder are marked `invalid_output`; phase continues only if quorum + `min_valid_responses` are still satisfied.
@@ -1207,7 +1207,7 @@ search: false
     *   **Worktree optimization track:** evaluate `git worktree add --detach` plus shared object/reference cache (`--reference`/alternates) to reduce spawn latency and disk I/O for parallel Ralph loops.
     *   Prefer copy-on-write semantics when the host filesystem supports it; fall back to standard worktree creation when unavailable.
     *   Reuse heavy dependencies across worker worktrees (`node_modules`, pnpm store, caches) via symlink/junction strategy with per-worktree writable overlays for changed artifacts only.
-    *   Extend dependency-reuse policy to all ticket worktrees (not only parallel workers):
+    *   Extend dependency-reuse policy from parallel workers to all ticket worktrees:
         *   enforce shared-store-first setup (`pnpm` preferred) and skip full reinstall when reusable dependencies are available;
         *   for non-pnpm projects, create deterministic symlink/junction from source workspace `node_modules` into `.looptroop/worktrees/<ticket-id>/` (or run-scoped worktree path) unless project policy opts out;
         *   persist dependency-link receipt (`mode`, `link_target`, `install_skipped`, `estimated_space_saved_mb`) so worktree startup regressions are measurable.
@@ -1237,7 +1237,7 @@ search: false
 *   **Per-ticket override + Council Presets:** You can change the main implementer and council members per ticket to override the general configuration.
     *   Add named model presets (implementer + council + optional quorum/timeout overrides) with CRUD operations and per-ticket one-click apply.
     *   Include built-in starter presets (`budget`, `balanced`, `quality`) and allow full user customization.
-    *   Add quick council sizing control (MVP: 2-4 members, later: up to 10) with deterministic auto-fill from preset or ranked available models.
+    *   Add quick council sizing control (MVP: 2 to 4 members, later: up to 10) with deterministic auto-fill from preset or ranked available models.
     *   Add `im_feeling_lucky` action to pick a random valid council composition from configured models.
     *   Add optional `wildcard_seat` that reserves one council slot for randomized selection from a curated high-performing pool to reduce echo-chamber behavior.
     *   Persist preset registry at `.looptroop/config/presets.yaml`.
@@ -1315,7 +1315,7 @@ search: false
 
 
 
-*   **Stuck-bead recovery (model-escalation retry + AI bead re-analysis):** When a ticket fails a coding bead after consuming all of its per-bead retry attempts (so it is blocked and waiting on the user), offer two new recovery actions alongside the existing Retry / Retry with extra note / Cancel — one for escalating the model, one for diagnosing and correcting the bead itself.
+*   **Stuck-bead recovery (model-escalation retry + AI bead re-analysis):** When a ticket fails a coding bead after consuming all of its per-bead retry attempts (so it is blocked and waiting on the user), offer two new recovery actions alongside the existing Retry / Retry with extra note / Cancel: one for escalating the model, one for diagnosing and correcting the bead itself.
     * Scope both actions to coding-phase blocked errors only; they must not appear for other blocked phases (e.g. execution-env setup, final test, PR creation).
     * **Retry with another model:** Add a new recovery action that re-runs the stuck bead using a different model chosen by the user from the connected models, without changing the model locked for the rest of the ticket.
         * The alternate model is used for the entire next bead run (every attempt within that bead until it succeeds or exhausts its retry budget again), then the ticket automatically reverts to its original locked model for all subsequent beads.
@@ -1324,17 +1324,17 @@ search: false
         * Optionally allow a short free-text reason for the model switch, persisted for auditability.
         * The retry still resets the worktree to the stuck bead's start point, exactly like a normal retry, so the alternate model starts from a clean bead state.
         * AI turn metrics for the alternate-model run must be attributable to that model so users can see, after the fact, which model produced which attempts.
-    * **Re-analyze stuck bead (one button that branches):** Add a single "Re-analyze" action that produces an AI diagnosis of why the bead keeps getting stuck, then lets the user choose what to do next — either correct the bead spec(s) or turn the diagnosis into a retry note.
+    * **Re-analyze stuck bead (one button that branches):** Add a single "Re-analyze" action that produces an AI diagnosis of why the bead keeps getting stuck, then lets the user choose what to do next: either correct the bead spec(s) or turn the diagnosis into a retry note.
         * The action gathers the approved PRD, the full list of beads, and all of the stuck bead's execution logs (the model's assistant outputs plus the error and system lines), prioritizing error and structured-retry-diagnostic entries and staying within the normal context budget so the diagnosis is not drowned in raw debug noise.
         * The model returns a structured diagnosis: the likely root cause, the signals that point to it, a hypothesis, recommended next actions, an optional suggested retry note, an optional suggested bead correction (with a recommended change level: slight, necessary, or major, and a recommended scope: just this bead or this and future beads), and a confidence level.
         * The diagnosis is persisted and surfaced in the blocked-error UI so the user can read it before deciding what to do; nothing is applied automatically.
-        * **Branch A — Apply bead correction:** Let the user regenerate the stuck bead's spec from the diagnosis, pre-filled with the suggested correction but adjustable.
-            * The user chooses scope (correct only the current stuck bead, or correct the current and all not-yet-started future beads) and change level (slight, necessary, or major), where the level controls how much of the bead spec may be rewritten — slight touches only context guidance and anti-patterns, necessary also rewords acceptance criteria and tests, and major may also rewrite the description and target files.
+        * **Branch A: Apply bead correction:** Let the user regenerate the stuck bead's spec from the diagnosis, pre-filled with the suggested correction but adjustable.
+            * The user chooses scope (correct only the current stuck bead, or correct the current and all not-yet-started future beads) and change level (slight, necessary, or major), where the level controls how much of the bead spec may be rewritten: slight touches only context guidance and anti-patterns, necessary also rewords acceptance criteria and tests, and major may also rewrite the description and target files.
             * When scope includes future beads, only beads that have not started yet may be changed; already-completed or in-progress beads are never rewritten.
             * For every level, the app must show a diff of the proposed spec changes and require explicit user approval before writing anything; no correction is ever applied silently.
             * On approval, the corrected bead spec(s) are saved, the stuck bead's iteration counter is reset, its machine-generated failure notes are cleared, its user-authored retry notes are preserved, the worktree is reset to the stuck bead's start point, and the ticket resumes coding with the new spec(s).
             * If the OpenCode process dies mid-correction, the ticket must remain blocked and no partial changes may be written.
-        * **Branch B — Use as retry note:** Let the user take the diagnosis's suggested retry note (or an edited version of it) straight into the existing "Retry with extra note" flow.
+        * **Branch B: Use as retry note:** Let the user take the diagnosis's suggested retry note (or an edited version of it) straight into the existing "Retry with extra note" flow.
             * The retry-note dialog is pre-filled with the suggested note; the user can edit it before submitting.
             * Submitting uses the existing retry-with-note behavior: the note is appended to the bead's user retry notes, replayed into every future attempt for that bead, and the ticket resumes coding.
             * No new retry mechanism is introduced for this branch; it reuses the existing retry-with-note path.
@@ -1406,12 +1406,12 @@ search: false
     *   Persist `.looptroop/worktrees/<ticket-id>/.ticket/persona-topology.snapshot.yaml` with resolved personas, routing rules, and validation outcome.
     *   Playbook apply must never silently overwrite safety-critical settings (`policy profile`, budget caps, lock settings, ownership guards).
     *   E.g., Optimize SEO on the project website: user edits only fields marked editable (site name, description, target pages, and constraints).
-    *   E.g., Don't Know What to Build? — ideas preset — this launches Idea Mode, a brainstorming session to help users discover project ideas:
+    *   E.g., Don't Know What to Build? (ideas preset): this launches Idea Mode, a brainstorming session to help users discover project ideas:
         *   Brainstorm with AI - Get creative suggestions
-        *   See trending ideas - Based on 2025-2026 tech trends
+        *   See trending ideas - Based on 2025 to 2026 tech trends
         *   Based on my skills - Personalized to technologies you know
         *   Solve a problem - Help fix something that frustrates you
-    *   It can be set as recursive: user chooses when/how many times to repeat (or sets a Unix cron job).
+    *   It can be set as recursive: the user chooses when and how many times to repeat (or sets a Unix cron job).
     *   Users can upload their versions from the interface with their GitHub user, or publish/update on `looptroop/playbooks` repository.
     *   Add local manifest overlay for private/in-progress playbooks:
         *   local manifest file: `~/.looptroop/local-playbooks/manifest.json` (optional; if missing, official catalog works normally),
@@ -1446,7 +1446,7 @@ search: false
 *   **Structured Commit Evidence + Receipt Contract:**
     *   After each completed bead, enforce a deterministic commit template:
         *   `<ticket-id> <bead-id>: <short title>`
-        *   `Why:` 1-2 lines describing the behavior change.
+        *   `Why:` 1 to 2 lines describing the behavior change.
         *   `Caveats:` breaking changes, migration notes, known limitations (`None` if not applicable).
         *   `Verification:` exact commands executed and pass/fail summary.
     *   Persist one machine-readable commit receipt per completed bead at `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/receipts/<bead-id>.yaml`.
@@ -1521,7 +1521,7 @@ search: false
     *   **Repo Listener:** Link with a repository to monitor new Issues/PRs. ([I1](https://davidfowl.github.io/ralph-experiments/index.html))
         *   Listener mode should support webhook/polling with idempotent dedupe keys so the same item is never imported twice.
 *   **Cost Management (step-accurate accounting):** Dashboard for current usage, forecasts, and token limits. Visual indicators will turn the ticket Yellow or Red as limits are approached or reached. Hard spending limits set per ticket.
-    *   Aggregate usage from every model step/tool step (not only final responses) and persist totals per iteration, per bead, and per ticket.
+    *   Aggregate usage from every model step/tool step, including non-final responses, and persist totals per iteration, per bead, and per ticket.
     *   Track token classes separately: `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`.
     *   Enforce dual hard budgets (`max_cost_usd`, `max_tokens_total`) with deterministic transitions (`warning` -> `NEEDS_INPUT` or `BLOCKED_ERROR`, based on policy).
     *   Add pre-execution estimator before `Approve Blueprint`: compute `estimated_cost_range_usd` + `estimated_runtime_range` from bead count, iteration caps, historical token medians, and configured model pricing; require explicit confirmation when estimate exceeds policy threshold.
@@ -1560,8 +1560,8 @@ search: false
     *   Support `info` output formats: `human`, `json`, `copyable`.
     *   Link About panel to latest `Doctor` report, latest preflight report, and diagnostics export bundle.
 *   **Localization:** Support for multiple interface languages.
-*   **Smart Tagging/Labeling for each ticket:** The user will type one (e.g., backend, front-end, infrastructure, marketing, etc.)
-    *   AI-suggested based on previous used ones or 3-5 new suggestions.
+*   **Smart Tagging/Labeling for each ticket:** The user enters one label (e.g., backend, front-end, infrastructure, marketing, etc.)
+    *   AI suggestions can draw on previously used labels or include 3 to 5 new suggestions.
 *   **Execution Ownership Guard (anti-stale sessions/events + receipts + process lock):**
     *   Generate unique `run_id` and `session_id` values when execution starts and persist both in ticket runtime state.
     *   Freeze `run_fingerprint` at execution start (hash of approved planning artifacts, bead graph, resolved config, and prompt contract versions).
@@ -1643,7 +1643,7 @@ search: false
         *   Persist per-bead bearings reports in `.looptroop/worktrees/<ticket-id>/.ticket/runs/<run-id>/bearings/<bead-id>.yaml`.
     *   **Dynamic Bead Fission (Recursive Sub-Planning) + Continue Strategy (before HITL):**
         *   Allow the Ralph loop executor to reject the current `in_progress` bead as `too_complex` and trigger a local planning event before max retries are exhausted.
-        *   Convert the current bead into a non-runnable `parent_split` bead and spawn 2-5 child beads with explicit dependency edges and parent-to-child acceptance-criteria trace mapping.
+        *   Convert the current bead into a non-runnable `parent_split` bead and spawn 2 to 5 child beads with explicit dependency edges and parent-to-child acceptance-criteria trace mapping.
         *   Require each child bead to include scoped completion checks so recursive decomposition remains bounded and auditable.
         *   If a bead reaches max retries with repeated failure signatures and no prior split, run one automatic decomposition pass as fallback.
         *   If decomposition is not possible, mark bead as `blocked`, persist `block-<bead-id>.md`, and continue with other runnable beads.
@@ -1750,12 +1750,12 @@ search: false
 *   **Execution Mode Lock:** During coding phase, implementer can execute approved beads only; design-level changes require explicit approval transition. QA fixes cannot silently expand scope or alter approved design without escalation.
 *   **Deterministic Bead Sizing + Complexity Scoring + Dependency-Order Contract (+ scope sentence test):**
     *   Add required sizing classes for planning/approval:
-        *   `S`: 1-2 target files, 1-3 acceptance criteria, no architecture change.
-        *   `M` (target): 3-5 target files, 3-5 acceptance criteria, reuses existing patterns.
+        *   `S`: 1 to 2 target files, 1 to 3 acceptance criteria, no architecture change.
+        *   `M` (target): 3 to 5 target files, 3 to 5 acceptance criteria, reuses existing patterns.
         *   `L`: 6+ target files, cross-cutting architecture change, or unclear scope -> must be split before execution.
     *   Add required post-coverage `Complexity Analysis Pass` before user approval:
         *   score each bead `complexity_score` from 1 to 10 using deterministic signals (estimated files touched, dependency depth, integration surface, logic density, and risk indicators);
-        *   produce `decomposition_recommendation` and `suggested_model_tier` (`fast` 1-4, `standard` 5-7, `reasoning` 8-10).
+        *   produce `decomposition_recommendation` and `suggested_model_tier` (`fast` 1 to 4, `standard` 5 to 7, `reasoning` 8 to 10).
     *   Mandatory fission threshold: beads scoring `>7` are auto-rejected for execution and must be split before approval; if splitting fails, route to `NEEDS_INPUT` with rationale.
     *   Surface complexity in approval and navigator views (color bands + warning icon for `>=8`) and persist analysis artifacts under `.looptroop/worktrees/<ticket-id>/.ticket/planning/complexity/`.
     *   Add `scope_sentence` rule: each bead must be describable in one sentence without using the word `and`; if not, split it.
@@ -1792,7 +1792,7 @@ search: false
         *   Never overwrite runtime-owned active files silently.
         *   Emit per-file decisions (`applied`, `skipped`, `conflict`) with reason and required user action.
     *   Keep snapshot audit trail at `.looptroop/migrations/snapshot-history.jsonl` with export/import lifecycle events and outcomes.
-*   **Planning artifact upload (validated import contract):** Allow users to upload planning inputs and skip interview/planning generation only after schema validation + minimum coverage checks pass; otherwise route to correction flow with actionable validation errors. When user uploads a PRD or specs document an option to start a short interview phase to validate and enrich the uploaded content is provided. This will start the normal interview phase (with fewer questions and uploaded document as extra context) and then move to PRD phase and then beads phase as normal.
+*   **Planning artifact upload (validated import contract):** Allow users to upload planning inputs and skip interview/planning generation only after schema validation + minimum coverage checks pass; otherwise route to correction flow with actionable validation errors. When a user uploads a PRD or specs document, provide an option to start a short interview phase that validates and enriches the uploaded content. This starts the normal interview phase with fewer questions and the uploaded document as extra context, then proceeds to the PRD and Beads phases as usual.
     *   Accept upload modes:
         *   split mode: `proposal` + `design` inputs,
         *   legacy mode: monolithic `PRD` input (auto-normalized into Proposal + Options Synthesis + Design + derived composite PRD).
@@ -1817,7 +1817,7 @@ search: false
             *   when no approved baseline exists yet, compare against previous draft iteration and label baseline source explicitly.
         *   After any manual edit, run a bounded Clarification Repair pass before regeneration:
             *   ask at most 5 high-impact clarification questions, one question at a time;
-            *   each question must be either multiple-choice (2-5 options) or short free-text answer (max 5 words);
+            *   each question must be either multiple-choice (2 to 5 options) or short free-text answer (max 5 words);
             *   persist Q/A to `.looptroop/worktrees/<ticket-id>/.ticket/clarifications/session-<timestamp>.md`;
             *   persist apply report to `.looptroop/worktrees/<ticket-id>/.ticket/clarifications/apply-report-<timestamp>.md`.
         *   If blocking ambiguities remain after the Clarification Repair pass, move to `NEEDS_INPUT`.
@@ -1946,7 +1946,7 @@ search: false
     *   If tracked files are dirty at finalize time, create one deterministic safety commit (`looptroop: finalize <ticket-id>`) before squash/land so no tracked work is silently lost.
     *   Persist finalization audit event `ticket_finalized` with links to landing receipt, merge/land result, and cleanup report for post-run investigation.
     *   Optional release tag: if ticket metadata includes `target_version_tag`, create an annotated git tag after manual verification; if the tag already exists, skip creation and log a warning.
-*   **Message Steering (deterministic queued control):** During execution, while an active bead is running, user steering messages are accepted in a chat-like panel and queued for deterministic application at safe checkpoints without pausing the run. Another steering direction can be for the rest of the project, not only for next bead or active bead.
+*   **Message Steering (deterministic queued control):** During execution, while an active bead is running, user steering messages are accepted in a chat-like panel and queued for deterministic application at safe checkpoints without pausing the run. Another steering direction can target the rest of the project, including the next bead or the active bead.
     *   Persist steering queue at `.looptroop/worktrees/<ticket-id>/.ticket/steering/queue.jsonl` with `queue_id`, `run_id`, `bead_id`, `created_at`, `status`, `applied_at`, and `result`.
     *   Apply policy: if the agent is mid-iteration, apply on the next checkpoint (after current command/test cycle) unless message is marked `urgent_stop`.
     *   Queue guarantees: FIFO within priority class, max queue size, deterministic dedupe for identical pending messages, and explicit expiration policy.
@@ -1970,21 +1970,21 @@ search: false
         *   **Dashboard-scoped chat (cross-ticket):** The chat model answers questions about what tickets are doing, projects, statuses, etc., across the entire workspace, so the user does not need to read all logs. Context includes ticket summaries, statuses, recent activity, and project-level metrics.
     *   **Chat model:** Uses a separate configurable model (not the main implementer or council members), intended to be a fast/cheap model like GPT-4o-mini, Claude 3 Haiku, Gemini 2.0 Flash, or similar.
     *   **Backend:** A new lightweight SSE streaming endpoint `/api/chat` that accepts `{ ticketId?, logEntries[], userMessage, scope, actionContext? }`, constructs the prompt, and streams the chat model's response. The `scope` field selects the context source (`log_tab`, `all_ticket_logs`, `execution`, `dashboard`). When `actionContext` is present, the model may propose and execute write actions.
-    *   **Ephemeral sessions:** Chat history is volatile — no persistence across page reloads or sessions. Keeps the feature lightweight and stateless. Action audit trails are persisted separately (see below).
+    *   **Ephemeral sessions:** Chat history is volatile and does not persist across page reloads or sessions. This keeps the feature lightweight and stateless. Action audit trails are persisted separately (see below).
     *   **Configuration:** A new **Chat & Analysis** section in the Configuration UI with a model picker for the chat model (and its effort/variant selector where applicable). Stored separately from job-critical model settings.
     *   **AI-Assisted Retry Note Generation:** When the user opens the "Retry with extra note..." dialog (on a live Blocked Error for implementation or workspace setup), an optional "Generate with AI" action lets the configured chat model draft the retry note.
         *   **Prompt input:** A small editable prompt field pre-filled with a sensible default (e.g., "This ticket/workspace keeps blocking. Can you add an extra note that will help an LLM model fix this issue?"). The user can rewrite the prompt before triggering generation.
         *   **Context assembly:** The chat model receives the user's prompt plus relevant ticket context: error diagnostics, ticket details, current bead info (for implementation blocks) or setup report (for workspace setup blocks), prior retry notes, and recent phase logs.
-        *   **Output handling:** The generated text is inserted into the existing "Extra note" textarea for the user to review, edit, or discard. Nothing is submitted automatically — the user always confirms the final note before retrying.
+        *   **Output handling:** The generated text is inserted into the existing "Extra note" textarea for the user to review, edit, or discard. Nothing is submitted automatically. The user always confirms the final note before retrying.
         *   **Model:** Reuses the same configurable chat model defined in the "Chat model" bullet above; no separate model picker is needed.
         *   **Availability:** Shown only when the "Retry with extra note..." button is visible (live implementation or workspace setup blocks). Hidden for historical errors and blocks from other phases.
     *   **Actionable Chat (write capabilities):** The chat assistant is not limited to read-only Q&A. It can perform write operations on ticket artifacts, project files, and workflow state through natural-language commands.
-        *   **Artifact approval/rejection:** Approve or reject planning artifacts (interview, PRD, beads, execution setup) via natural language (e.g., "Approve the PRD", "Reject the beads plan — the auth bead is missing rate limiting"). Rejection may include a reason that is persisted alongside the rejection receipt.
+        *   **Artifact approval/rejection:** Approve or reject planning artifacts (interview, PRD, beads, execution setup) via natural language (e.g., "Approve the PRD", "Reject the beads plan: the auth bead is missing rate limiting"). Rejection may include a reason that is persisted alongside the rejection receipt.
         *   **Artifact content editing:** Edit artifact content through chat (e.g., "Change the PRD scope to exclude the admin panel", "Add a bead for database migration before the API bead", "Update interview answer 3 to prefer PostgreSQL over MySQL"). Edits are applied to the canonical artifact and trigger the same downstream invalidation rules as manual UI edits.
         *   **Project file editing:** Edit project files related to the active ticket (source code, configs, docs) through chat (e.g., "Add a null check in the user service", "Update the vite config to alias @components"). File edits are scoped to the ticket's relevant files and planning context by default; editing files outside the ticket scope requires explicit user confirmation in the chat.
         *   **Workflow action triggering:** Trigger workflow actions via natural language (e.g., "Retry the failed bead", "Skip the coverage check", "Cancel this ticket", "Re-run the PRD drafting phase", "Retry all the failed ones"). Actions map to the same state-machine transitions and handlers as UI buttons.
-        *   **Safety model — full auto-execute with undo/rollback:**
-            *   Actions execute immediately upon model interpretation — no separate confirmation dialog.
+        *   **Safety model: full auto-execute with undo/rollback:**
+            *   Actions execute immediately upon model interpretation, with no separate confirmation dialog.
             *   Every chat-initiated action is journaled in an append-only audit trail at `.looptroop/worktrees/<ticket-id>/.ticket/chat-action-audit.jsonl` with: `action_id`, `timestamp`, `action_type` (`approve`, `reject`, `edit_artifact`, `edit_file`, `workflow_action`), `target` (artifact path, file path, or transition), `before_state` (snapshot or hash of the affected state before the action), `after_state` (snapshot or hash after), `operator` (`chat_assistant`), `model_id`, `user_message` (the natural-language command that triggered the action), `result` (`success`, `failed`, `rolled_back`), and `rollback_of` (links to the original `action_id` when this entry is a rollback).
             *   Every action is individually reversible: the user can say "Undo that" or "Rollback the last action" and the system restores the `before_state` from the audit journal. Rollback itself is journaled as a new entry with `result: rolled_back` linking to the original.
             *   Multi-action rollback: "Undo the last N actions" replays rollbacks in reverse chronological order.
@@ -1995,15 +1995,15 @@ search: false
             *   Workflow actions must be valid transitions in the ticket state machine; invalid transitions are rejected with a deterministic reason code and suggested alternatives.
         *   **Action feedback:** After executing an action, the chat responds with a concise confirmation including what was changed, the affected artifact/file/transition, and a hint about how to undo if needed.
     *   **Key files (implementation scope):**
-        *   `server/routes/chat.ts` — new SSE streaming endpoint with action dispatch
-        *   `server/chat/actionExecutor.ts` — chat action interpreter and executor (maps natural-language intents to existing handlers)
-        *   `server/chat/actionAudit.ts` — append-only audit journal and rollback engine
-        *   `server/db/schema.ts`, `server/db/defaults.ts`, `shared/appConfig.ts` — chat model config fields
-        *   `src/components/workspace/LogChatPanel.tsx` — new chat panel component
-        *   `src/components/workspace/PhaseLogPanel.tsx` — add chat button in toolbar
-        *   `src/components/dashboard/DashboardChatPanel.tsx` — dashboard-scoped chat surface
-        *   `src/components/config/ProfileSetup.tsx` — add Chat & Analysis section
-        *   `docs/configuration.md` — document the new settings
+        *   `server/routes/chat.ts`: new SSE streaming endpoint with action dispatch
+        *   `server/chat/actionExecutor.ts`: chat action interpreter and executor (maps natural-language intents to existing handlers)
+        *   `server/chat/actionAudit.ts`: append-only audit journal and rollback engine
+        *   `server/db/schema.ts`, `server/db/defaults.ts`, `shared/appConfig.ts`: chat model config fields
+        *   `src/components/workspace/LogChatPanel.tsx`: new chat panel component
+        *   `src/components/workspace/PhaseLogPanel.tsx`: add chat button in toolbar
+        *   `src/components/dashboard/DashboardChatPanel.tsx`: dashboard-scoped chat surface
+        *   `src/components/config/ProfileSetup.tsx`: add Chat & Analysis section
+        *   `docs/configuration.md`: document the new settings
 *   **Different implementer per bead/component:** Manually or automatically assign an implementer per bead or group of beads (e.g., all UI components should be done by Gemini 3 Pro).
 *   **Ticket-Scoped Commands & Instructions (testing + workspace setup):** Allow users to attach executable commands and free-form instructions directly to a ticket at creation time, which are then consumed during execution by the appropriate workflow phases.
     *   **Testing commands/instructions:** Users can specify test commands or testing instructions in the ticket description at creation. These are persisted, validated, and injected into the execution loop so the implementing agent can use them when writing and running tests.
@@ -2038,12 +2038,12 @@ search: false
 
 ## Low Priority
 
-*   **More install channels (only on real demand):** LoopTroop already installs from npm, bun, pnpm, Yarn Classic, Homebrew, Scoop, Chocolatey, WinGet, a one-line installer, a standalone executable and a container, with the AUR built and waiting on registration reopening upstream. Everything below is a channel nobody has asked for yet. Each entry names the actual obstacle, because they are not all the same size — some are work, and two are a conflict with what LoopTroop does.
+*   **More install channels (only on real demand):** LoopTroop already installs from npm, bun, pnpm, Yarn Classic, Homebrew, Scoop, Chocolatey, WinGet, a one-line installer, a standalone executable and a container, with the AUR built and waiting on registration reopening upstream. Everything below is a channel nobody has asked for yet. Each entry names the actual obstacle, because they are not all the same size: some are work, and two are a conflict with what LoopTroop does.
     *   **Additional container registries:** Publish the existing OCI image to popular alternatives to the current container registry: GitHub Container Registry (`ghcr.io`), Google Artifact Registry (the supported successor to GCR, with `gcr.io` compatibility where needed), Amazon Elastic Container Registry (ECR), Azure Container Registry (ACR), and Quay.io. Reuse the same multi-architecture image and release tags, then document provider-specific login, push/pull, CI credentials, and image-signing/scanning setup.
     *   **apt / deb and dnf / rpm:** the packaging is routine; the cost is standing up signed repositories and then owning the signing keys, their rotation and their compromise story, forever. Only worth it if enough Linux users ask for a system package that the installer script does not satisfy.
-    *   **Nix flake:** was deliberately dropped during the CLI distribution work as scope nobody had asked for. Listing it again is a reversal, not an oversight — pick it up only if Nix users actually appear.
+    *   **Nix flake:** was deliberately dropped during the CLI distribution work as scope nobody had asked for. Listing it again is a reversal, not an oversight. Pick it up only if Nix users actually appear.
     *   **Snap:** needs `classic` confinement, which requires a manual review and justification from Canonical. Strict confinement cannot work: LoopTroop runs git, `gh`, OpenCode and arbitrary project test commands against a repository anywhere on disk, which is what confinement exists to prevent.
-    *   **Flatpak:** the same conflict, and worse — it would need `--filesystem=host` plus host command execution, which removes most of the sandbox that is the reason to ship a Flatpak at all.
+    *   **Flatpak:** the same conflict applies, with an added cost: it would need `--filesystem=host` plus host command execution, which removes most of the sandbox that is the reason to ship a Flatpak at all.
     *   **Microsoft Store:** MSIX packaging and identity, plus store review. The WinGet manifest already covers most Windows users who want a package, so this is mainly discoverability.
     *   **Mac App Store:** effectively closed. App Store sandboxing forbids running arbitrary user binaries, which is LoopTroop's whole job. Homebrew is the macOS answer.
     *   **Others worth considering if asked for:** `asdf`/`mise` plugins (developer-tool version managers, cheap to add), Arch's official `extra` repository (needs a Trusted User to adopt it), MacPorts, and `pkgx`.
@@ -2051,10 +2051,10 @@ search: false
 *   **Idle Status Display:** Display tips and informative text (or educational, entertainment, or news content) during long, unattended loops. Can be math, quizzes, trivia, small games, etc.
 *   **Analytics:** Dashboard for usage statistics and performance metrics, including execution trends over time, job volume, success rates, team activity, and current/pending jobs.
     *   Add `Director Notes` view: unified timeline across tickets/runs with filters (`AUTO`, `USER`, `ticket`, and `date range`) and one-click jump to source logs/artifacts.
-    *   Add optional AI synopsis generation for selectable lookback windows (for example, 1-30 days) with sections for `accomplishments`, `open blockers`, and `next actions`.
+    *   Add optional AI synopsis generation for selectable lookback windows (for example, 1 to 30 days) with sections for `accomplishments`, `open blockers`, and `next actions`.
     *   Persist synopsis artifacts at `.looptroop/project/director-notes/synopsis-<timestamp>.md` and `.looptroop/project/director-notes/synopsis-<timestamp>.json`.
-*   **Laminar (`lmnr`) Value Capture for LoopTroop (trace-first adoption):** Integrate Laminar as an optional observability/evaluation layer focused on measurable execution quality gains, not just extra dashboards.
-    *   **Value objective:** reduce failed retries, faster blocker diagnosis, and better model routing decisions using run-level evidence.
+*   **Laminar (`lmnr`) Value Capture for LoopTroop (trace-first adoption):** Integrate Laminar as an optional observability/evaluation layer focused on measurable execution quality gains, with dashboarding as an additional benefit.
+    *   **Value objective:** reduce failed retries, speed blocker diagnosis, and improve model-routing decisions using run-level evidence.
     *   Add provider-agnostic tracing adapter in backend (no direct coupling to workflow logic) with feature flag `observability.laminar.enabled`.
     *   Trace required boundaries: council phases, bead iteration start/end, test/lint runs, retry decisions, fallback-model switches, and `BLOCKED_ERROR` transitions.
     *   Standardize span metadata for joins across systems: `ticket_id`, `flow_id`, `bead_id`, `phase`, `iteration`, `model_id`, `provider`, `status`, `latency_ms`, `token_in`, `token_out`, `cost_estimate`.
@@ -2091,7 +2091,7 @@ search: false
     *   Add a flow map topology layer using ticket structure + execution dependencies (`Epic -> Story -> Bead` and `depends_on` edges) so users can see execution order and blockers at a glance.
     *   Make flow map nodes clickable to sync the detail panel (logs, status, linked PRD sections, and related artifacts) to the selected node.
     *   Persist per-user preference (`default_view = kanban | timeline | flow_map`) in profile settings; mobile defaults to compact timeline mode with optional flow map mini-view.
-*   **Themes :** Change color scheme and font using preselected themes.
+*   **Themes:** Change color scheme and font using preselected themes.
     *   Provide bundled preset themes plus custom theme JSON files.
     *   Define theme schema with validation for core groups: `background`, `foreground`, `status`, `task_state`, `accent`, `border`.
     *   Support partial overrides with deterministic fallback to the active base theme.
@@ -2243,7 +2243,7 @@ search: false
 *   **Actual data research:** Integrate with last 30 days, which will research a specific topic on Twitter and Reddit in the last month to give accurate data. [I1](https://github.com/mvanhorn/last30days-skill)
 *   **OpenCode v2 Persistent Session Continuation (true resume across restarts):** When OpenCode v2 reaches stable, persist enough OpenCode session state that `Continue` can survive full restarts and resume the exact in-progress session state instead of depending only on the currently recoverable live session.
     *   Persist full OpenCode session state (conversation history, tool-call context, in-progress work) so that a "Continue" resumes the exact session where it left off.
-    *   Session continuity must survive PC restarts, app restarts, and backend restarts — the session is picked up from where it remained without restarting the current iteration.
+    *   Session continuity must survive PC restarts, app restarts, and backend restarts; the session is picked up from where it remained without restarting the current iteration.
     *   Resuming a persisted session must not consume bead iteration budget; only genuinely new attempts count as iterations.
     *   If the persisted session is corrupted or unrecoverable, fall back to a fresh iteration with explicit `session_unrecoverable` diagnostics and preserve all prior iteration notes/evidence.
     *   Gate behind OpenCode v2 stable release; do not attempt on earlier versions where session persistence APIs are unavailable or unstable.
