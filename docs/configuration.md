@@ -71,8 +71,9 @@ one flat list.
 Two defaults give way when something else already uses them. A taken default
 port makes the daemon pick a free one, and an OpenCode address left at its
 default that is held by a server LoopTroop cannot use makes LoopTroop start its
-own OpenCode on the next free port. A value you set yourself is used exactly as
-given, and LoopTroop stops with an error instead.
+own OpenCode on the next free port, never on LoopTroop's own port. A value you
+set yourself is used exactly as given, and LoopTroop stops with an error
+instead.
 
 Resolved elsewhere, and **not** through that chain:
 
@@ -127,7 +128,9 @@ An `opencode` that belongs to you, to root or to the Node runtime owner needs
 no exception, so its permission bits are not checked: it gets the same
 ownership check as `git` or `npm`. Ubuntu and Fedora give each user a private
 group and create new folders group-writable, and the `~/.opencode/bin` that the
-OpenCode installer makes there is accepted.
+OpenCode installer makes there is accepted. As with those tools, that includes a
+binary or folder anyone can write to, so keep `~/.opencode` writable only by
+you.
 
 If a tool lives somewhere else on purpose, for example a toolchain owned by a
 service account, name its directory:

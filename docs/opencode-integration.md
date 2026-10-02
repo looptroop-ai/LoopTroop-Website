@@ -130,7 +130,9 @@ reports the state rather than restarting forever.
 If the daemon crashes while its managed OpenCode child is still running, the
 next start checks the retained owned-server record before probing or adopting
 OpenCode. A verified live child is recorded as incomplete startup cleanup, so
-run `looptroop stop` and retry `looptroop start`. An unverifiable live identity
+run `looptroop stop` and retry `looptroop start`. `looptroop stop` ends that
+child whether or not a start has recorded it yet, and only then clears the
+daemon record. An unverifiable live identity
 keeps startup blocked and the record is preserved. Startup can proceed if the
 recorded OpenCode child is confirmed dead or its PID now belongs to another
 process. A stored PID alone never authorizes a signal.

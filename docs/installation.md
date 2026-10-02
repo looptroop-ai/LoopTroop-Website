@@ -111,10 +111,12 @@ Everything else differs by channel, so read the row you are actually using.
 | **Standalone executable** | needed to *install*, not to *run* | you provide it | you provide it |
 | **Container** | in the image | in the image | in the image |
 
-`gh` is only used for the pull-request step at the end of a ticket, and it must
-be authenticated (`gh auth login`) for that step to work. Everything before it
-runs without `gh`, which is why `looptroop doctor` warns about a missing `gh`
-rather than failing.
+`gh` must be installed and authenticated (`gh auth login`) before a ticket
+starts coding: the ticket's pre-flight check verifies `gh`, its sign-in and
+access to the GitHub repository, because the ticket ends in a pull request.
+LoopTroop itself starts without `gh`, and you can attach projects and plan
+tickets, which is why `looptroop doctor` warns about a missing `gh` rather than
+failing.
 
 If you use `nvm`, the current installer's help points to the supported Node 24
 line with this command:
@@ -620,7 +622,8 @@ docker run --network host --user "$(id -u):$(id -g)" \
 write into a home directory it does not own.
 
 Commits carry their identity per invocation, so no global git config is needed.
-`gh` does need credentials for the pull-request step: pass `-e GH_TOKEN=…`. The
+`gh` does need credentials, checked before a ticket starts coding and used for
+the pull-request step: pass `-e GH_TOKEN=…`. The
 push uses the same token, through `gh`'s credential helper. Git does not read
 `GH_TOKEN` itself, and nothing else in the image supplies a credential, so
 without that the pull request would be prepared and never pushed.

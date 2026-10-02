@@ -73,11 +73,20 @@ address another server holds. Without a running daemon, it probes the
 configured base URL. If that is the default address and a server LoopTroop
 cannot use answers there, the check is a warning, not a failure:
 `looptroop start` leaves that server alone and starts its own OpenCode on the
-next free port. It fails only when no `opencode` could be launched. One server
-on that address is different: the OpenCode that a LoopTroop killed outright
-started, which outlives it with a password only that daemon knew. The check then
-fails and says to run `looptroop clean --apply`, because `looptroop start` will
-not run alongside it.
+next free port, and names the port it would take. It fails when no `opencode`
+could be launched or no port is free. Only a refused connection counts as
+nothing being there: an address that accepts the connection and never answers
+fails the check, because it fails the start too, and one that answers with a
+5xx error is reported as a server still starting up, which a start waits for.
+
+One server on that address is different: the OpenCode that a LoopTroop killed
+outright started, which outlives it with a password only that daemon knew.
+`looptroop start` will not run alongside it, so the check fails and says to run
+`looptroop stop`, which ends that server and clears the record. When its
+identity cannot be confirmed, the check says to end the process yourself first;
+LoopTroop never signals a process it cannot identify. The check runs in mock
+mode too. A LoopTroop that is alive but not answering is not treated as stopped:
+the `daemon` check reports it, and `looptroop stop` is the remedy.
 
 **Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
 `✗` is a failing check. For tool probes, the message underneath tells you which
@@ -108,11 +117,12 @@ the Node executable having the same unverifiable owner does not grant trust.
 > origin is a usable URL.
 
 `git` is required and `gh` is not: a missing `git` fails the run, while a
-missing `gh` only warns because `gh` is needed for the pull-request step at the
-end of a ticket and nothing before it. A missing `gh` still prints `✗`; the
-mark describes what is there, and the severity decides the exit code. The line
-under it says so: `Optional: only needed for pull requests. LoopTroop runs
-without it.`
+missing `gh` only warns, because LoopTroop starts and plans tickets without it.
+A ticket needs it before coding starts: its pre-flight check verifies `gh`, its
+sign-in and access to the GitHub repository. A missing `gh` still prints `✗`;
+the mark describes what is there, and the severity decides the exit code. The
+line under it says so: `Optional to start LoopTroop, but a ticket needs it
+before coding starts.`
 
 Doctor's last line names the checks that stop LoopTroop from running, for
 example `LoopTroop cannot run until this is fixed: opencode.`, so a missing
