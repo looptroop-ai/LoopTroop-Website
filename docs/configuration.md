@@ -68,6 +68,12 @@ one flat list.
 | OpenCode mode | `opencodeMode` | `LOOPTROOP_OPENCODE_MODE` | - | `live` |
 | Public browser origin (current behavior) | `publicOrigin` | `LOOPTROOP_PUBLIC_ORIGIN` | - | Unset |
 
+Two defaults give way when something else already uses them. A taken default
+port makes the daemon pick a free one, and an OpenCode address left at its
+default that is held by a server LoopTroop cannot use makes LoopTroop start its
+own OpenCode on the next free port. A value you set yourself is used exactly as
+given, and LoopTroop stops with an error instead.
+
 Resolved elsewhere, and **not** through that chain:
 
 | Variable | What it does |
@@ -116,6 +122,12 @@ or `~` with mode `0700` denying group and other traversal; mode `0555` alone or
 sticky directories like `/tmp` are not excused). Sibling binaries in that
 directory must still pass normal ownership checks. This exception does not accept an unmapped owner; that still needs an explicit
 trusted-directory setting.
+
+An `opencode` that belongs to you, to root or to the Node runtime owner needs
+no exception, so its permission bits are not checked: it gets the same
+ownership check as `git` or `npm`. Ubuntu and Fedora give each user a private
+group and create new folders group-writable, and the `~/.opencode/bin` that the
+OpenCode installer makes there is accepted.
 
 If a tool lives somewhere else on purpose, for example a toolchain owned by a
 service account, name its directory:
@@ -294,8 +306,10 @@ The docs links on each control point back to this page, but the UI itself also h
 
 > [!NOTE]
 > **Current behavior.** Model discovery retries only while OpenCode is
-> starting. The initial catalog query and the manual reload retry the exact
-> startup response ``OpenCode server is not reachable. Start it with `opencode serve`.``. Other failures, including HTTP 500 responses, keep their existing
+> starting. The initial catalog query and the manual reload retry the models
+> response whose `code` is `OPENCODE_UNREACHABLE` (OpenCode is not reachable)
+> or `OPENCODE_DISCOVERY_FAILED` (OpenCode answered but its catalog did not
+> load). Other failures, including HTTP 500 responses, keep their existing
 > error and are not retried by these model queries.
 
 - **Model pickers show currently available models.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop sends to OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. OpenCode v1 can also return a broader catalog through **Show all providers**; v2 reports only available providers and enabled models, so its picker does not offer that toggle.

@@ -133,7 +133,14 @@ when the daemon stops. With no OpenCode to reach and no CLI to launch, the daemo
 refuses to start rather than serving an interface that cannot run a single coding
 operation. `LOOPTROOP_OPENCODE_MODE=mock` lets you look around without one.
 
-`looptroop doctor` reports which of those happened.
+If you have not set an OpenCode address and the default `127.0.0.1:4096` is held
+by a server LoopTroop cannot use, for example an `opencode serve` you started by
+hand, which in OpenCode v2 makes up its own password, LoopTroop leaves it alone
+and starts its own OpenCode on the next free port. `looptroop start` and
+`looptroop open` print where it went. An address you set is never moved.
+
+`looptroop doctor` reports which of those happened, and `looptroop status`
+shows the address OpenCode is on.
 
 > [!NOTE]
 > **Current behavior.** The following notes describe confirmed
@@ -763,7 +770,7 @@ When using `npm run dev`, port resolution and basic auth are handled automatical
 > `X-LoopTroop-Token` is also the wrong credential there: an installed daemon
 > mints its own into `daemon.json`.
 
-1. Ensure OpenCode is running: `opencode serve`.
+1. Ensure OpenCode is running: `opencode serve`. Start it with the same `OPENCODE_PASSWORD` the backend has: without one, OpenCode v2 makes up a new password at every start, and the backend cannot sign in (see step 4).
 2. Ping the backend health endpoint: `curl http://127.0.0.1:3000/api/health/opencode`. If you configured `LOOPTROOP_API_TOKEN`, include `-H "X-LoopTroop-Token: $LOOPTROOP_API_TOKEN"`.
 3. If OpenCode is on a non-default port, set `LOOPTROOP_OPENCODE_BASE_URL`, for example `export LOOPTROOP_OPENCODE_BASE_URL=http://127.0.0.1:4097`.
 4. For an external server with Basic auth, configure matching credentials in LoopTroop's environment. v2 uses username `opencode` and `OPENCODE_PASSWORD` (falling back to `OPENCODE_SERVER_PASSWORD`); v1 uses `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`.

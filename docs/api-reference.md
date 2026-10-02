@@ -181,7 +181,8 @@ Example models payload:
   "allModels": [],
   "connectedProviders": [],
   "defaultModels": {},
-  "message": "OpenCode server is not reachable. Start it with `opencode serve`."
+  "code": "OPENCODE_UNREACHABLE",
+  "message": "OpenCode server is not reachable. Restart LoopTroop (`looptroop restart`) so it starts OpenCode again, or check the OpenCode URL setting."
 }
 ```
 

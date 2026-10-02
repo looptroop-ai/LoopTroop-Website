@@ -68,7 +68,7 @@ LoopTroop creates sessions with a session-scoped allow-all permission rule, then
 
 | Setting | Meaning |
 | --- | --- |
-| `LOOPTROOP_OPENCODE_BASE_URL` | Base URL for the OpenCode server; defaults to `http://127.0.0.1:4096` |
+| `LOOPTROOP_OPENCODE_BASE_URL` | Base URL for the OpenCode server; defaults to `http://127.0.0.1:4096`. Left unset, an installed daemon starts its own OpenCode on the next free port when that address is held by a server it cannot use. An address you set is never moved |
 | `LOOPTROOP_OPENCODE_MODE=mock` | Use the mock adapter instead of a live OpenCode transport |
 | `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` | Do not override the OpenCode server permission mode during `npm run dev`; by default LoopTroop starts its managed OpenCode server with `OPENCODE_PERMISSION='"allow"'` |
 | `LOOPTROOP_OPENCODE_LOGS=all` | Direct watcher fallback for `npm run dev:opencode`; when it starts a managed server, logging flags are selected from the resolved CLI's `serve --help` output |
@@ -77,7 +77,7 @@ LoopTroop creates sessions with a session-scoped allow-all permission rule, then
 | `OPENCODE_SERVER_USERNAME` | v1 Basic auth username; defaults to `opencode`. v2 always uses `opencode` |
 | `OPENCODE_SERVER_PASSWORD` | v1 Basic auth password and v2 fallback when `OPENCODE_PASSWORD` is blank or unset |
 
-The backend keeps these passwords to authenticate OpenCode requests. Project and tool subprocesses, and the development web process, do not inherit `OPENCODE_PASSWORD` or `OPENCODE_SERVER_PASSWORD`; the managed OpenCode server receives the configured aliases it needs. When the development stack starts a managed server and neither password variable has a nonblank value, LoopTroop generates an ephemeral password for the backend and server. The standalone OpenCode launcher prints a new password for manual sharing and never prints configured passwords. For an external server, configure matching credentials. Set `OPENCODE_PASSWORD` for v2, or `OPENCODE_SERVER_PASSWORD` and optionally `OPENCODE_SERVER_USERNAME` for v1.
+The backend keeps these passwords to authenticate OpenCode requests. Project and tool subprocesses, and the development web process, do not inherit `OPENCODE_PASSWORD` or `OPENCODE_SERVER_PASSWORD`; the managed OpenCode server receives the configured aliases it needs. When the development stack starts a managed server and neither password variable has a nonblank value, LoopTroop generates an ephemeral password for the backend and server. The standalone OpenCode launcher prints a new password for manual sharing and never prints configured passwords. For an external server, configure matching credentials. Set `OPENCODE_PASSWORD` for v2, or `OPENCODE_SERVER_PASSWORD` and optionally `OPENCODE_SERVER_USERNAME` for v1. An OpenCode v2 `opencode serve` started without `OPENCODE_PASSWORD` makes up a new password every time it starts and prints it, so LoopTroop cannot sign in to it. To have LoopTroop use a server you start yourself, give that server and LoopTroop the same `OPENCODE_PASSWORD`. When LoopTroop sends no password and the server asks for one, the error says so: `OpenCode requires a password, and none is configured (HTTP 401).`
 
 LoopTroop does not require a major-version change. It detects the running v1 or v2 server automatically and uses the matching API.
 
@@ -98,10 +98,28 @@ binds its port.
 
 | State | When | What the daemon does |
 | --- | --- | --- |
-| **adopted** | Something is already answering at the configured base URL | Uses it, and never tries to start or stop it |
-| **managed** | Nothing is answering, but the `opencode` CLI is on PATH | Starts `opencode serve` in its own process group, restarts it if it crashes, and stops it when the daemon stops |
+| **adopted** | An OpenCode that LoopTroop can sign in to is already answering at the configured base URL | Uses it, and never tries to start or stop it |
+| **managed** | Nothing is answering, or the default address is held by a server LoopTroop cannot use, and the `opencode` CLI is on PATH | Starts `opencode serve` in its own process group, restarts it if it crashes, and stops it when the daemon stops |
 | **mock** | `LOOPTROOP_OPENCODE_MODE=mock` | Skips OpenCode entirely, which is enough to look around the interface but not to run a ticket |
 | **degraded** | Neither reachable nor launchable | The daemon refuses to start, rather than serving an interface that cannot run a single coding operation |
+
+When you have not set an OpenCode address, the default `http://127.0.0.1:4096`
+can be held by a server LoopTroop cannot use: one that rejects LoopTroop's
+password, such as an OpenCode v2 `opencode serve` started by hand, or one that
+is not OpenCode at all. Other tools built on OpenCode take 4096 as well.
+LoopTroop leaves that server alone and starts its own OpenCode on the next free
+port after it, and a restart after a crash stays on that port. A server that
+answers with a 5xx error still counts as an OpenCode that is starting up, so
+LoopTroop waits for it instead of moving. An address you set with
+`LOOPTROOP_OPENCODE_BASE_URL` or `opencodeBaseUrl` is never moved: if LoopTroop
+cannot use the server there, it stops with a message that names the password or
+the setting to change.
+
+After a move, `looptroop start` and `looptroop open` print where OpenCode runs
+and why, `looptroop status` shows the address in use, and `looptroop doctor`
+reports it. The daemon log has a line naming both addresses. Before the first
+start, `doctor` reports a held default address as a warning, because the start
+will move past it.
 
 Restarts are bounded at three consecutive attempts; after that the supervisor
 reports the state rather than restarting forever.

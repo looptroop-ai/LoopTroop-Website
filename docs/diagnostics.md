@@ -51,7 +51,10 @@ a floor.
 **Versions are shown against the newest published one:** `v26.7.0 (latest
 v27.1.0)` for LoopTroop, Node, npm and the OpenCode CLI. For OpenCode,
 Doctor checks the package for the installed major (`opencode-ai` for v1,
-`@opencode/cli` for v2), so it does not suggest a major-version change. When the
+`@opencode/cli` for v2), so it does not suggest a major-version change. Node
+works the same way: Doctor reads nodejs.org's release list and shows the newest
+release of the major line you run, so a 24.x Node is compared with the newest
+24.x. When the
 latest lookup is unavailable, the report says `latest unknown` instead of
 stalling the rest of Doctor. The LoopTroop version is emphasized when it is
 behind, because it is the one this machine can act on directly. These lookups
@@ -59,11 +62,18 @@ are cached for fifteen minutes, failures included, and never delay the local
 checks.
 
 The `opencode` check reports the authenticated server protocol and version. If
-authentication fails, its remedy names the v2 `OPENCODE_PASSWORD` setting or
-the v1 `OPENCODE_SERVER_PASSWORD` and `OPENCODE_SERVER_USERNAME` settings.
-When a running daemon's health check succeeds, Doctor includes the OpenCode
-base URL recorded by that daemon in the check detail. Without a running daemon,
-it probes the configured base URL.
+authentication fails, the detail says whether LoopTroop had no password to send
+or sent one the server rejected, and the remedy tells you to set
+`OPENCODE_PASSWORD` to that server's password (plus `OPENCODE_SERVER_USERNAME`
+for a v1 server whose user is not `opencode`), or to remove the OpenCode
+address you set so LoopTroop starts its own. When a running daemon's health
+check succeeds, Doctor includes the OpenCode base URL recorded by that daemon in
+the check detail, and says so when LoopTroop moved its OpenCode off a default
+address another server holds. Without a running daemon, it probes the
+configured base URL. If that is the default address and a server LoopTroop
+cannot use answers there, the check is a warning, not a failure:
+`looptroop start` leaves that server alone and starts its own OpenCode on the
+next free port. It fails only when no `opencode` could be launched.
 
 **Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
 `✗` is a failing check. For tool probes, the message underneath tells you which
@@ -96,7 +106,14 @@ the Node executable having the same unverifiable owner does not grant trust.
 `git` is required and `gh` is not: a missing `git` fails the run, while a
 missing `gh` only warns because `gh` is needed for the pull-request step at the
 end of a ticket and nothing before it. A missing `gh` still prints `✗`; the
-mark describes what is there, and the severity decides the exit code.
+mark describes what is there, and the severity decides the exit code. The line
+under it says so: `Optional: only needed for pull requests. LoopTroop runs
+without it.`
+
+Doctor's last line names the checks that stop LoopTroop from running, for
+example `LoopTroop cannot run until this is fixed: opencode.`, so a missing
+optional tool is not mistaken for one of them. With nothing failing it prints
+`This machine can run LoopTroop.`
 
 > [!NOTE]
 > **`doctor` exits non-zero when any check fails.** That is what makes it usable
