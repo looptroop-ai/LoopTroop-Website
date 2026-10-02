@@ -73,7 +73,11 @@ address another server holds. Without a running daemon, it probes the
 configured base URL. If that is the default address and a server LoopTroop
 cannot use answers there, the check is a warning, not a failure:
 `looptroop start` leaves that server alone and starts its own OpenCode on the
-next free port. It fails only when no `opencode` could be launched.
+next free port. It fails only when no `opencode` could be launched. One server
+on that address is different: the OpenCode that a LoopTroop killed outright
+started, which outlives it with a password only that daemon knew. The check then
+fails and says to run `looptroop clean --apply`, because `looptroop start` will
+not run alongside it.
 
 **Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
 `✗` is a failing check. For tool probes, the message underneath tells you which

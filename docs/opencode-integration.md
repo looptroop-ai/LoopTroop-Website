@@ -110,7 +110,8 @@ is not OpenCode at all. Other tools built on OpenCode take 4096 as well.
 LoopTroop leaves that server alone and starts its own OpenCode on the next free
 port after it, and a restart after a crash stays on that port. A server that
 answers with a 5xx error still counts as an OpenCode that is starting up, so
-LoopTroop waits for it instead of moving. An address you set with
+LoopTroop waits for it instead of moving, then judges it by what it answers once
+it is up. An address you set with
 `LOOPTROOP_OPENCODE_BASE_URL` or `opencodeBaseUrl` is never moved: if LoopTroop
 cannot use the server there, it stops with a message that names the password or
 the setting to change.
