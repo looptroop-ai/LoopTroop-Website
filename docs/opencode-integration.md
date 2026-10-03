@@ -116,6 +116,12 @@ it is up. An address you set with
 cannot use the server there, it stops with a message that names the password or
 the setting to change.
 
+The default address also moves when LoopTroop's own port is the one OpenCode
+would use, as with `looptroop start --port 4096`. The daemon binds its port only
+after OpenCode is up, so OpenCode starts on the next free port instead. An
+address you set on that port stops the start before OpenCode is launched, with
+a message that names both settings.
+
 After a move, `looptroop start` and `looptroop open` print where OpenCode runs
 and why, `looptroop status` shows the address in use, and `looptroop doctor`
 reports it. The daemon log has a line naming both addresses. Before the first
@@ -132,7 +138,10 @@ next start checks the retained owned-server record before probing or adopting
 OpenCode. A verified live child is recorded as incomplete startup cleanup, so
 run `looptroop stop` and retry `looptroop start`. `looptroop stop` ends that
 child whether or not a start has recorded it yet, and only then clears the
-daemon record. An unverifiable live identity
+daemon record. It does the same after killing a daemon that would not shut
+down, because that kill does not reach OpenCode's own process group. While the
+child or anything it started is still running, or its identity cannot be
+confirmed, `stop` keeps the record and exits with an error. An unverifiable live identity
 keeps startup blocked and the record is preserved. Startup can proceed if the
 recorded OpenCode child is confirmed dead or its PID now belongs to another
 process. A stored PID alone never authorizes a signal.

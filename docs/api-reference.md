@@ -124,7 +124,7 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | Method | Route | Notes |
 | --- | --- | --- |
 | `GET` | `/api/health` | Basic process health; exempt from the normal read-rate bucket |
-| `GET` | `/api/health/opencode` | Authenticated OpenCode reachability, detected protocol, and version |
+| `GET` | `/api/health/opencode` | Authenticated OpenCode reachability, detected protocol, and version; after a refused sign-in, also `credentialsSent` and the `advice` the setup screen shows |
 | `GET` | `/api/health/startup` | Startup recovery and restore status |
 | `GET` | `/api/health/update` | Current/latest release, detected install channel, ordered update steps, and complete latest GitHub release metadata |
 | `POST` | `/api/health/startup/restore-notice/dismiss` | Dismiss startup restore notice |

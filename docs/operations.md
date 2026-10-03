@@ -121,7 +121,10 @@ start checks the retained owned-server record before probing or adopting a
 server. A verified live child is recorded as incomplete startup cleanup; run
 `looptroop stop` and retry `looptroop start`. Run before that start, `looptroop
 stop` ends the verified child itself and then clears the record, so the next
-start does not find its own old server holding the port. An unverifiable live identity
+start does not find its own old server holding the port. It does the same when
+it has to kill a daemon that would not shut down. If the child or a process it
+started does not stop, or its identity cannot be confirmed, `stop` keeps the
+record and exits with an error. An unverifiable live identity
 blocks startup with the record preserved. A confirmed dead process or a
 PID/start-token mismatch is treated as stale state and does not block startup;
 it never grants authority to signal that PID.

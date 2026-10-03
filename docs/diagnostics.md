@@ -83,10 +83,21 @@ One server on that address is different: the OpenCode that a LoopTroop killed
 outright started, which outlives it with a password only that daemon knew.
 `looptroop start` will not run alongside it, so the check fails and says to run
 `looptroop stop`, which ends that server and clears the record. When its
-identity cannot be confirmed, the check says to end the process yourself first;
-LoopTroop never signals a process it cannot identify. The check runs in mock
-mode too. A LoopTroop that is alive but not answering is not treated as stopped:
-the `daemon` check reports it, and `looptroop stop` is the remedy.
+identity cannot be confirmed, the check says to end the process yourself first,
+or to delete the daemon record if that pid now belongs to something else;
+LoopTroop never signals a process it cannot identify. The check also fails for
+the other records a start refuses: a daemon that exited before it finished
+shutting down, which `stop` cannot finish for it, so the remedy is to delete
+its record once nothing it started is still running; and a record of
+LoopTroop's own OpenCode with no pid. These run in mock mode too.
+
+A LoopTroop that is alive but not answering is not treated as stopped. The
+`daemon` check fails, because a start refuses to run beside it, and says to run
+`looptroop stop`. The `port` check counts that daemon's port as its own. When
+the pid cannot be confirmed as LoopTroop, `stop` will not signal it either, so
+the remedy is to end it yourself, or to delete the record if it is something
+else. An OpenCode address you set on the port LoopTroop itself uses also fails
+the check, because the start would stop on it.
 
 **Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
 `✗` is a failing check. For tool probes, the message underneath tells you which
