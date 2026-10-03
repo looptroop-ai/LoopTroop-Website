@@ -86,18 +86,21 @@ outright started, which outlives it with a password only that daemon knew.
 identity cannot be confirmed, the check says to end the process yourself first,
 or to delete the daemon record if that pid now belongs to something else;
 LoopTroop never signals a process it cannot identify. The check also fails for
-the other records a start refuses: a daemon that exited before it finished
-shutting down, which `stop` cannot finish for it, so the remedy is to delete
-its record once nothing it started is still running; and a record of
-LoopTroop's own OpenCode with no pid. These run in mock mode too.
+the other records a start refuses: an OpenCode that exited while processes it
+started still run in its process group, which the check names so you can end
+them; a daemon that exited before it finished shutting down, which `stop`
+cannot finish for it, so the remedy is to delete its record once nothing it
+started is still running; and a record of LoopTroop's own OpenCode with no pid.
+These run in mock mode too.
 
 A LoopTroop that is alive but not answering is not treated as stopped. The
 `daemon` check fails, because a start refuses to run beside it, and says to run
 `looptroop stop`. The `port` check counts that daemon's port as its own. When
 the pid cannot be confirmed as LoopTroop, `stop` will not signal it either, so
 the remedy is to end it yourself, or to delete the record if it is something
-else. An OpenCode address you set on the port LoopTroop itself uses also fails
-the check, because the start would stop on it.
+else. An OpenCode address you set on LoopTroop's own port and host fails the
+check, because the start stops on it. With the default address, the check is a
+warning that names the free port the start would move OpenCode to.
 
 **Three marks, and the detail line matters.** `✓` is fine. `!` is a warning.
 `✗` is a failing check. For tool probes, the message underneath tells you which

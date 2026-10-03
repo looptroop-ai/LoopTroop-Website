@@ -124,7 +124,9 @@ stop` ends the verified child itself and then clears the record, so the next
 start does not find its own old server holding the port. It does the same when
 it has to kill a daemon that would not shut down. If the child or a process it
 started does not stop, or its identity cannot be confirmed, `stop` keeps the
-record and exits with an error. An unverifiable live identity
+record and exits with an error. A child that exited while processes it started
+still run in its process group is kept too, and `start` refuses it: end those
+processes (`pgrep -g <pid>` lists them), then run `looptroop stop` again. An unverifiable live identity
 blocks startup with the record preserved. A confirmed dead process or a
 PID/start-token mismatch is treated as stale state and does not block startup;
 it never grants authority to signal that PID.
