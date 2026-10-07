@@ -214,6 +214,13 @@ daemon startup handoff retains its configured daemon environment. Filtering
 credential propagation is not a process sandbox; commands still run with the
 same user's filesystem access.
 
+When launching Windows PowerShell, LoopTroop removes inherited `PSModulePath`
+case-insensitively so that shell rebuilds its standard module search. This
+keeps hash verification, archive extraction and CIM process checks available
+when PowerShell 7 launched LoopTroop through Node. PowerShell 7 and other
+programs retain their module environment. The same launch rule applies to
+installers and diagnostic tools.
+
 LoopTroop also preserves a repository's `core.sshCommand`. This supports custom
 SSH setups, but Git can execute the configured wrapper with your account's
 permissions during remote operations and connection checks. Only select
@@ -449,9 +456,15 @@ Dependencies with additional constraints:
 
 ### CI security checks
 
-CI tooling for Bun, pnpm, Yarn and OpenCode uses committed integrity lockfiles and disables third-party lifecycle scripts. Native binaries come from the verified optional packages and must run successfully before setup finishes. Tools use the normal PATH without trusted-executable directory overrides; Windows Bun and pnpm use their native binary directories, while OpenCode keeps its npm shim for the launcher regression tests. Container builds use npm bundled in the digest-pinned Node image and install production dependencies from the release lockfile with lifecycle scripts disabled. The published-install checks still install LoopTroop from live feeds; their tooling comes from the workflow commit while the test driver comes from the release under test. The run summary records that release, the workflow commit and installed tool versions. Generated-input tests exercise network trust boundaries in the ordinary test suite.
+CI tooling for Bun, pnpm, Yarn and OpenCode uses committed integrity lockfiles and disables third-party lifecycle scripts. Native binaries come from the verified optional packages and must run successfully before setup finishes. Tools use the normal PATH without trusted-executable directory overrides; Windows Bun and pnpm use their native binary directories, while OpenCode keeps its npm shim for the launcher regression tests. Container builds use npm bundled in the digest-pinned Node image and install production dependencies from the release lockfile with lifecycle scripts disabled.
+
+Published-install checks install LoopTroop from live feeds. Their driver and tooling come from the workflow's immutable commit: weekly checks and channel repairs use current CI, while release-time checks use the release's workflow. Manual runs select a workflow branch or tag to reproduce a release driver or test a repair. Every leg uses the same commit within that ref's cache security scope, and the run summary records the release, driver commit, tooling commit and installed tool versions. Windows checks run under PowerShell so Chocolatey's Git dependency can upgrade without Git Bash holding its DLLs open. Only Windows PowerShell children rebuild their standard module paths; the installed CLI keeps the user's original environment. CLI startup captures output in private files and preserves the launcher's real exit status, with a three-minute deadline separate from the health wait. A timed-out launcher receives identity-guarded process-tree cleanup before the driver reports failure. OpenCode probes close each HTTP connection so the final survival check cannot reuse a stale readiness socket. Failed installers and starts retain redacted output and logs, and failed OpenCode probes report their cause and server diagnostics before cleanup. Generated-input tests exercise network trust boundaries in the ordinary test suite.
+
+Artifact downloads use the pinned official GitHub action and fail on a digest mismatch. Python's standard library extracts the verified ZIPs only into the workspace or runner temporary directory. It rejects checkout-controlled destination symlinks, Windows alternate data-stream names and archive paths that would leave the destination, including through an existing symlink. This avoids the action's deprecated unzip dependency while preserving named and merged downloads. Credentialed jobs keep extraction code inside the workflow; read-only jobs share a local action. Python runs in isolated mode so repository files cannot replace its standard-library imports.
 
 Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Packaging check and blocks the merge.
+
+DeepSource's checked-in configuration declares JavaScript ES modules, matching the repository's runtime and ESLint settings. It retains the existing analyzers, test patterns and rule thresholds. After configuration changes land on main, check the analysis run's effective settings to confirm activation.
 
 Selected read-only build and test jobs use StepSecurity Harden-Runner to record outbound connections in audit mode. Audit mode does not block connections. Publishing jobs and jobs with write tokens keep their existing credential boundaries. Container jobs and entire job matrices that include Linux ARM64 are excluded: the action's initialization runs before a step condition can skip it on an unsupported runner.
 
@@ -535,12 +548,14 @@ The frontend dev server pre-optimizes its complete declared browser dependency s
 | `typecheck` | Type-check the full project with `tsc --noEmit`. |
 | `lint` | Lint the full project with ESLint. |
 
+The artifact-extraction regression requires Python 3.9 or newer, available as `python3` or `python` on Windows.
+
 `vitest.config.ts` defines four test projects:
 
 - **`client-dom`:** React component tests that require a JSDOM environment
 - **`client-node`:** client-side logic tests that do not need a DOM
 - **`server-pure`:** server unit tests with no I/O or database
-- **`server-integration`:** server integration tests running against a real local SQLite instance
+- **`server-integration`:** integration and process tests, including SQLite, CLI scripts and CI artifact extraction
 
 Run `test:client` and `test:server` separately when you only want to validate one layer. Run `test` to validate both together.
 
