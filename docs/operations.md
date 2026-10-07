@@ -464,7 +464,7 @@ Artifact downloads use the pinned official GitHub action and fail on a digest mi
 
 Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Packaging check and blocks the merge.
 
-DeepSource's checked-in configuration declares JavaScript ES modules, matching the repository's runtime and ESLint settings. It retains the existing analyzers, test patterns and rule thresholds. After configuration changes land on main, check the analysis run's effective settings to confirm activation.
+DeepSource's checked-in configuration declares JavaScript ES modules, matching the repository's runtime and ESLint settings. It retains the existing analyzers, test patterns and rule thresholds. After configuration changes land on main, check the analysis run's effective settings to confirm activation. If the run still reports CommonJS, update the JavaScript module-system setting in DeepSource's dashboard.
 
 Selected read-only build and test jobs use StepSecurity Harden-Runner to record outbound connections in audit mode. Audit mode does not block connections. Publishing jobs and jobs with write tokens keep their existing credential boundaries. Container jobs and entire job matrices that include Linux ARM64 are excluded: the action's initialization runs before a step condition can skip it on an unsupported runner.
 
