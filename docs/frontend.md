@@ -547,6 +547,8 @@ Other errors show their actual message so the cause remains visible.
 
 `ProfileSetup` also pings `/api/health/opencode` for connectivity, protocol/version, and authentication advice; that probe does not fetch a model catalog. Separate model queries let the modal distinguish discovery failures from connection failures. The configured-provider list loads normally, while the full catalog remains disabled until **Show all providers** is selected. Reload cancels in-flight queries for both scopes, keeps the cached connected-provider list visible, then starts the refresh. On success, the response replaces that list and invalidates the full catalog cache. If a refresh returns `OPENCODE_BUSY`, both caches stay intact and the request is not retried automatically. A rejected refresh shows a toast with its error message.
 
+The temporary reload query is removed after success, failure, or cancellation. This prevents the dashboard's general **Refresh** from repeating the reload POST; catalog queries continue to read models normally.
+
 ### Numeric Settings
 
 All numeric fields are validated against min/max bounds defined in `numericFieldConfig.ts`. The inline help links open the matching `/configuration#...` anchor:
