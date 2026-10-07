@@ -297,8 +297,8 @@ That means an edit can affect a ticket that is already in progress **only if the
 
 The docs links on each control point back to this page, but the UI itself also has a few behaviors worth knowing:
 
-- **OpenCode health is checked live.** The dialog shows whether OpenCode is reachable, whether model discovery is still loading, and whether available providers expose any models.
-- **The reload button refreshes provider/model data.** It remains disabled until the refresh finishes, asks OpenCode to reload its catalog, then replaces the connected model query. Use it after adding or changing provider credentials, or when the catalog was empty during startup. If OpenCode is busy, LoopTroop keeps the cached catalog and does not retry automatically; wait for prompts and unanswered questions to finish, then try again. This does not restart `opencode serve` or interrupt active ticket worktree instances.
+- **OpenCode health is checked live.** The health probe checks connectivity, protocol/version, and authentication without loading the catalog. Separate model queries show whether discovery is still loading, failed, or returned no models.
+- **The reload button refreshes provider/model data.** It remains disabled until the refresh finishes, cancels in-flight configured-provider and full-catalog queries, asks OpenCode to reload its catalog, then replaces the connected model query. Use it after adding or changing provider credentials, or when the catalog was empty during startup. If OpenCode is busy, LoopTroop keeps the cached catalog and does not retry automatically; wait for prompts and unanswered questions to finish, then try again. A rejected refresh shows a toast with the reason. This does not restart `opencode serve` or interrupt active ticket worktree instances.
 
 > [!NOTE]
 > **Current behavior.** Configuration and related form snapshot handling
@@ -308,14 +308,17 @@ The docs links on each control point back to this page, but the UI itself also h
 - **Saves keep the right draft.** A successful save acknowledges the snapshot sent by that request. A failed save leaves the draft dirty, and edits made while the request completes or while a background refetch runs remain visible. An unsaved in-memory modal draft is not promised to survive a reload.
 
 > [!NOTE]
-> **Current behavior.** Model discovery allows 30 seconds per browser request
-> and 10 seconds per backend catalog operation. The initial catalog query and
-> the manual reload retry the models
-> response whose `code` is `OPENCODE_UNREACHABLE` (OpenCode is not reachable)
-> or `OPENCODE_DISCOVERY_FAILED` (OpenCode answered but its catalog did not
-> load, or the request timed out), with up to eight retries three seconds apart.
-> Canceling a query does not trigger a retry. Other failures, including HTTP 500
-> responses, keep their existing error and are not retried by these model queries.
+> **Current behavior.** Model reads allow 30 seconds in the browser and share a
+> 25-second backend deadline across discovery requests. Manual reload allows 60
+> seconds in the browser and shares a 55-second backend deadline across safety
+> checks, protocol detection, reload, and catalog refetch. A timeout has code
+> `OPENCODE_DISCOVERY_TIMEOUT`. The first timeout gets one automatic retry after
+> three seconds, even after startup retries; a second timeout is not retried.
+> `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` allow up
+> to eight retries three seconds apart. Automatic retries after a manual reload
+> read the catalog without repeating the reload POST. Caller cancellation stops
+> requests sooner and is not retried; busy refreshes and unrelated HTTP failures,
+> including HTTP 500 responses, keep their error and are not retried either.
 
 - **Model pickers show currently available models.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop sends to OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. OpenCode v1 can also return a broader catalog through **Show all providers**; v2 reports only available providers and enabled models, so its picker does not offer that toggle.
 - **Model selection is announced accessibly.** The selected model is the committed value (`aria-selected`); keyboard movement uses `aria-activedescendant` until a choice is committed. Loading, connection failures, discovery timeouts, and other model-catalog errors are announced separately from an empty catalog. Other errors show their actual message.

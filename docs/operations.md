@@ -635,7 +635,8 @@ LoopTroop accepts API tokens through either `x-looptroop-token` or `Authorizatio
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /api/health` | Backend availability, timestamp, and uptime |
-| `GET /api/health/opencode` | OpenCode availability, version, and currently visible model list |
+| `GET /api/health/opencode` | OpenCode availability, protocol/version, and authentication advice without catalog discovery; retains `models: []` in live mode |
+| `GET /api/models` | Models available from configured providers, with separate discovery errors |
 | `GET /api/health/startup` | Startup storage/runtime snapshot used by the UI restore popup and mounted-drive warning surfaces |
 | `POST /api/health/startup/restore-notice/dismiss` | Persist dismissal of the one-time startup restore popup |
 

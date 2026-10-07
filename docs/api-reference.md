@@ -124,7 +124,7 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | Method | Route | Notes |
 | --- | --- | --- |
 | `GET` | `/api/health` | Basic process health; exempt from the normal read-rate bucket |
-| `GET` | `/api/health/opencode` | Authenticated OpenCode reachability, detected protocol, and version; after a refused sign-in, also `credentialsSent` and the `advice` the setup screen shows |
+| `GET` | `/api/health/opencode` | Authenticated OpenCode reachability, detected protocol, and version without catalog discovery; retains `models: []` in live mode; after a refused sign-in, also `credentialsSent` and the `advice` the setup screen shows |
 | `GET` | `/api/health/startup` | Startup recovery and restore status |
 | `GET` | `/api/health/update` | Current/latest release, detected install channel, ordered update steps, and complete latest GitHub release metadata |
 | `POST` | `/api/health/startup/restore-notice/dismiss` | Dismiss startup restore notice |
@@ -133,20 +133,24 @@ API routes use a global per-client rate limit, with separate buckets for read re
 | `GET` | `/api/workflow/meta` | Current workflow groups and phases |
 | `GET` | `/api/stream?ticketId=<id>` | Ticket-scoped SSE stream using the composite ticket ref; validates the ticket and enforces stream caps |
 
-`POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but refreshes OpenCode's model data first and returns the protocol's default available-model view rather than the optional `scope=all` catalog. It returns HTTP `409` with `code: "OPENCODE_BUSY"` while a prompt is active, while another prompt is waiting for a catalog reload, or when v2 reports active work or pending forms/permissions for LoopTroop sessions. A failed safety check also stops the reload before OpenCode configuration changes. Prompts that arrive during a reload wait under their existing caller signal and workflow deadline. Busy refreshes do not trigger automatic retries; the browser keeps the model catalogs it already has and the user can retry after the work finishes.
+`POST /api/models/refresh` uses the same payload shape as `GET /api/models`, but refreshes OpenCode's model data first and returns the protocol's default available-model view rather than the optional `scope=all` catalog. It returns HTTP `409` with `code: "OPENCODE_BUSY"` while a prompt is active, while another prompt is waiting for a catalog reload, or when v2 reports active work or pending forms/permissions for LoopTroop sessions. A failed safety check also stops the reload before OpenCode configuration changes. Prompts that arrive during a reload wait under their existing caller signal and workflow deadline. The browser cancels both model-query scopes before refresh; a rejected refresh shows an error toast. Busy refreshes do not trigger automatic retries; the browser keeps the model catalogs it already has and the user can retry after the work finishes.
 
 A successful model response includes `catalogScope`. v1 supports `connected` and `all`; v2 reports `available`, because its server API exposes available providers and enabled models but no disconnected-provider catalog. `costInput`, `costOutput`, `canReason`, `canUseTools`, and `canSeeImages` may be `null` when OpenCode does not provide that metadata. `costTiers`, when present, includes input, output, cache-read, and cache-write prices by tier. `id` is the canonical selection ID; `modelID`, when present, is the provider-facing ID.
 
 > [!NOTE]
-> **Current behavior.** Model-discovery failures carry a machine-readable
-> `code`: `OPENCODE_UNREACHABLE` when the server cannot be reached, or
-> `OPENCODE_DISCOVERY_FAILED` when it is reachable but its catalog lookup fails.
-> Backend catalog operations allow 10 seconds, with caller cancellation taking
-> effect sooner. The browser allows 30 seconds per model query or manual refresh
-> and classifies its own deadline as `OPENCODE_DISCOVERY_FAILED`. Either code
-> allows up to eight retries three seconds apart. Query cancellation, busy
-> refreshes, and unrelated HTTP failures do not trigger these retries; English
-> message text does not control the retry rule.
+> **Current behavior.** Model reads share a 25-second backend deadline across
+> protocol detection, catalog requests, and any fallback. Reload shares a
+> 55-second backend deadline across safety checks, protocol detection, reload,
+> and catalog refetch. Caller cancellation can stop either operation sooner.
+> The browser allows 30 seconds per read and 60 seconds per reload. A backend or
+> browser deadline has code `OPENCODE_DISCOVERY_TIMEOUT`. The first timeout gets
+> one automatic retry after three seconds, even after startup retries; a second
+> timeout is not retried. `OPENCODE_UNREACHABLE` (server cannot be
+> reached) and `OPENCODE_DISCOVERY_FAILED` (catalog lookup failed while health
+> passes) allow up to eight retries three seconds apart. Automatic retries after
+> a reload use `GET /api/models` without repeating the POST. Query cancellation,
+> busy refreshes, and unrelated HTTP failures do not trigger these retries;
+> English message text does not control the retry rule.
 
 `/api/stream` accepts an optional replay cursor from either the `Last-Event-ID` header or the `lastEventId` query parameter; the header wins when both are present. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible.
 

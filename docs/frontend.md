@@ -265,7 +265,9 @@ A request that fails is reported, not swallowed. Every error the frontend shows 
 
 `installSessionWatch()` treats a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes an ordinary API route instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe has a five-second deadline, shares one in-flight request across a reconnect burst, and is armed once per failed connection and re-armed after a stream opens.
 
-Model queries and the manual model refresh allow 30 seconds per browser request. The backend allows 10 seconds per catalog operation, with caller cancellation still taking effect sooner. These requests use the same bounded retry rule: `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` responses may retry up to eight times, with three seconds between retries, regardless of message wording. A browser request deadline becomes `OPENCODE_DISCOVERY_FAILED` and follows that retry rule; canceling a query does not. Unrelated errors, including HTTP 500 responses, keep their normalized error and do not use this retry path.
+Model reads allow 30 seconds in the browser and share a 25-second backend deadline across protocol detection, catalog requests, and any fallback. Manual reload allows 60 seconds in the browser and shares a 55-second backend deadline across safety checks, protocol detection, reload, and catalog refetch. Caller cancellation can stop either operation sooner.
+
+Backend or browser deadlines produce `OPENCODE_DISCOVERY_TIMEOUT`. The first timeout gets one automatic retry after three seconds, even after startup retries; a second timeout is not retried. `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` keep their existing budget of up to eight retries three seconds apart. Automatic retries after a manual reload use `GET /api/models` rather than repeating the reload POST. Query cancellation, busy refreshes, and unrelated HTTP failures, including HTTP 500 responses, do not trigger these retries. Errors keep their normalized message and HTTP status when one is available.
 
 ### Live Updates
 
@@ -541,7 +543,7 @@ Other errors show their actual message so the cause remains visible.
 
 `EffortPicker` (`src/components/config/EffortPicker.tsx`) appears next to a model selector when that model exposes variants (for example `high`, `low`, `medium`). The selected variant is stored per model id in `councilMemberVariants`.
 
-`ProfileSetup` also pings `/api/health/opencode` so the modal can show whether OpenCode is reachable, surface model-discovery failures separately from connection failures, and expose a reload button for the provider/model catalog. Model pickers keep configured-provider and full-catalog queries separate: the configured list loads normally, while the full catalog remains disabled until **Show all providers** is selected. Reload keeps the connected-provider list visible while refreshing it. On success, the refreshed response replaces that list and invalidates the full catalog cache. If a refresh returns `OPENCODE_BUSY`, both caches stay intact and the request is not retried automatically.
+`ProfileSetup` also pings `/api/health/opencode` for connectivity, protocol/version, and authentication advice; that probe does not fetch a model catalog. Separate model queries let the modal distinguish discovery failures from connection failures. The configured-provider list loads normally, while the full catalog remains disabled until **Show all providers** is selected. Reload cancels in-flight queries for both scopes, keeps the cached connected-provider list visible, then starts the refresh. On success, the response replaces that list and invalidates the full catalog cache. If a refresh returns `OPENCODE_BUSY`, both caches stay intact and the request is not retried automatically. A rejected refresh shows a toast with its error message.
 
 ### Numeric Settings
 
