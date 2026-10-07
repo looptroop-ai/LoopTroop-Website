@@ -470,7 +470,9 @@ For v1, provider discovery tries `/provider` and falls back to `/config/provider
 
 Model metadata is kept as OpenCode reports it. Unknown price, reasoning, tool-use, or image-support fields stay `null`; LoopTroop does not infer those values. The canonical `id` is used in selections, while `modelID` retains the provider-facing identifier when available. v2 variants are normalized for the existing picker. Cost bands include input, output, cache-read, and cache-write prices across reported tiers. A model is labeled free only when all reported prices are zero.
 
-If model discovery fails but health still passes, the API returns empty model arrays plus a message instead of crashing the UI. The frontend treats that startup message as retriable so model selectors can recover automatically while OpenCode is still coming up.
+Catalog operations have a 10-second deadline; caller cancellation can stop them sooner. Health probes and the default SDK operation timeout remain five seconds. If model discovery fails but health still passes, the API returns empty model arrays, a message, and `OPENCODE_DISCOVERY_FAILED`; an unreachable server returns `OPENCODE_UNREACHABLE`.
+
+The browser allows 30 seconds per model query or manual refresh. Those two failure codes, and the browser request's own timeout, allow up to eight retries three seconds apart. Query cancellation and unrelated HTTP failures do not trigger these retries. The picker reports discovery timeouts separately and keeps other errors' actual messages visible.
 
 The Configuration model pickers show currently available models by default. Protocols that provide a broader catalog expose **Show all providers**. The v2 server does not, because it only returns currently available providers and enabled models. A v1 full-catalog failure does not replace the connected-model result already loaded.
 

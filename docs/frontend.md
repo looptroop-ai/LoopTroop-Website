@@ -265,7 +265,7 @@ A request that fails is reported, not swallowed. Every error the frontend shows 
 
 `installSessionWatch()` treats a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes an ordinary API route instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe has a five-second deadline, shares one in-flight request across a reconnect burst, and is armed once per failed connection and re-armed after a stream opens.
 
-Model queries and the manual model refresh use the same bounded retry rule: `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` responses may retry, regardless of message wording. Unrelated errors, including HTTP 500 responses, keep their normalized error and do not use this retry path.
+Model queries and the manual model refresh allow 30 seconds per browser request. The backend allows 10 seconds per catalog operation, with caller cancellation still taking effect sooner. These requests use the same bounded retry rule: `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` responses may retry up to eight times, with three seconds between retries, regardless of message wording. A browser request deadline becomes `OPENCODE_DISCOVERY_FAILED` and follows that retry rule; canceling a query does not. Unrelated errors, including HTTP 500 responses, keep their normalized error and do not use this retry path.
 
 ### Live Updates
 
@@ -535,8 +535,9 @@ keeps this data fresh on window focus while the backend owns the shared
 The picker keeps the committed model separate from the keyboard-active option:
 `aria-selected` identifies the committed value and `aria-activedescendant`
 follows keyboard movement until the user chooses it. Loading and catalog errors
-are announced as status or alert content, with connection and discovery failures
-kept distinct from an empty model list.
+are announced as status or alert content, with connection failures, discovery
+timeouts, and other discovery failures kept distinct from an empty model list.
+Other errors show their actual message so the cause remains visible.
 
 `EffortPicker` (`src/components/config/EffortPicker.tsx`) appears next to a model selector when that model exposes variants (for example `high`, `low`, `medium`). The selected variant is stored per model id in `councilMemberVariants`.
 

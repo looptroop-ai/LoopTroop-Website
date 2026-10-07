@@ -308,15 +308,17 @@ The docs links on each control point back to this page, but the UI itself also h
 - **Saves keep the right draft.** A successful save acknowledges the snapshot sent by that request. A failed save leaves the draft dirty, and edits made while the request completes or while a background refetch runs remain visible. An unsaved in-memory modal draft is not promised to survive a reload.
 
 > [!NOTE]
-> **Current behavior.** Model discovery retries only while OpenCode is
-> starting. The initial catalog query and the manual reload retry the models
+> **Current behavior.** Model discovery allows 30 seconds per browser request
+> and 10 seconds per backend catalog operation. The initial catalog query and
+> the manual reload retry the models
 > response whose `code` is `OPENCODE_UNREACHABLE` (OpenCode is not reachable)
 > or `OPENCODE_DISCOVERY_FAILED` (OpenCode answered but its catalog did not
-> load). Other failures, including HTTP 500 responses, keep their existing
-> error and are not retried by these model queries.
+> load, or the request timed out), with up to eight retries three seconds apart.
+> Canceling a query does not trigger a retry. Other failures, including HTTP 500
+> responses, keep their existing error and are not retried by these model queries.
 
 - **Model pickers show currently available models.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop sends to OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. OpenCode v1 can also return a broader catalog through **Show all providers**; v2 reports only available providers and enabled models, so its picker does not offer that toggle.
-- **Model selection is announced accessibly.** The selected model is the committed value (`aria-selected`); keyboard movement uses `aria-activedescendant` until a choice is committed. Loading, connection failures, and model-catalog errors are announced separately from an empty catalog.
+- **Model selection is announced accessibly.** The selected model is the committed value (`aria-selected`); keyboard movement uses `aria-activedescendant` until a choice is committed. Loading, connection failures, discovery timeouts, and other model-catalog errors are announced separately from an empty catalog. Other errors show their actual message.
 - **Duplicate model selection is prevented.** The main implementer is auto-included in the council, and the picker disables models already chosen in another council slot.
 - **Effort controls are conditional.** The effort / thinking picker only appears when the selected model advertises variants, and the saved variant is stored per slot.
 - **Advanced is collapsed by default.** Open it to set the Manual QA, Git-hook, and folder-ignore defaults copied into future projects; saving Configuration does not update projects that are already attached.

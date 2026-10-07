@@ -141,8 +141,12 @@ A successful model response includes `catalogScope`. v1 supports `connected` and
 > **Current behavior.** Model-discovery failures carry a machine-readable
 > `code`: `OPENCODE_UNREACHABLE` when the server cannot be reached, or
 > `OPENCODE_DISCOVERY_FAILED` when it is reachable but its catalog lookup fails.
-> The browser retries either condition within its fixed retry budget. It does
-> not match English message text or retry unrelated HTTP failures.
+> Backend catalog operations allow 10 seconds, with caller cancellation taking
+> effect sooner. The browser allows 30 seconds per model query or manual refresh
+> and classifies its own deadline as `OPENCODE_DISCOVERY_FAILED`. Either code
+> allows up to eight retries three seconds apart. Query cancellation, busy
+> refreshes, and unrelated HTTP failures do not trigger these retries; English
+> message text does not control the retry rule.
 
 `/api/stream` accepts an optional replay cursor from either the `Last-Event-ID` header or the `lastEventId` query parameter; the header wins when both are present. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible.
 
