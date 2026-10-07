@@ -137,6 +137,16 @@ API routes use a global per-client rate limit, with separate buckets for read re
 
 A successful model response includes `catalogScope`. v1 supports `connected` and `all`; v2 reports `available`, because its server API exposes available providers and enabled models but no disconnected-provider catalog. `costInput`, `costOutput`, `canReason`, `canUseTools`, and `canSeeImages` may be `null` when OpenCode does not provide that metadata. `costTiers`, when present, includes input, output, cache-read, and cache-write prices by tier. `id` is the canonical selection ID; `modelID`, when present, is the provider-facing ID.
 
+Discovery-failure payloads from `POST /api/models/refresh` also include `reloadState`, which reports how far the backend got before the failure:
+
+| `reloadState` | Meaning |
+| --- | --- |
+| `not_started` | The OpenCode reload request was not dispatched, for example because protocol detection or a safety check failed. |
+| `unknown` | The reload request was dispatched, but completion was not confirmed. An unsuccessful reload response also has this state. |
+| `completed` | OpenCode acknowledged the reload, then the catalog refetch failed. |
+
+Successful model responses, GET discovery failures, and HTTP `409 OPENCODE_BUSY` responses omit `reloadState`. Caller cancellation propagates rather than becoming a discovery-failure payload. If a browser deadline expires before a response arrives, no server progress metadata is available.
+
 > [!NOTE]
 > **Current behavior.** Model reads share a 25-second backend deadline across
 > protocol detection, catalog requests, and any fallback. Reload shares a
@@ -147,10 +157,18 @@ A successful model response includes `catalogScope`. v1 supports `connected` and
 > one automatic retry after three seconds, even after startup retries; a second
 > timeout is not retried. `OPENCODE_UNREACHABLE` (server cannot be
 > reached) and `OPENCODE_DISCOVERY_FAILED` (catalog lookup failed while health
-> passes) allow up to eight retries three seconds apart. Automatic retries after
-> a reload use `GET /api/models` without repeating the POST. Query cancellation,
-> busy refreshes, and unrelated HTTP failures do not trigger these retries;
-> English message text does not control the retry rule.
+> passes) allow up to eight retries three seconds apart for model reads and
+> reloads whose unfinished step is known. Query cancellation, busy refreshes,
+> and unrelated HTTP failures do not trigger these retries; English message
+> text does not control the retry rule.
+
+The browser uses `reloadState` to retry the unfinished step. `not_started`
+permits retrying the reload POST within the discovery retry budget; `completed`
+retries only `GET /api/models`. An `unknown` non-timeout failure is not retried.
+The first `unknown` timeout permits one bounded GET recovery attempt. Missing
+progress metadata is treated as `unknown`. If that read succeeds, recovered
+models can remain cached, but the unconfirmed reload still fails and shows
+its error toast.
 
 `/api/stream` accepts an optional replay cursor from either the `Last-Event-ID` header or the `lastEventId` query parameter; the header wins when both are present. It does not accept credentials in the query string. In development, the Vite proxy injects the token header server-side; an installed browser uses its same-origin session cookie. Browsers normally send `Last-Event-ID` automatically only for native reconnects; the frontend persists the last event id per ticket and sends the query value after reloads so the backend can replay buffered events when possible.
 

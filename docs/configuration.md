@@ -314,11 +314,19 @@ The docs links on each control point back to this page, but the UI itself also h
 > checks, protocol detection, reload, and catalog refetch. A timeout has code
 > `OPENCODE_DISCOVERY_TIMEOUT`. The first timeout gets one automatic retry after
 > three seconds, even after startup retries; a second timeout is not retried.
-> `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` allow up
-> to eight retries three seconds apart. Automatic retries after a manual reload
-> read the catalog without repeating the reload POST. Caller cancellation stops
-> requests sooner and is not retried; busy refreshes and unrelated HTTP failures,
-> including HTTP 500 responses, keep their error and are not retried either.
+> `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` allow up to eight
+> retries three seconds apart for model reads and reloads whose unfinished step
+> is known. Caller cancellation stops requests sooner and is not retried; busy
+> refreshes and unrelated HTTP failures, including HTTP 500 responses, keep
+> their error and are not retried either.
+
+Manual reload retries follow the progress the backend reports. If no reload was
+dispatched (`not_started`), the retry sends the reload POST again. If OpenCode
+acknowledged the reload (`completed`), the retry only reads the catalog. Without
+confirmed completion (`unknown`, also used when no response metadata arrives),
+a non-timeout failure stops immediately; the first timeout permits one catalog
+GET recovery attempt. Recovered models can remain cached, but the unconfirmed
+reload still fails and shows an error toast.
 
 - **Model pickers show currently available models.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop sends to OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. OpenCode v1 can also return a broader catalog through **Show all providers**; v2 reports only available providers and enabled models, so its picker does not offer that toggle.
 - **Model selection is announced accessibly.** The selected model is the committed value (`aria-selected`); keyboard movement uses `aria-activedescendant` until a choice is committed. Loading, connection failures, discovery timeouts, and other model-catalog errors are announced separately from an empty catalog. Other errors show their actual message.
