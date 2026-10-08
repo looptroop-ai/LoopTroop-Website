@@ -79,12 +79,9 @@ export default defineConfig({
   description: 'Durable repo-scale AI delivery through council planning, isolated worktrees, and explicit approvals.',
   vite: {
     build: {
-      // VitePress loads the generated local-search index lazily and keeps it as
-      // one searchable asset. The measured localSearchIndexroot.CVi7v2VL.js
-      // chunk is about 909 kB (216 kB gzip),
-      // so keep a modest, explicit docs-only budget above it while still
-      // warning for larger chunks.
-      chunkSizeWarningLimit: 950,
+      // VitePress loads local search as a single lazy index (~950 kB raw,
+      // ~216 kB gzip). Allow normal docs growth while still warning on large chunks.
+      chunkSizeWarningLimit: 1200,
     },
   },
   head: [

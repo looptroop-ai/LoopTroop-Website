@@ -126,6 +126,8 @@ and in the JSON check's `note`. Failed launch, exit, or signal probes name the
 path and cause; timeout messages stay unchanged. Repair a broken installation
 or select another through `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`. The lookup order
 also explains differences between Doctor's version and your shell's.
+When that CLI blocks startup, the failing `opencode` check keeps the repair or
+refusal advice; installation advice is for a missing CLI.
 
 Now, this refusal also applies when a Linux user namespace
 hides ownership behind its overflow UID. That value cannot prove that host

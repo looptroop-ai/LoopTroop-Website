@@ -107,7 +107,8 @@ For OpenCode, LoopTroop also searches its canonical directories, including
 When both hints are valid, `OPENCODE_INSTALL_DIR` wins. Empty or relative hints
 are ignored. A missing executable falls through to home and the remaining
 entries. Existing `PATH` aliases to canonical directories keep their spelling;
-custom still precedes home regardless of `PATH` positions.
+Windows alias matching ignores case and slash style. Custom still precedes home
+regardless of `PATH` positions.
 
 Canonical directories take precedence over ordinary `PATH`. An OpenCode in a project's
 `node_modules/.bin` or execution setup's `pathPrepend` therefore does not
@@ -328,7 +329,7 @@ That means an edit can affect a ticket that is already in progress **only if the
 The docs links on each control point back to this page, but the UI itself also has a few behaviors worth knowing:
 
 - **OpenCode health is checked live.** The health probe checks connectivity, protocol/version, and authentication without loading the catalog. Separate model queries show whether discovery is still loading, failed, or returned no models.
-- **The reload button refreshes provider/model data.** The teal icon beside **AI Models**, labelled **Reload OpenCode providers and models**, stays enabled during ordinary reads, including the first load, and disables only during manual reload. It cancels pending reads, reloads OpenCode's catalog, and updates open pickers on success without a browser reload. Use it after changing provider credentials or when discovery stalls. Opening Configuration keeps cached models visible. Busy reloads keep cached catalogs without automatic retry; finish prompts and unanswered questions, then retry. Rejected reloads show the cause. This does not restart `opencode serve` or interrupt active ticket worktree instances.
+- **The reload button refreshes provider/model data.** The teal icon beside **AI Models**, labelled **Reload OpenCode providers and models**, stays enabled during ordinary reads, including the first load, and disables only during manual reload. It cancels pending reads and shows loading while reloading OpenCode's catalog, then updates open pickers on success without a browser reload. If reload fails before a catalog has loaded, ordinary discovery resumes for that scope while the original reload error stays visible; the reload POST is not repeated. Use it after changing provider credentials or when discovery stalls. Opening Configuration keeps cached models visible. Busy reloads keep cached catalogs without automatic retry; finish prompts and unanswered questions, then retry. Rejected reloads show the cause. This does not restart `opencode serve` or interrupt active ticket worktree instances.
 - **Empty v2 catalogs get a recovery window.** LoopTroop briefly rechecks initial and post-reload reads while providers start. See [discovery recovery](opencode-integration.md#10-health-and-model-discovery).
 
 > [!NOTE]
