@@ -544,6 +544,7 @@ follows keyboard movement until the user chooses it. Loading and catalog errors
 are announced as status or alert content, with connection failures, discovery
 timeouts, and other discovery failures kept distinct from an empty model list.
 Other errors show their actual message so the cause remains visible.
+Closed triggers expose `aria-busy` during manual reload, including with cached models.
 
 `EffortPicker` (`src/components/config/EffortPicker.tsx`) appears next to a model selector when that model exposes variants (for example `high`, `low`, `medium`). The selected variant is stored per model id in `councilMemberVariants`.
 

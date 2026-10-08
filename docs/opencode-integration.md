@@ -30,6 +30,7 @@ LoopTroop detects the authenticated OpenCode server protocol and uses the matchi
 The browser's `ModelPicker` keeps the committed model separate from the
 keyboard-active option: `aria-selected` names the saved selection and
 `aria-activedescendant` follows movement until the user commits a choice.
+During manual reload, closed pickers keep their selection and expose `aria-busy`.
 Loading and catalog failures are announced as status or alert content rather
 than being presented as an empty provider list. Credential failures name the
 OpenCode password settings to check. Busy refreshes tell the user to wait for
@@ -472,15 +473,15 @@ LoopTroop uses related but distinct OpenCode probes:
 
 For v1, configured-provider discovery reads `/config/providers` directly. Only an explicit `scope=all` request reads the broader `/provider` catalog, falling back to `/config/providers` only when `/provider` returns HTTP 404. Timeouts and other errors do not trigger that fallback. For v2, LoopTroop reads OpenCode's available-provider and model endpoints. It shows only the providers the server reports as available and their enabled models. The v2 API does not expose disconnected providers, so `scope=all` returns the same list and the response sets `catalogScope` to `available`.
 
-OpenCode v2 may create its location before plugins expose models. Empty connected
-catalogs get up to ten additional GET rounds, 500 ms apart, stopping when models
-appear. Initial and post-reload reads respect the existing deadlines and caller
-cancellation. Catalogs that stay empty remain empty; these rounds never repeat
-the reload POST.
+OpenCode v2's `GET /api/integration` waits for plugin activation. LoopTroop awaits
+it before reading providers, models, and the default model, both initially and
+after reload. The activation request shares the catalog operation's deadline and
+caller cancellation. Activation failures remain discovery errors, and a settled
+empty catalog returns without polling. This check does not repeat the reload POST.
 
 Model metadata is kept as OpenCode reports it. Unknown price, reasoning, tool-use, or image-support fields stay `null`; LoopTroop does not infer those values. The canonical `id` is used in selections, while `modelID` retains the provider-facing identifier when available. v2 variants are normalized for the existing picker. Cost bands include input, output, cache-read, and cache-write prices across reported tiers. A model is labeled free only when all reported prices are zero.
 
-Catalog reads share a 25-second backend deadline across protocol detection, catalog requests, and any fallback. Reload shares a 55-second deadline across safety checks, protocol detection, reload, and catalog refetch. Caller cancellation can stop either operation sooner. Health probes and the default SDK operation timeout remain five seconds; neither health transport fetches a catalog. A discovery deadline returns empty model arrays, a message, and `OPENCODE_DISCOVERY_TIMEOUT`. Other discovery failures return `OPENCODE_DISCOVERY_FAILED` when health still passes, or `OPENCODE_UNREACHABLE` when the server cannot be reached.
+Catalog reads share a 25-second backend deadline across protocol detection, activation, catalog requests, and any fallback. Reload shares a 55-second deadline across safety checks, protocol detection, reload, activation, and catalog refetch. Caller cancellation can stop either operation sooner. Health probes and the default SDK operation timeout remain five seconds; neither health transport fetches a catalog. A discovery deadline returns empty model arrays, a message, and `OPENCODE_DISCOVERY_TIMEOUT`. Other discovery failures return `OPENCODE_DISCOVERY_FAILED` when health still passes, or `OPENCODE_UNREACHABLE` when the server cannot be reached.
 
 Reload discovery failures also report `reloadState`: `not_started` before a reload request is dispatched, `unknown` after dispatch without confirmed completion, and `completed` after OpenCode acknowledges the reload but the catalog refetch fails. Non-success reload responses remain `unknown`. Busy conflicts keep their existing response without this field, and caller cancellation still propagates.
 
