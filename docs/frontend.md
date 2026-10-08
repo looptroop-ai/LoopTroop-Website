@@ -533,7 +533,7 @@ keeps this data fresh on window focus while the backend owns the shared
 | Main Implementer | The primary model used for coding phases. Shown with an optional `EffortPicker` when the model exposes variants. |
 | Council Members | Additional models that participate in planning drafts and voting. The main implementer is always added to the council automatically and cannot appear twice. |
 
-`ModelPicker` (`src/components/config/ModelPicker.tsx`) is the shared dropdown for selecting models from the live OpenCode catalog. It defaults to connected models only, but the footer toggle can expand to the full provider catalog. The picker also supports provider grouping, text search, and a free-only filter.
+`ModelPicker` (`src/components/config/ModelPicker.tsx`) is the shared dropdown for selecting models from the live OpenCode catalog. It defaults to connected models only, but the footer toggle can expand to the full provider catalog. The picker supports collapsible provider headings, text search, and a free-only filter.
 
 The picker shows [model counts and search prompts](configuration.md#configuration-dialog-behavior)
 for the current catalog scope.
