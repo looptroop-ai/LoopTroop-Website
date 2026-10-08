@@ -106,7 +106,7 @@ warning that names the free port the start would move OpenCode to.
 `✗` is a failing check. For tool probes, the message underneath tells you which
 kind of problem it is:
 
-- **missing:** `not found on PATH`
+- **missing:** `not found on PATH`; for OpenCode, `not found in an OpenCode installation directory or on PATH`
 - **refused:** the tool exists, but LoopTroop will not trust that directory or
   real path
 - **timed out:** ``<tool> --version`` or a similar probe did not answer within
@@ -118,6 +118,14 @@ A refused tool is not the same as a missing one. If the directory is genuinely
 operator-controlled, add that **absolute** directory to
 `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`; otherwise move or reinstall the tool into a
 location owned by you, root, or the Node runtime owner.
+
+OpenCode follows the [tool lookup order](configuration.md#where-looptroop-looks-for-its-tools),
+including canonical directories absent from `PATH`; a refusal stops the search.
+Doctor prints `Resolved executable: <path>` beneath a successful version probe
+and in the JSON check's `note`. Failed launch, exit, or signal probes name the
+path and cause; timeout messages stay unchanged. Repair a broken installation
+or select another through `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`. The lookup order
+also explains differences between Doctor's version and your shell's.
 
 Now, this refusal also applies when a Linux user namespace
 hides ownership behind its overflow UID. That value cannot prove that host

@@ -265,11 +265,10 @@ A request that fails is reported, not swallowed. Every error the frontend shows 
 
 `installSessionWatch()` treats a 401 from any same-origin API request as a signed-out session. `EventSource` errors carry no HTTP status, so the first stream failure probes an ordinary API route instead; only a 401 from that probe latches signed-out, and an unreachable daemon does not. The probe has a five-second deadline, shares one in-flight request across a reconnect burst, and is armed once per failed connection and re-armed after a stream opens.
 
-Model reads allow 30 seconds in the browser and share a 25-second backend deadline across protocol detection, catalog requests, and any fallback. Manual reload allows 60 seconds in the browser and shares a 55-second backend deadline across safety checks, protocol detection, reload, and catalog refetch. Caller cancellation can stop either operation sooner.
-
-Backend or browser deadlines produce `OPENCODE_DISCOVERY_TIMEOUT`. The first timeout gets one automatic retry after three seconds, even after startup retries; a second timeout is not retried. `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` keep their existing budget of up to eight retries three seconds apart for model reads and reloads whose unfinished step is known. Query cancellation, busy refreshes, and unrelated HTTP failures, including HTTP 500 responses, do not trigger these retries. Errors keep their normalized message and HTTP status when one is available.
-
-Manual reload retries follow the backend's `reloadState`. With `not_started`, the retry sends the reload POST again because no reload was dispatched. With `completed`, it reads `GET /api/models` because OpenCode already acknowledged the reload. With `unknown`, a non-timeout failure stops immediately; the first timeout permits one GET recovery attempt. Missing progress metadata, including a browser timeout before any response, counts as `unknown`. A successful GET recovery can keep the recovered models cached, but the unconfirmed reload still fails and shows its error toast.
+Model reads and manual reloads have bounded deadlines and progress-aware retries.
+See [model discovery](opencode-integration.md#10-health-and-model-discovery) for
+timeout codes, recovery, cancellation, and retry rules. Errors retain their
+normalized message and HTTP status when available.
 
 ### Live Updates
 
@@ -536,6 +535,9 @@ keeps this data fresh on window focus while the backend owns the shared
 
 `ModelPicker` (`src/components/config/ModelPicker.tsx`) is the shared dropdown for selecting models from the live OpenCode catalog. It defaults to connected models only, but the footer toggle can expand to the full provider catalog. The picker also supports provider grouping, text search, and a free-only filter.
 
+The picker shows [model counts and search prompts](configuration.md#configuration-dialog-behavior)
+for the current catalog scope.
+
 The picker keeps the committed model separate from the keyboard-active option:
 `aria-selected` identifies the committed value and `aria-activedescendant`
 follows keyboard movement until the user chooses it. Loading and catalog errors
@@ -545,7 +547,12 @@ Other errors show their actual message so the cause remains visible.
 
 `EffortPicker` (`src/components/config/EffortPicker.tsx`) appears next to a model selector when that model exposes variants (for example `high`, `low`, `medium`). The selected variant is stored per model id in `councilMemberVariants`.
 
-`ProfileSetup` also pings `/api/health/opencode` for connectivity, protocol/version, and authentication advice; that probe does not fetch a model catalog. Separate model queries let the modal distinguish discovery failures from connection failures. The configured-provider list loads normally, while the full catalog remains disabled until **Show all providers** is selected. Reload cancels in-flight queries for both scopes, keeps the cached connected-provider list visible, then starts the refresh. On success, the response replaces that list and invalidates the full catalog cache. If a refresh returns `OPENCODE_BUSY`, both caches stay intact and the request is not retried automatically. A rejected refresh shows a toast with its error message.
+`ProfileSetup` checks `/api/health/opencode` separately from model discovery,
+so connection failures and catalog failures stay distinct. Opening Configuration
+keeps previously loaded models visible. Its [reload control](configuration.md#configuration-dialog-behavior)
+can recover a slow initial read and updates open pickers without a browser
+reload. Busy reloads keep cached catalogs, show the cause, and wait for you to
+retry. The full catalog loads only after **Show all providers** is selected.
 
 The temporary reload query is removed after success, failure, or cancellation. This prevents the dashboard's general **Refresh** from repeating the reload POST; catalog queries continue to read models normally.
 

@@ -85,6 +85,7 @@ Resolved elsewhere, and **not** through that chain:
 | `LOOPTROOP_BACKEND_HOST` | The bind address, once the above allows one. |
 | `LOOPTROOP_API_TOKEN` | Authorises the wider bind. It is **not** the token the API accepts. See [API Reference](api-reference.md). |
 | `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS` | Extra directories to look in for `git`, `gh`, `opencode` and the rest, ahead of `PATH`. See below. |
+| `OPENCODE_INSTALL_DIR`, `OPENCODE_DIR` | Absolute directory hints LoopTroop uses to find the OpenCode CLI. These settings do not install or move OpenCode. See below. |
 
 ### Where LoopTroop looks for its tools
 
@@ -92,6 +93,34 @@ LoopTroop picks the file it runs for `git`, `gh`, `opencode`, `npm` and the othe
 tools it starts, instead of letting `PATH` decide, and it never runs one from the
 current directory. Tools installed by nvm, Homebrew, Nix, scoop, a CI tool cache
 or a project's `node_modules/.bin` all work.
+
+For OpenCode, LoopTroop also searches its canonical directories, including
+`~/.opencode/bin` and a custom directory hint, even when they are absent from
+`PATH`. The search order is:
+
+1. Directories in `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`, in the order given.
+2. The first valid absolute hint: `OPENCODE_INSTALL_DIR`, otherwise `OPENCODE_DIR`.
+3. `~/.opencode/bin` (`USERPROFILE` supplies the home on Windows, with `HOME` as a fallback).
+4. Windows system directories, on Windows.
+5. Other `PATH` entries, in their original order.
+
+When both hints are valid, `OPENCODE_INSTALL_DIR` wins. Empty or relative hints
+are ignored. A missing executable falls through to home and the remaining
+entries. Existing `PATH` aliases to canonical directories keep their spelling;
+custom still precedes home regardless of `PATH` positions.
+
+Canonical directories take precedence over ordinary `PATH`. An OpenCode in a project's
+`node_modules/.bin` or execution setup's `pathPrepend` therefore does not
+override a canonical installation. Use `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS` when
+you want a different directory to win.
+
+On Windows, bare `opencode` and explicit names (`opencode.exe`, `opencode.cmd`)
+follow this order; explicit names select only that extension. Absolute executable
+paths bypass directory search.
+
+Missing directories or files let the search continue. If the first executable
+found fails the trust checks, LoopTroop reports a refusal and stops the search;
+it does not silently run another copy farther down the list.
 
 On macOS and Linux it refuses a tool when the tool's directory, the real file
 behind a link, or any directory above them belongs to someone other than you,
@@ -112,9 +141,8 @@ cannot use it to verify ownership. This also applies when Node's own executable
 has that owner. If you trust the tool's directory, name that absolute directory
 in `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`; otherwise the tool remains refused.
 
-LoopTroop automatically trusts OpenCode in its canonical install directory
-(`~/.opencode/bin`, or custom paths set via `OPENCODE_INSTALL_DIR` or
-`OPENCODE_DIR`). Official OpenCode release archives are built on CI runners with
+OpenCode in a canonical directory has one ownership exception. Official
+OpenCode release archives are built on CI runners with
 UID 1001, so extracting them as root preserves that UID on the binary. LoopTroop
 excuses this ownership for `opencode` when its directory chain belongs to a
 trusted owner, the binary and directory chain are not writable by group or
@@ -139,9 +167,9 @@ service account, name its directory:
 export LOOPTROOP_TRUSTED_EXECUTABLE_DIRS=/opt/tools:/srv/toolchain
 ```
 
-Those directories are searched before `PATH` and are trusted as they are. They
-do not have to be on `PATH`. Separate them with `:` on macOS and Linux and `;`
-on Windows.
+Those directories are searched before OpenCode's canonical directories and
+`PATH`, and are trusted as they are. They do not have to be on `PATH`. Separate
+them with `:` on macOS and Linux and `;` on Windows.
 
 Entries must be **absolute directories**. Empty or relative entries such as
 `.`, `tools`, or a trailing path separator segment are discarded rather than
@@ -150,6 +178,8 @@ resolved against the current directory.
 This trust policy comes from the **daemon's own environment**, not from
 `command.env`, child processes, or a model-generated command. A child command
 cannot widen trust by setting its own `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`.
+The OpenCode directory hints also come from LoopTroop's own environment, so
+putting them in a project command's environment does not change which CLI runs.
 
 For the npm install and upgrade path, the runtime floor is **Node 24.18.0 or
 newer**. The launcher, Doctor, install scripts, and package channels enforce
@@ -298,7 +328,8 @@ That means an edit can affect a ticket that is already in progress **only if the
 The docs links on each control point back to this page, but the UI itself also has a few behaviors worth knowing:
 
 - **OpenCode health is checked live.** The health probe checks connectivity, protocol/version, and authentication without loading the catalog. Separate model queries show whether discovery is still loading, failed, or returned no models.
-- **The reload button refreshes provider/model data.** It remains disabled until the refresh finishes, cancels in-flight configured-provider and full-catalog queries, asks OpenCode to reload its catalog, then replaces the connected model query. Use it after adding or changing provider credentials, or when the catalog was empty during startup. If OpenCode is busy, LoopTroop keeps the cached catalog and does not retry automatically; wait for prompts and unanswered questions to finish, then try again. A rejected refresh shows a toast with the reason. This does not restart `opencode serve` or interrupt active ticket worktree instances.
+- **The reload button refreshes provider/model data.** The teal icon beside **AI Models**, labelled **Reload OpenCode providers and models**, stays enabled during ordinary reads, including the first load, and disables only during manual reload. It cancels pending reads, reloads OpenCode's catalog, and updates open pickers on success without a browser reload. Use it after changing provider credentials or when discovery stalls. Opening Configuration keeps cached models visible. Busy reloads keep cached catalogs without automatic retry; finish prompts and unanswered questions, then retry. Rejected reloads show the cause. This does not restart `opencode serve` or interrupt active ticket worktree instances.
+- **Empty v2 catalogs get a recovery window.** LoopTroop briefly rechecks initial and post-reload reads while providers start. See [discovery recovery](opencode-integration.md#10-health-and-model-discovery).
 
 > [!NOTE]
 > **Current behavior.** Configuration and related form snapshot handling
@@ -307,28 +338,11 @@ The docs links on each control point back to this page, but the UI itself also h
 - **Dirty state follows actual values.** The dialog compares its current profile values with the saved or initial snapshot, including model variants and other custom controls. Closing warns only while those values differ; typing and then restoring the snapshot clears the warning. During profile loading, or when no profile exists yet, values typed in the gap are not absorbed into a clean baseline when hydration arrives.
 - **Saves keep the right draft.** A successful save acknowledges the snapshot sent by that request. A failed save leaves the draft dirty, and edits made while the request completes or while a background refetch runs remain visible. An unsaved in-memory modal draft is not promised to survive a reload.
 
-> [!NOTE]
-> **Current behavior.** Model reads allow 30 seconds in the browser and share a
-> 25-second backend deadline across discovery requests. Manual reload allows 60
-> seconds in the browser and shares a 55-second backend deadline across safety
-> checks, protocol detection, reload, and catalog refetch. A timeout has code
-> `OPENCODE_DISCOVERY_TIMEOUT`. The first timeout gets one automatic retry after
-> three seconds, even after startup retries; a second timeout is not retried.
-> `OPENCODE_UNREACHABLE` and `OPENCODE_DISCOVERY_FAILED` allow up to eight
-> retries three seconds apart for model reads and reloads whose unfinished step
-> is known. Caller cancellation stops requests sooner and is not retried; busy
-> refreshes and unrelated HTTP failures, including HTTP 500 responses, keep
-> their error and are not retried either.
+See [model discovery](opencode-integration.md#10-health-and-model-discovery)
+for discovery deadlines, cancellation, and retries that follow OpenCode's
+reported reload progress.
 
-Manual reload retries follow the progress the backend reports. If no reload was
-dispatched (`not_started`), the retry sends the reload POST again. If OpenCode
-acknowledged the reload (`completed`), the retry only reads the catalog. Without
-confirmed completion (`unknown`, also used when no response metadata arrives),
-a non-timeout failure stops immediately; the first timeout permits one catalog
-GET recovery attempt. Recovered models can remain cached, but the unconfirmed
-reload still fails and shows an error toast.
-
-- **Model pickers show currently available models.** Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop sends to OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. OpenCode v1 can also return a broader catalog through **Show all providers**; v2 reports only available providers and enabled models, so its picker does not offer that toggle.
+- **Model pickers show currently available models.** When models exist, an unselected picker and its open search field show a count, for example `1,111 models found. Search models…`. The count covers the current catalog before text or free-model filters; a selected model keeps its name in the closed picker. Inside the picker you can search by model name, provider, or family and filter to free models. Each entry shows the provider's display name with the exact stored model ID in parentheses beside it whenever the two differ, so the value LoopTroop sends to OpenCode is visible without opening the saved configuration. Searching matches that full ID as well as the display name. OpenCode v1 can also return a broader catalog through **Show all providers**; v2 reports only available providers and enabled models, so its picker does not offer that toggle.
 - **Model selection is announced accessibly.** The selected model is the committed value (`aria-selected`); keyboard movement uses `aria-activedescendant` until a choice is committed. Loading, connection failures, discovery timeouts, and other model-catalog errors are announced separately from an empty catalog. Other errors show their actual message.
 - **Duplicate model selection is prevented.** The main implementer is auto-included in the council, and the picker disables models already chosen in another council slot.
 - **Effort controls are conditional.** The effort / thinking picker only appears when the selected model advertises variants, and the saved variant is stored per slot.

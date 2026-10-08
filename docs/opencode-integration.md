@@ -99,9 +99,13 @@ binds its port.
 | State | When | What the daemon does |
 | --- | --- | --- |
 | **adopted** | An OpenCode that LoopTroop can sign in to is already answering at the configured base URL | Uses it, and never tries to start or stop it |
-| **managed** | Nothing is answering, or the default address is held by a server LoopTroop cannot use, and the `opencode` CLI is on PATH | Starts `opencode serve` in its own process group, restarts it if it crashes, and stops it when the daemon stops |
+| **managed** | Nothing is answering, or the default address is held by a server LoopTroop cannot use, and LoopTroop can resolve a trusted OpenCode CLI | Starts `opencode serve` in its own process group, restarts it if it crashes, and stops it when the daemon stops |
 | **mock** | `LOOPTROOP_OPENCODE_MODE=mock` | Skips OpenCode entirely, which is enough to look around the interface but not to run a ticket |
 | **degraded** | Neither reachable nor launchable | The daemon refuses to start, rather than serving an interface that cannot run a single coding operation |
+
+LoopTroop also finds canonical installations absent from `PATH`, including
+explicit Windows names such as `opencode.exe`. See [tool lookup](configuration.md#where-looptroop-looks-for-its-tools)
+for directory hints, priority, overrides, and refusal rules.
 
 When you have not set an OpenCode address, the default `http://127.0.0.1:4096`
 can be held by a server LoopTroop cannot use: one that rejects LoopTroop's
@@ -468,6 +472,12 @@ LoopTroop uses related but distinct OpenCode probes:
 
 For v1, configured-provider discovery reads `/config/providers` directly. Only an explicit `scope=all` request reads the broader `/provider` catalog, falling back to `/config/providers` only when `/provider` returns HTTP 404. Timeouts and other errors do not trigger that fallback. For v2, LoopTroop reads OpenCode's available-provider and model endpoints. It shows only the providers the server reports as available and their enabled models. The v2 API does not expose disconnected providers, so `scope=all` returns the same list and the response sets `catalogScope` to `available`.
 
+OpenCode v2 may create its location before plugins expose models. Empty connected
+catalogs get up to ten additional GET rounds, 500 ms apart, stopping when models
+appear. Initial and post-reload reads respect the existing deadlines and caller
+cancellation. Catalogs that stay empty remain empty; these rounds never repeat
+the reload POST.
+
 Model metadata is kept as OpenCode reports it. Unknown price, reasoning, tool-use, or image-support fields stay `null`; LoopTroop does not infer those values. The canonical `id` is used in selections, while `modelID` retains the provider-facing identifier when available. v2 variants are normalized for the existing picker. Cost bands include input, output, cache-read, and cache-write prices across reported tiers. A model is labeled free only when all reported prices are zero.
 
 Catalog reads share a 25-second backend deadline across protocol detection, catalog requests, and any fallback. Reload shares a 55-second deadline across safety checks, protocol detection, reload, and catalog refetch. Caller cancellation can stop either operation sooner. Health probes and the default SDK operation timeout remain five seconds; neither health transport fetches a catalog. A discovery deadline returns empty model arrays, a message, and `OPENCODE_DISCOVERY_TIMEOUT`. Other discovery failures return `OPENCODE_DISCOVERY_FAILED` when health still passes, or `OPENCODE_UNREACHABLE` when the server cannot be reached.
@@ -479,6 +489,9 @@ The browser allows 30 seconds per model read and 60 seconds per manual reload. T
 Manual reload retries use `reloadState` to retry the unfinished step: `not_started` retries the reload POST, while `completed` retries only the catalog GET. An `unknown` non-timeout failure stops immediately. The first `unknown` timeout permits one bounded GET recovery attempt; missing progress metadata is also treated as `unknown`. Even if that read succeeds and its models stay cached, the unconfirmed reload still fails and shows an error toast.
 
 The Configuration model pickers show currently available models by default. Protocols that provide a broader catalog expose **Show all providers**. The v2 server does not, because it only returns currently available providers and enabled models. A v1 full-catalog failure does not replace the connected-model result already loaded.
+
+[Configuration](configuration.md#configuration-dialog-behavior) describes model
+counts and the reload control.
 
 The Configuration reload button cancels in-flight configured-provider and full-catalog queries, then uses `POST /api/models/refresh` after provider credentials change. It calls the protocol-specific OpenCode catalog-refresh endpoint and then fetches updated data with the same Basic authentication. Reload is rejected while a prompt is active or waiting for another reload. For v2, LoopTroop also checks the server-wide active-session list and pending forms and permissions for active LoopTroop sessions. A failed safety check stops before reload. A busy request returns `409 OPENCODE_BUSY`; the browser keeps its cached catalogs and does not retry automatically. Wait until prompts and unanswered requests finish, then retry. A successful refresh replaces the connected catalog and invalidates any broader catalog query; a refresh or subsequent catalog-fetch failure does not present stale data as current. Rejected refreshes show a toast with the error message.
 

@@ -140,6 +140,11 @@ when the daemon stops. With no OpenCode to reach and no CLI to launch, the daemo
 refuses to start rather than serving an interface that cannot run a single coding
 operation. `LOOPTROOP_OPENCODE_MODE=mock` lets you look around without one.
 
+Managed and development startup, CLI maintenance, and Doctor follow the
+[tool lookup order](configuration.md#where-looptroop-looks-for-its-tools).
+Project `PATH` additions do not displace canonical OpenCode; override with
+`LOOPTROOP_TRUSTED_EXECUTABLE_DIRS` in LoopTroop's environment.
+
 If you have not set an OpenCode address and the default `127.0.0.1:4096` is held
 by a server LoopTroop cannot use, for example an `opencode serve` you started by
 hand, which in OpenCode v2 makes up its own password, LoopTroop leaves it alone
@@ -590,6 +595,8 @@ The app database is runtime-bootstrapped by `server/db/init.ts`. The committed m
 | `LOOPTROOP_DOCS_ORIGIN` | Override the external documentation origin, for example a hosted preview deployment; defaults to `https://www.looptroop.ovh` |
 | `LOOPTROOP_DEV_HOST` | Direct watcher fallback for LAN sharing; set to `1`, `true`, `0.0.0.0`, or a specific host/IP when not launching through `npm run dev --lan` |
 | `LOOPTROOP_OPENCODE_BASE_URL` | Point LoopTroop at a specific OpenCode server |
+| `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS` | Absolute tool directories searched before OpenCode's canonical directories and `PATH`; see [tool lookup order](configuration.md#where-looptroop-looks-for-its-tools) |
+| `OPENCODE_INSTALL_DIR`, `OPENCODE_DIR` | LoopTroop's absolute OpenCode directory hints; the first valid hint wins before the home installation. See [tool lookup order](configuration.md#where-looptroop-looks-for-its-tools) |
 | `LOOPTROOP_CONFIG_DIR` | Override the app config directory |
 | `LOOPTROOP_APP_DB_PATH` | Override the app database path directly |
 | `LOOPTROOP_PROJECT_DB_PATH` | Project database target for explicit Drizzle project DB commands |
@@ -781,6 +788,11 @@ Symptoms:
 - the model list in the UI is empty
 - ticket logs show connection errors
 - phases that need a model block before drafting, setup, or execution
+
+For an empty or still-loading model list, use Configuration's
+[reload icon beside AI Models](configuration.md#configuration-dialog-behavior).
+It can recover the initial read without a browser reload; rejected reloads show
+the cause.
 
 Checks:
 
