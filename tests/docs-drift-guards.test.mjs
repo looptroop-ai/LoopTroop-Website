@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -135,6 +135,39 @@ test('checks out the commit CLI_SOURCE_REF names, and names it nowhere else', as
   for (const name of ['ci.yml', 'follow-looptroop.yml']) {
     const workflow = await readRepoFile(path.join('.github', 'workflows', name))
     assert.ok(workflow.includes('uses: ./.github/actions/looptroop-source'), `${name} verifies against the pinned source`)
+  }
+})
+
+const sourceRoot = path.resolve(process.env.LOOPTROOP_SOURCE_ROOT || path.join(repoRoot, '..', 'LoopTroop'))
+const catalogPath = path.join('scripts', 'docs-install-catalog.mjs')
+
+test('the sparse source checkout can produce the install catalog', {
+  skip: !existsSync(path.join(sourceRoot, catalogPath)),
+}, async () => {
+  const action = await readRepoFile('.github/actions/looptroop-source/action.yml')
+  const sparse = action.match(/^ {8}sparse-checkout: \|\n((?: {10}[^\n]+\n)+)/m)
+  assert.ok(sparse, 'the source action declares its sparse checkout')
+  const scratch = mkdtempSync(path.join(tmpdir(), 'looptroop-sparse-catalog-'))
+  try {
+    for (const file of sparse[1].trim().split('\n').map((line) => line.trim())) {
+      const source = path.join(sourceRoot, file)
+      // Git omits paths that did not exist at an older pinned commit.
+      if (!existsSync(source)) continue
+      const destination = path.join(scratch, file)
+      mkdirSync(path.dirname(destination), { recursive: true })
+      copyFileSync(source, destination)
+    }
+    const result = spawnSync(process.execPath, [path.join(scratch, catalogPath)], {
+      cwd: scratch,
+      encoding: 'utf8',
+      timeout: 30_000,
+    })
+    assert.equal(result.status, 0, result.stderr || result.error?.message)
+    const catalog = JSON.parse(result.stdout)
+    assert.equal(catalog.schemaVersion, 1)
+    assert.ok(catalog.channels.length > 0, 'the sparse checkout returns install channels')
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
   }
 })
 

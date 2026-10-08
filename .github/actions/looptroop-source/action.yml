@@ -39,7 +39,9 @@ runs:
           scripts/smoke-published.mjs
           scripts/smoke-lib.mjs
           scripts/tool-path.ts
+          server/cli/processControl.ts
           server/lib/executablePath.ts
+          server/lib/processIdentity.ts
           shared/installChannel.ts
           shared/nodeFloor.ts
         sparse-checkout-cone-mode: false
