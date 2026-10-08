@@ -81,7 +81,8 @@ invocation's ready daemon.
 Log following recognizes a completed live rotation even
 when the same file has already grown beyond the previous read offset. It waits
 while copying and truncation are in progress, then reads the new generation
-from its beginning. A read window interrupted by rotation is not treated as
+from its beginning. Replacing the file also restarts the reader at the beginning,
+using its exact file identity. A read window interrupted by rotation is not treated as
 verified output; earlier lines remain in the rotated log files. Copying and
 truncating still has its existing writer race: bytes written between the copy
 and truncation can be lost.

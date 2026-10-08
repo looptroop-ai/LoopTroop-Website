@@ -210,8 +210,9 @@ Daemon URLs use bracketed IPv6 literals wherever a host and port are combined.
 `logs --follow` registers its watcher before draining the tail handoff, keeping
 the byte offset, partial line, and UTF-8 decoder state continuous across reads;
 rotation or shrink resets the offset and decoder before reading the new file.
-The directory watcher detects rename-and-create rotation, including a larger
-replacement file, and changes generations after an active read finishes.
+The directory watcher compares exact file identities to detect rename-and-create
+rotation, including large file IDs and a larger replacement file. After an active
+read finishes, it reads the replacement from its beginning.
 Daemon health checks require the recorded instance ID. A failed start can stop
 its own live child through the retained process handle when the platform's
 start-time probe is unavailable; a stored PID alone never grants that authority.
