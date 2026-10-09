@@ -526,6 +526,21 @@ scroll area. Clicking Changelog opens the same release on GitHub. React Query
 keeps this data fresh on window focus while the backend owns the shared
 15-minute network/cache policy.
 
+### Form view structure
+
+Configuration, Project, New Ticket, and Draft split their views into sections for related controls. Draft state, hydration, validation, and requests stay with the form owners or Draft hooks. The form components and extracted helpers use `const` arrow functions. The analyzer rules remain active for all four forms and their section modules.
+
+| Form owner | Sections and helpers |
+| --- | --- |
+| `ProfileSetup` | `ProfileModelsSection.tsx`, `ProfileNumericSections.tsx`, and `ProfileAdvancedSettings.tsx`; `ProfileSetupFeedback.tsx` renders connection feedback and form actions; `profileFormData.ts` builds defaults, hydrated drafts, snapshots, and save payloads; `profileConnectionState.ts` derives connection status and sign-in advice |
+| `ProjectForm` | `ProjectFormSections.tsx` for identity, appearance, Advanced settings, and actions; `ProjectFolderSection.tsx` and `ProjectRestoreSection.tsx` for repository details and restore choices; `projectFormValues.ts` for defaults and form checks |
+| `TicketForm` | `TicketFormSections.tsx` for the project picker, basic fields, workflow settings, and actions |
+| `DraftView` | `DraftOverview.tsx`, `DraftDescriptionSection.tsx`, and `DraftAdvancedSettings.tsx`; `useDraftView.ts` owns inherited context, description edits, setting updates, and Start guards |
+
+Shared `AdvancedSettings` keeps its children mounted while hiding the closed section, so collapsing it preserves wait input and validation. It also shows the short error when a closed section needs a correction. `AdvancedSettingRow` supplies the label, help, description, and control layout. The radio selectors share `radioGroupNavigation.ts` for keyboard movement.
+
+`InheritableDurationField.tsx` keeps the wait input draft and commits valid edits. `DurationFieldControls.tsx` renders the label, help, mode selector, inherited value or Custom input, and error. `durationFieldUtils.ts` holds exact Custom value formatting, whole-minute validation, rounding the inherited value for a new Custom override, and display and accessibility helpers.
+
 ### Model Selection
 
 | Field | Purpose |
@@ -581,6 +596,8 @@ Standard numeric fields use the min/max bounds in `numericFieldConfig.ts`; AI qu
 | Tool Output Max Chars | [Configuration Reference](configuration.md#tool-output-max-chars) |
 | Tool Error Max Chars | [Configuration Reference](configuration.md#tool-error-max-chars) |
 
+`buildInitialRawNumeric` iterates the same field catalog to build the initial input text. It applies each field's storage conversion and uses `PROFILE_DEFAULTS` when a value is missing.
+
 > [!NOTE]
 > AI Response Timeout, Execution Setup Timeout, Per-Iteration Timeout, and OpenCode Retry Grace Window keep total seconds as their canonical UI value and are stored in **milliseconds**. Each field also shows compact synchronized whole-number Minutes and Seconds controls inline: editing either representation updates the other immediately, with Seconds normalized to `0–59` and Minutes carrying the complete larger unit. Invalid or blank total seconds disable the derived controls until corrected. Count-style fields such as `OpenCode Max Steps` remain raw integers in both storage and UI.
 
@@ -592,9 +609,15 @@ Profile settings are inherited by new tickets at start time. The locked copies i
 
 Configuration, Project, New Ticket, and the Draft workspace put **AI questions** and **AI question wait** in **Advanced**. The wait is a subitem directly below AI questions, indented to the right without a separator. Both use labels, contextual `?` help links, and descriptions on the left, with controls aligned to the right. Controls stay aligned to the right when the inheritance footer is longer. Hover or focus the help links for an explanation; activate them to open [AI Questions](configuration.md#ai-questions) or [AI Question Wait](configuration.md#ai-question-wait).
 
-Configuration uses **On / Off** for AI questions and **Default / Custom** for the wait. **Default** selects 5 minutes; **Custom** accepts whole minutes from 1 to 60. Project and Ticket use **Inherit / On / Off** and **Inherit / Custom**, showing the effective values and their sources. The duration control saves milliseconds, and **Inherit** saves a null override. Each setting resolves independently through ticket, project, and profile; Start locks the resolved value and source for the run.
+Configuration uses **On / Off** for AI questions and **Default / Custom** for the wait. **Default** selects 5 minutes; **Custom** accepts whole minutes from 1 to 60. Project and Ticket use **Inherit / On / Off** and **Inherit / Custom**, showing the effective values and their sources. Selecting Default or Inherit removes the custom override. Configuration treats a mode change as an unsaved edit even when both modes use 5 minutes. Each setting resolves independently through ticket, project, and profile; Start locks the resolved value and source for the run.
 
-The wait selector and custom input are disabled while effective AI questions are **Off**, including when **Inherit** resolves to **Off**. Turning questions off preserves the chosen wait mode and any custom duration. When effective questions resolve to **On**, the controls become available again with the chosen values.
+The wait selector and custom input are disabled while effective AI questions are **Off**, including when **Inherit** resolves to **Off**. Turning questions off shows the last valid duration and preserves the chosen mode and unfinished input. Inactive wait errors do not block saving. Turning questions back on restores the input and its validation.
+
+Collapsing **Advanced** keeps unfinished input and validation. An invalid active Custom wait blocks Save, Create, and Start, with a short error below the Advanced heading while the section is closed. Default or Inherit resets the custom override and clears the error.
+
+Saved drafts save valid custom wait input when you leave the input or press Enter. Mode changes save immediately. In a saved draft, Start is disabled during pending updates or while inherited settings load. AI question controls are disabled during a pending start or while their inherited settings load.
+
+Tab focuses the selected choice in each group, and arrow keys change the choice. A saved fractional duration appears exactly in the Custom input and requires a whole-minute edit while questions are On. Choosing Custom from Inherit starts from the nearest whole minute; the inherited wait keeps its stored duration until you choose an override.
 
 ### Git Hook Policy
 

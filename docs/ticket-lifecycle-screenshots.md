@@ -55,7 +55,11 @@ Each section shows the status as it appears in the app, its available actions, a
 
 ## Setup [?](getting-started.md#5-attaching-your-first-project "Open full documentation")
 
-In Configuration, Project, New Ticket, and saved drafts, **AI question wait** sits directly below **AI questions** as a subitem indented to the right, without a separator. Its controls are disabled when effective questions are **Off**, including when **Inherit** resolves to **Off**. Turning questions off keeps the wait selection and any custom duration. When effective questions resolve to **On**, the wait controls become available again.
+In Configuration, Project, New Ticket, and saved drafts, **AI question wait** sits directly below **AI questions** as a subitem indented to the right, without a separator. Both labels have `?` help links, with controls aligned to the right. Tab focuses the selected choice in each group; arrow keys change the choice.
+
+When effective questions are **Off**, including inherited Off, the disabled wait controls show the last valid duration. Turning questions off preserves the chosen mode and unfinished input; turning them back on restores the input and its validation. Inactive wait errors do not block saving.
+
+Collapsing **Advanced** preserves unfinished input and validation. An invalid active Custom wait blocks saving or starting, with a short error still visible while the section is closed. Choose a valid whole number, Default, or Inherit to clear it. A saved fractional value appears exactly in the Custom input; choosing Custom from Inherit starts from the nearest whole minute.
 
 ### Project Creation [?](getting-started.md#5-attaching-your-first-project "Open full documentation")
 
@@ -88,7 +92,7 @@ In Configuration, Project, New Ticket, and saved drafts, **AI question wait** si
 - Select models for multi-model planning phases. [?](configuration.md#council-members "Open full documentation")
 - Set supported effort levels for each council member and, where available, an OpenRouter routing variant such as `:floor` or `:nitro`. [?](configuration.md#effort--thinking-variant "Open full documentation")
 - In collapsed **Advanced**, set future-project defaults for Git-hook policy and LoopTroop folder ignores. [?](configuration.md#git-hook-policy "Open full documentation") [?](configuration.md#looptroop-folder-ignore-policy "Open full documentation")
-- In **Advanced**, turn **AI questions** on or off and choose **Default** (5 minutes) or **Custom** (1 to 60 whole minutes) for **AI question wait**. [?](configuration.md#ai-questions "Open full documentation") [?](configuration.md#ai-question-wait "Open full documentation")
+- In **Advanced**, turn **AI questions** on or off and choose **Default** (5 minutes) or **Custom** (1 to 60 whole minutes) for **AI question wait**. Default removes the custom override. Changing the wait mode counts as an unsaved edit even when both modes use 5 minutes. [?](configuration.md#ai-questions "Open full documentation") [?](configuration.md#ai-question-wait "Open full documentation")
 - Set the future-project Manual QA default. [?](configuration.md#manual-qa "Open full documentation")
 - Set the log preview length for model tool calls. This limits only the text shown in the AI Model logs, not the content sent to the tool. [?](configuration.md#logging "Open full documentation")
 
@@ -132,6 +136,8 @@ In Configuration, Project, New Ticket, and saved drafts, **AI question wait** si
 **What you can do:**
 - Edit the ticket title, description, priority, and ticket-level options.
 - In **Advanced**, choose Manual QA, **AI questions** (**Inherit / On / Off**), and **AI question wait** (**Inherit / Custom**). AI question rows show the effective values and their sources, with `?` help links beside both labels. Custom waits accept 1 to 60 whole minutes. Git-hook and folder-ignore policies are project settings. [?](configuration.md#ai-questions "Open full documentation") [?](configuration.md#ai-question-wait "Open full documentation")
+- In a saved Draft ticket, leave the custom wait input or press Enter to save a valid value. Mode changes save immediately; Inherit removes the custom override.
+- In a saved Draft ticket, Start is disabled during pending updates or while inherited settings load. AI question controls are disabled during a pending start or while their inherited settings load.
 - Click **Create Ticket** to keep the ticket in the Backlog until you are ready to start it.
 - Click **Create & Start** to start it immediately.
 - When the workflow starts, LoopTroop runs initial checks and moves the ticket to Scanning Relevant Files. The ticket is then locked for editing. To change it, cancel the ticket and create a new one.

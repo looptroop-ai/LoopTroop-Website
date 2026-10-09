@@ -764,7 +764,7 @@ This setting applies to structured-output repair paths such as council drafts/vo
 
 OpenCode's `question` tool lets a running model stop mid-step and ask you something. LoopTroop runs unattended, so a stop with no end is a stalled run. This setting decides whether a model may ask at all; [AI Question Wait](#ai-question-wait) decides how long it waits before the run carries on without you.
 
-Configuration, Project, and New Ticket place **AI questions** and **AI question wait** in **Advanced**. The wait is an indented subitem directly below AI questions, without a separator. Labels, descriptions, and `?` help links are on the left; controls are aligned to the right. Hover or focus a help link for an explanation; activate it to open the option's documentation. Configuration offers **On / Off** for AI questions; Project and Ticket add **Inherit** and show the effective choice and its source. The Draft workspace offers the same layout until **Start**.
+Configuration, Project, and New Ticket place **AI questions** and **AI question wait** in **Advanced**. The wait is an indented subitem directly below AI questions, without a separator. Labels, descriptions, and `?` help links are on the left; controls are aligned to the right. Hover or focus a help link for an explanation; activate it to open the option's documentation. Configuration offers **On / Off** for AI questions; Project and Ticket add **Inherit** and show the effective choice and its source. The Draft workspace offers the same layout until **Start**. Tab focuses the selected choice in each group; arrow keys change the choice.
 
 The two settings cascade independently, so a ticket can set its own wait while taking the on/off answer from its project. Each resolves the same way:
 
@@ -801,16 +801,22 @@ OpenCode's reject call carries only a request id, so a reason stays on the LoopT
 
 ### AI Question Wait
 
-**Type:** integer (minutes in the UI)\
+**Type:** duration (whole minutes in the Custom control)\
 **Default:** 5 minutes\
-**Range:** 1 to 60 whole minutes\
+**Range:** 1 to 60 minutes; Custom requires whole minutes\
 **Profile field:** `aiQuestionWindow` (stored in milliseconds)
 
 How long a question waits for you before the run carries on.
 
-In Configuration **Advanced**, choose **Default** for 5 minutes or **Custom** to enter 1 to 60 whole minutes. Project and Ticket **Advanced** use **Inherit / Custom** and show the effective duration and its source. Ticket **Inherit** follows the project's effective wait; Project **Inherit** follows Configuration. The wait and the choice to allow questions resolve independently.
+In Configuration **Advanced**, choose **Default** for 5 minutes or **Custom** to enter 1 to 60 whole minutes. Project and Ticket **Advanced** use **Inherit / Custom** and show the effective duration and its source. Ticket **Inherit** follows the project's effective wait; Project **Inherit** follows Configuration. Selecting **Default** or **Inherit** removes the custom override. Configuration treats a change between Default and Custom as an unsaved edit even when both use 5 minutes. The wait and the choice to allow questions resolve independently.
 
-The wait controls are disabled when effective **AI questions** are **Off**, including when **Inherit** resolves to **Off**. Turning questions off keeps the selected wait and any custom duration. When effective questions resolve to **On**, the controls become available again with the chosen values.
+The wait controls are disabled when effective **AI questions** are **Off**, including when **Inherit** resolves to **Off**. Turning questions off shows the last valid duration and keeps the selected mode and any unfinished input. Inactive wait errors do not block saving. Turning questions back on restores the input and its validation.
+
+Collapsing **Advanced** preserves unfinished input and validation. While questions are On, a blank, fractional, or out-of-range Custom wait blocks Save, Create, and Start. A short error stays visible below the Advanced heading while the section is closed. Enter a valid whole number or choose Default or Inherit to clear the error.
+
+In a saved Draft ticket, a valid custom wait saves when you leave the input or press Enter. Changing the wait mode saves immediately. Start is unavailable while a ticket update or start is pending, or while inherited settings are loading. AI question controls are also unavailable during a pending start or while their inherited settings load.
+
+If a saved wait contains a fraction of a minute, the Custom input shows that exact value and asks for a whole minute while questions are On. Choosing Custom from Inherit starts from the nearest whole minute. An inherited wait keeps its stored duration until you choose an override.
 
 **Waiting does not use up the step's working time.** While a question is pending, every clock on the ticket stops, and the elapsed wall time is credited back when it resolves. A step can therefore take its full timeout *plus* the time it spent waiting on you. The wait does not have to fit inside [Per-Iteration Timeout](#per-iteration-timeout), [Execution Setup Timeout](#execution-setup-timeout), or [AI Response Timeout](#ai-response-timeout), and there is no validation tying it to any of them. This holds in every step that can ask, including the ones that do not manage a clock of their own.
 
