@@ -559,7 +559,7 @@ The temporary reload query is removed after success, failure, or cancellation. T
 
 ### Numeric Settings
 
-All numeric fields are validated against min/max bounds defined in `numericFieldConfig.ts`. The inline help links open the matching `/configuration#...` anchor:
+Standard numeric fields use the min/max bounds in `numericFieldConfig.ts`; AI question wait uses the Advanced duration control described below. The inline help links open the matching `/configuration#...` anchor:
 
 | Field | Docs link |
 | --- | --- |
@@ -588,13 +588,21 @@ Configuration groups Per-Iteration Timeout, Execution Setup Timeout, and Max Bea
 
 Profile settings are inherited by new tickets at start time. The locked copies in the ticket record are what the workflow actually uses for that run.
 
+### AI Question Settings
+
+Configuration, Project, New Ticket, and the Draft workspace put **AI questions** and **AI question wait** in **Advanced**. The wait is a subitem directly below AI questions, indented to the right without a separator. Both use labels, contextual `?` help links, and descriptions on the left, with controls aligned to the right. Controls stay aligned to the right when the inheritance footer is longer. Hover or focus the help links for an explanation; activate them to open [AI Questions](configuration.md#ai-questions) or [AI Question Wait](configuration.md#ai-question-wait).
+
+Configuration uses **On / Off** for AI questions and **Default / Custom** for the wait. **Default** selects 5 minutes; **Custom** accepts whole minutes from 1 to 60. Project and Ticket use **Inherit / On / Off** and **Inherit / Custom**, showing the effective values and their sources. The duration control saves milliseconds, and **Inherit** saves a null override. Each setting resolves independently through ticket, project, and profile; Start locks the resolved value and source for the run.
+
+The wait selector and custom input are disabled while effective AI questions are **Off**, including when **Inherit** resolves to **Off**. Turning questions off preserves the chosen wait mode and any custom duration. When effective questions resolve to **On**, the controls become available again with the chosen values.
+
 ### Git Hook Policy
 
 Configuration and Project **Advanced** expose the linked **Observe**, **Check**, **Require**, and **Run** choices documented in [Git Hook Policy](configuration.md#git-hook-policy). Hovering any choice gives a multi-sentence explanation of its internal Git and validation behavior, and each scope includes a contextual `?` link to the full details. **Check** (`validate_advisory`) is the recommended profile default. The Configuration value preselects a new project's concrete choice; the project saves it, and Start snapshots that project choice for the ticket run. New Ticket, Draft, and ticket Details do not offer a Git-hook selector. Execution setup displays the locked policy read-only while keeping detected-hook validation commands editable.
 
 ### Manual QA Settings
 
-Configuration **Advanced**, Project **Advanced**, the ordinary new-ticket form, and the Draft workspace expose `Enabled / Disabled` Manual QA controls. Hovering either choice gives a multi-sentence explanation of the resulting checkpoint route, and every editable scope retains its contextual link to the canonical Manual QA documentation. The ticket controls use a compact single-row layout and omit redundant effective-setting/source copy. Directly below **Models Selected**, Ticket Details has an extensible **Advanced Settings** section for the effective Manual QA choice; it has no Git-hook or folder-ignore control. No surface shows an `Inherit` choice. Legacy unset project/ticket values display their currently resolved boolean, while new saves persist an explicit selection. Once a ticket starts, the backend freezes the effective value/source for the run.
+Configuration **Advanced**, Project **Advanced**, the ordinary new-ticket form, and the Draft workspace expose `Enabled / Disabled` Manual QA controls. Hovering either choice gives a multi-sentence explanation of the resulting checkpoint route, and every editable scope retains its contextual link to the canonical Manual QA documentation. New Ticket and the Draft workspace use matching rows: label, `?` help link, and description on the left; buttons on the right. Both omit redundant effective-setting/source copy. Directly below **Models Selected**, Ticket Details has an extensible **Advanced Settings** section for the effective Manual QA choice; it has no Git-hook or folder-ignore control. Manual QA controls have no `Inherit` choice. Legacy unset project/ticket values display their currently resolved boolean, while new saves persist an explicit selection. Once a ticket starts, the backend freezes the effective value/source for the run.
 
 The folder-ignore control documented in [LoopTroop Folder Ignore Policy](configuration.md#looptroop-folder-ignore-policy) lives in Project **Advanced**, after Git repository validation. It uses the same single-row layout as the Manual QA and Git-hook options in the same section: label, `?` link and description on the left, a compact **Repository / This clone / Nowhere** selector on the right, and per-choice hover explanations. Selecting **Nowhere** keeps the skip warning, shown full width below the row. Configuration **Advanced** supplies the future-project default with the identical control. A hover/focus `?` summary explains `/.looptroop/`, `/.ticket/`, and the three destinations; activating it opens the canonical configuration section. This setting is absent from ticket surfaces because it belongs to the attached project and its worktrees.
 

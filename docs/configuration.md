@@ -395,8 +395,8 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | [Min Council Quorum](#min-council-quorum) | 2 | 1 to 4 | AI Thinking | next planning phase |
 | [Max Interview Questions](#max-interview-questions) | 50 | 0 to 50 | AI Thinking | ticket start lock |
 | [Structured Output Retries](#structured-output-retries) | 1 | 0 to 5 | AI Thinking | ticket start lock |
-| [AI Questions](#ai-questions) | On | On / Off | AI Questions | ticket start lock |
-| [AI Question Wait](#ai-question-wait) | 300 s | 60 to 3600 s | AI Questions | ticket start lock |
+| [AI Questions](#ai-questions) | On | On / Off | Advanced | ticket start lock |
+| [AI Question Wait](#ai-question-wait) | 5 minutes | 1 to 60 whole minutes | Advanced | ticket start lock |
 | [Coverage Follow-Up Budget](#coverage-follow-up-budget) | 20 % | 0 to 100 % | Coverage | ticket start lock |
 | [Interview Coverage Passes](#interview-coverage-passes) | 2 | 1 to 10 | Coverage | ticket start lock |
 | [PRD Coverage Passes](#prd-coverage-passes) | 5 | 2 to 20 | Coverage | ticket start lock |
@@ -764,7 +764,7 @@ This setting applies to structured-output repair paths such as council drafts/vo
 
 OpenCode's `question` tool lets a running model stop mid-step and ask you something. LoopTroop runs unattended, so a stop with no end is a stalled run. This setting decides whether a model may ask at all; [AI Question Wait](#ai-question-wait) decides how long it waits before the run carries on without you.
 
-Configuration puts both settings in their own **AI Questions** group. The Project form and a ticket's **Advanced** section offer the same pair with an extra **Inherit** choice, and the Draft workspace exposes them until **Start**.
+Configuration, Project, and New Ticket place **AI questions** and **AI question wait** in **Advanced**. The wait is an indented subitem directly below AI questions, without a separator. Labels, descriptions, and `?` help links are on the left; controls are aligned to the right. Hover or focus a help link for an explanation; activate it to open the option's documentation. Configuration offers **On / Off** for AI questions; Project and Ticket add **Inherit** and show the effective choice and its source. The Draft workspace offers the same layout until **Start**.
 
 The two settings cascade independently, so a ticket can set its own wait while taking the on/off answer from its project. Each resolves the same way:
 
@@ -801,12 +801,16 @@ OpenCode's reject call carries only a request id, so a reason stays on the LoopT
 
 ### AI Question Wait
 
-**Type:** integer (seconds)  
-**Default:** 300 s (5 minutes)  
-**Range:** 60 to 3600 s\
+**Type:** integer (minutes in the UI)\
+**Default:** 5 minutes\
+**Range:** 1 to 60 whole minutes\
 **Profile field:** `aiQuestionWindow` (stored in milliseconds)
 
 How long a question waits for you before the run carries on.
+
+In Configuration **Advanced**, choose **Default** for 5 minutes or **Custom** to enter 1 to 60 whole minutes. Project and Ticket **Advanced** use **Inherit / Custom** and show the effective duration and its source. Ticket **Inherit** follows the project's effective wait; Project **Inherit** follows Configuration. The wait and the choice to allow questions resolve independently.
+
+The wait controls are disabled when effective **AI questions** are **Off**, including when **Inherit** resolves to **Off**. Turning questions off keeps the selected wait and any custom duration. When effective questions resolve to **On**, the controls become available again with the chosen values.
 
 **Waiting does not use up the step's working time.** While a question is pending, every clock on the ticket stops, and the elapsed wall time is credited back when it resolves. A step can therefore take its full timeout *plus* the time it spent waiting on you. The wait does not have to fit inside [Per-Iteration Timeout](#per-iteration-timeout), [Execution Setup Timeout](#execution-setup-timeout), or [AI Response Timeout](#ai-response-timeout), and there is no validation tying it to any of them. This holds in every step that can ask, including the ones that do not manage a clock of their own.
 

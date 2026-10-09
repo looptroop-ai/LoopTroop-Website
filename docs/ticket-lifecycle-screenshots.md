@@ -55,6 +55,8 @@ Each section shows the status as it appears in the app, its available actions, a
 
 ## Setup [?](getting-started.md#5-attaching-your-first-project "Open full documentation")
 
+In Configuration, Project, New Ticket, and saved drafts, **AI question wait** sits directly below **AI questions** as a subitem indented to the right, without a separator. Its controls are disabled when effective questions are **Off**, including when **Inherit** resolves to **Off**. Turning questions off keeps the wait selection and any custom duration. When effective questions resolve to **On**, the wait controls become available again.
+
 ### Project Creation [?](getting-started.md#5-attaching-your-first-project "Open full documentation")
 
 ::: details Screenshot
@@ -68,6 +70,7 @@ Each section shows the status as it appears in the app, its available actions, a
 - Attach a local Git repository that has a GitHub remote.
 - Choose how to attach a repository that LoopTroop has used before: restore its tickets, clear its tickets, or start fresh.
 - Open Project **Advanced** to choose concrete Manual QA, Git-hook, and folder-ignore settings seeded from Configuration.
+- Set **AI questions** to **Inherit / On / Off** and **AI question wait** to **Inherit / Custom** in Project **Advanced**. The rows show the effective values and their sources; custom waits accept 1 to 60 whole minutes. [?](configuration.md#ai-questions "Open full documentation") [?](configuration.md#ai-question-wait "Open full documentation")
 - Choose whether `/.looptroop/` and `/.ticket/` rules go to the repository `.gitignore`, this clone's Git exclude (the default), or nowhere. [?](configuration.md#looptroop-folder-ignore-policy "Open full documentation")
 
 ---
@@ -85,6 +88,7 @@ Each section shows the status as it appears in the app, its available actions, a
 - Select models for multi-model planning phases. [?](configuration.md#council-members "Open full documentation")
 - Set supported effort levels for each council member and, where available, an OpenRouter routing variant such as `:floor` or `:nitro`. [?](configuration.md#effort--thinking-variant "Open full documentation")
 - In collapsed **Advanced**, set future-project defaults for Git-hook policy and LoopTroop folder ignores. [?](configuration.md#git-hook-policy "Open full documentation") [?](configuration.md#looptroop-folder-ignore-policy "Open full documentation")
+- In **Advanced**, turn **AI questions** on or off and choose **Default** (5 minutes) or **Custom** (1 to 60 whole minutes) for **AI question wait**. [?](configuration.md#ai-questions "Open full documentation") [?](configuration.md#ai-question-wait "Open full documentation")
 - Set the future-project Manual QA default. [?](configuration.md#manual-qa "Open full documentation")
 - Set the log preview length for model tool calls. This limits only the text shown in the AI Model logs, not the content sent to the tool. [?](configuration.md#logging "Open full documentation")
 
@@ -127,7 +131,7 @@ Each section shows the status as it appears in the app, its available actions, a
 
 **What you can do:**
 - Edit the ticket title, description, priority, and ticket-level options.
-- In Advanced, choose only whether this ticket uses Manual QA. Git-hook and folder-ignore policies remain project settings.
+- In **Advanced**, choose Manual QA, **AI questions** (**Inherit / On / Off**), and **AI question wait** (**Inherit / Custom**). AI question rows show the effective values and their sources, with `?` help links beside both labels. Custom waits accept 1 to 60 whole minutes. Git-hook and folder-ignore policies are project settings. [?](configuration.md#ai-questions "Open full documentation") [?](configuration.md#ai-question-wait "Open full documentation")
 - Click **Create Ticket** to keep the ticket in the Backlog until you are ready to start it.
 - Click **Create & Start** to start it immediately.
 - When the workflow starts, LoopTroop runs initial checks and moves the ticket to Scanning Relevant Files. The ticket is then locked for editing. To change it, cancel the ticket and create a new one.
