@@ -615,11 +615,11 @@ Configuration uses **On / Off** for AI questions and **Default / Custom** for th
 
 The wait selector and custom input are disabled while effective AI questions are **Off**, including when **Inherit** resolves to **Off**. Turning questions off shows the last valid duration and preserves the chosen mode and unfinished input. Inactive wait errors do not block saving. Turning questions back on restores the input and its validation.
 
-Collapsing **Advanced** keeps unfinished input and validation. An invalid active Custom wait blocks Save, Create, and Start, with a short error below the Advanced heading while the section is closed. Default or Inherit resets the custom override and clears the error.
+Collapsing **Advanced** keeps unfinished input and validation. An invalid active Custom wait blocks Configuration and Project saves, ticket creation, and Start, with a short error below the Advanced heading while the section is closed. Invalid wait edits also count as unsaved form changes. Default or Inherit resets the custom override and clears the error. In saved drafts, description saves and other setting changes remain available; a failed setting save stays visible outside the collapsed section.
 
-Saved drafts save valid custom wait input when you leave the input or press Enter. Mode changes save immediately. In a saved draft, Start is disabled during pending updates or while inherited settings load. AI question controls are disabled during a pending start or while their inherited settings load.
+Saved drafts save valid custom wait input when you leave the input, press Enter, or close the view, including with Escape. Mode changes save immediately. `useDraftActions` serializes setting and description saves. Start waits for earlier saves, and a failed save cancels the queued actions with an error. Setting controls remain enabled during saves to preserve keyboard focus, and expose their pending state with `aria-busy`. Start requests and inherited-setting loading lock the controls.
 
-Tab focuses the selected choice in each group, and arrow keys change the choice. A saved fractional duration appears exactly in the Custom input and requires a whole-minute edit while questions are On. Choosing Custom from Inherit starts from the nearest whole minute; the inherited wait keeps its stored duration until you choose an override.
+Tab focuses the selected choice in each group, and arrow keys change the choice. The API accepts the same 1–60 whole-minute range as the editor, stored as multiples of `60000` milliseconds. Background updates do not replace unfinished wait text. Configuration disables its editable fields until the saved profile has loaded, and Project checks repository validation in the submit handler as well as the button state.
 
 ### Git Hook Policy
 

@@ -301,7 +301,7 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `maxCoveragePasses` | `1` to `10` | Shared generic coverage loop |
 | `maxPrdCoveragePasses`, `maxBeadsCoveragePasses` | `2` to `20` | PRD and beads coverage loops have a stricter lower bound |
 | `maxIterations` | `0` to `20` | Finite values bound automatic bead-response continuation within each bead iteration; `0` means unlimited for that path |
-| `aiQuestionWindow` | `60000` to `3600000` ms | How long an AI question waits before the run carries on; defaults to `300000` |
+| `aiQuestionWindow` | `60000` to `3600000` ms, in multiples of `60000` | How long an AI question waits before the run carries on; defaults to `300000` |
 | `gitHookPolicy` | `observe_only`, `validate_advisory`, `validate_required`, `use_native_hooks` | Future-project default for LoopTroop-owned Git operations; `validate_advisory` is the built-in default |
 | `ignoreMode` | `repo`, `local`, `skip` | Future-project folder-ignore default; `local` is the built-in default |
 | `toolInputMaxChars`, `toolErrorMaxChars` | `500` to `50000` | Applied to OpenCode tool transcript truncation |
@@ -455,7 +455,7 @@ Create and update routes also accept optional project-level overrides for future
 }
 ```
 
-`aiQuestionsOverride` and `aiQuestionWindowOverride` are nullable, and `null` means inherit from the profile. They cascade independently, so a project can set its own wait while taking the on/off answer from Configuration. The window accepts `60000` to `3600000` ms.
+`aiQuestionsOverride` and `aiQuestionWindowOverride` are nullable, and `null` means inherit from the profile. They cascade independently, so a project can set its own wait while taking the on/off answer from Configuration. The window accepts `60000` to `3600000` ms in multiples of `60000` (1–60 whole minutes).
 
 The Manual QA and Git-hook choices submitted for a new project are concrete saved project settings. If either is omitted at creation, LoopTroop copies the current profile default; an explicit value wins. Project updates affect future ticket starts, while existing tickets keep their locked values. `ignoreMode` is likewise concrete, but it is attach-time only and controls where LoopTroop appends its runtime-folder rules rather than ticket execution.
 
@@ -543,7 +543,7 @@ Example ticket creation payload:
 }
 ```
 
-Create-ticket validation requires a non-empty title up to 500 characters. The optional description is capped at 50,000 characters, and `manualQaOverride` accepts a boolean or `null`. `aiQuestionsOverride` accepts a boolean or `null`, and `aiQuestionWindowOverride` accepts `60000` to `3600000` ms or `null`; `null` means inherit from the project, then the profile. Update validation is slightly narrower: patched titles are capped at 200 characters, Manual QA and AI-question changes return `409` outside Draft, and `status` is API-protected so workflow transitions must go through the action routes below. Ticket create/update payloads do not accept `gitHookPolicy`; Git-hook policy belongs to the project.
+Create-ticket validation requires a non-empty title up to 500 characters. The optional description is capped at 50,000 characters, and `manualQaOverride` accepts a boolean or `null`. `aiQuestionsOverride` accepts a boolean or `null`, and `aiQuestionWindowOverride` accepts `60000` to `3600000` ms in multiples of `60000`, or `null`; `null` means inherit from the project, then the profile. Update validation is slightly narrower: patched titles are capped at 200 characters, Manual QA and AI-question changes return `409` outside Draft, and `status` is API-protected so workflow transitions must go through the action routes below. Ticket create/update payloads do not accept `gitHookPolicy`; Git-hook policy belongs to the project.
 
 Ticket read responses expose the resolved values as `effectiveAiQuestionsEnabled` / `effectiveAiQuestionsSource` and `effectiveAiQuestionWindow` / `effectiveAiQuestionWindowSource`, alongside the equivalent Manual QA fields. The source is `ticket`, `project`, or `profile`. Once a ticket has started, these read from the columns frozen at Start rather than from current settings, and a ticket that started before these settings existed resolves to off.
 

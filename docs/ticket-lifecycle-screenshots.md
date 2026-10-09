@@ -136,8 +136,8 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 **What you can do:**
 - Edit the ticket title, description, priority, and ticket-level options.
 - In **Advanced**, choose Manual QA, **AI questions** (**Inherit / On / Off**), and **AI question wait** (**Inherit / Custom**). AI question rows show the effective values and their sources, with `?` help links beside both labels. Custom waits accept 1 to 60 whole minutes. Git-hook and folder-ignore policies are project settings. [?](configuration.md#ai-questions "Open full documentation") [?](configuration.md#ai-question-wait "Open full documentation")
-- In a saved Draft ticket, leave the custom wait input or press Enter to save a valid value. Mode changes save immediately; Inherit removes the custom override.
-- In a saved Draft ticket, Start is disabled during pending updates or while inherited settings load. AI question controls are disabled during a pending start or while their inherited settings load.
+- In a saved Draft ticket, leave the custom wait input, press Enter, or close the view to save a valid value. Mode changes save immediately; Inherit removes the custom override.
+- In a saved Draft ticket, later edits and Start wait for earlier saves to succeed. A failed save stops queued actions and shows an error, even with Advanced closed. Controls stay usable during saves and lock during Start or while inherited settings load.
 - Click **Create Ticket** to keep the ticket in the Backlog until you are ready to start it.
 - Click **Create & Start** to start it immediately.
 - When the workflow starts, LoopTroop runs initial checks and moves the ticket to Scanning Relevant Files. The ticket is then locked for editing. To change it, cancel the ticket and create a new one.
