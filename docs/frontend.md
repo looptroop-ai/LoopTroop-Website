@@ -539,7 +539,7 @@ Configuration, Project, New Ticket, and Draft split their views into sections fo
 
 Shared `AdvancedSettings` keeps its children mounted while hiding the closed section, so collapsing it preserves wait input and validation. It also shows the short error when a closed section needs a correction. `AdvancedSettingRow` supplies the label, help, description, and control layout. The radio selectors share `radioGroupNavigation.ts` for keyboard movement.
 
-`InheritableDurationField.tsx` keeps the wait input draft and commits valid edits. `DurationFieldControls.tsx` renders the label, help, mode selector, inherited value or Custom input, and error. `durationFieldUtils.ts` holds exact Custom value formatting, whole-minute validation, rounding the inherited value for a new Custom override, and display and accessibility helpers.
+`InheritableDurationField.tsx` keeps the wait input draft and commits valid edits. It tracks synchronized values in React state, so the input follows an updated value even when React interrupts and retries a render. `DurationFieldControls.tsx` renders the label, help, mode selector, inherited value or Custom input, and error. `durationFieldUtils.ts` holds exact Custom value formatting, whole-minute validation, rounding the inherited value for a new Custom override, and display and accessibility helpers.
 
 ### Model Selection
 
@@ -562,6 +562,8 @@ Other errors show their actual message so the cause remains visible.
 Closed triggers expose `aria-busy` during manual reload, including with cached models.
 
 `EffortPicker` (`src/components/config/EffortPicker.tsx`) appears next to a model selector when that model exposes variants (for example `high`, `low`, `medium`). The selected variant is stored per model id in `councilMemberVariants`.
+
+Each council row keeps its own picker state when you change its model or remove another row, including when several rows are empty. The form uses local row IDs for this; saved profiles and dirty checks still use model IDs.
 
 `ProfileSetup` checks `/api/health/opencode` separately from model discovery,
 so connection failures and catalog failures stay distinct. Opening Configuration
