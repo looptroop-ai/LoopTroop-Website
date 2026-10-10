@@ -348,8 +348,9 @@ counts, including cache reads and writes. The provider response preview removes
 terminal control sequences before redacting recognized credential fields and
 common credential formats, then applies the OpenCode extractor's 280-character
 limit. The shared persistence normalizer has an outer ceiling of 1,000 characters.
-Redaction covers recognized camelCase credential keys, labeled authorization
-values, Basic and Bearer credentials, and complete cookie header values.
+Redaction covers recognized camelCase credential keys, including assignments
+split across lines in formatted JSON, labeled authorization values, Basic and
+Bearer credentials, and complete cookie header values.
 Common failure prose, structured formatting, and repeated lines remain readable,
 and the preview supports keyboard scrolling. Background refreshes of the same
 failure preserve the open section

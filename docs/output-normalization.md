@@ -453,6 +453,8 @@ additional repair.
 Fallback excerpts from a tagged batch cannot silently drop its emitted final-batch
 flag or commentary. An unclosed earlier wrapper does not consume later independent
 batch output, and a prose line starting with a tag is not treated as a field tag.
+Malformed field tags with long whitespace do not cause excessive backtracking
+during these checks.
 
 Accepted repair notices in the ticket log name the rule and affected fields.
 Short before/after excerpts remain in the log entry's structured data rather
