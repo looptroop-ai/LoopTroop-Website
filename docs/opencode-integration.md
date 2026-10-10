@@ -372,6 +372,8 @@ OpenCode v2 does not persist bus history by default. Its ordered public event fe
 
 OpenCode v2 retries transient stream reconnect failures within a bounded budget, including failures while opening the stream or reading permissions and history. The consecutive failure budget resets after valid live progress or complete, valid replay that advances the observed cursor. Connection handshakes and unchanged or empty replay leave the budget unchanged. Recovery verifies complete durable history, which can replace a malformed live frame, before resuming and never resends an accepted prompt.
 
+During reconnects, LoopTroop closes and releases replaced or failed streams so retained connections do not grow with prompt length. It retains ownership while opening, replaying, or closing a stream so cancellation can finish cleanup.
+
 At the first idle watermark LoopTroop starts a fresh inbox-competition check, waits for idle again, and requires the inbox to be empty before dispatch. Previously delivered and drained inbox entries at or before that watermark do not block a later prompt; competing inbox activity after it does. An unmapped or malformed durable history event, an unseen backward sequence, an unrecoverable replay gap, or an incomplete inbox/execution lifecycle prevents LoopTroop from attributing the response safely. It does not guess which prompt owns an event or resend it. A prompt POST without a verifiable inbox receipt is non-continuable because acceptance cannot be proven.
 
 The idle wait uses the caller's deadline when one is supplied. Without one, the
