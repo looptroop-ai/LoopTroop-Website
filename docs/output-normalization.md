@@ -211,7 +211,8 @@ The shared YAML candidate parser applies this repair to PRD, Beads, relevant-fil
 
 **Trigger:** Lines that consist entirely of a bare XML-style tag (`<tag>`, `</tag>`, `<tag/>`).
 
-**Repair:** Those lines are removed.
+**Repair:** Those lines are removed outside YAML block scalar bodies. Tag-only
+lines inside literal scalar text remain part of the value.
 
 **Warning:** *Stripped XML-style tags `<tag>` from the payload before parsing.* (Lists the specific tags that were removed.)
 
@@ -401,6 +402,46 @@ This section covers three closely related shapes that share normalization rules:
 - interview batch / question-list outputs produced during live questioning,
 - interview refinement question lists used by council refine phases,
 - the final durable `interview.yaml` document.
+
+**Batch field-tag recovery**
+
+Live interview batches have an additional formatting repair. Normal parsing
+runs first. If it fails, the parser can convert recognized batch-field tags at
+their expected positions into YAML fields. This handles responses that mix
+tags such as `<batch_number>`, `<progress>`, `<ai_commentary>`, and
+`<questions>` with an otherwise complete YAML batch.
+
+For example:
+
+```text
+<batch_number>1</batch_number>
+<progress>
+  current: 1
+  total: 9
+</progress>
+```
+
+becomes:
+
+```yaml
+batch_number: 1
+progress:
+  current: 1
+  total: 9
+```
+
+The repair preserves emitted content. Text containers retain their wording and
+line breaks as YAML strings; question containers retain the existing list.
+Literal XML or HTML in question text and code examples remains text during
+repair. This repair rejects conflicting duplicate fields or question/option
+aliases, unknown structures, or values that would require guessing through the
+normal retry path. The corrected batch then runs through the existing validation
+and normalization, including whitespace trimming and batch/choice limits.
+Ordinary YAML parsing keeps its existing behavior.
+
+Accepted repairs are recorded in the ticket log with the rule, affected fields,
+and before/after corrections. Field-tag recovery is enabled only for interview
+batches. Other parsers retain their existing repair rules.
 
 **Question ID normalization**
 

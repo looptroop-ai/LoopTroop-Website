@@ -668,11 +668,11 @@ There is no new screenshot for this status yet; this guide intentionally documen
 
 ::: details Screenshot
 ![Error (reason)](media/ticket-lifecycle/35-blocked-error.png)
-*The error workspace shows the failed phase and actual cause before recovery controls and expanded technical details.*
+*The error workspace shows the failed phase and actual cause before recovery controls. Technical details is collapsed by default.*
 :::
 
 **What you can do:**
-- Read the actual failure and any distinct underlying cause above the recovery controls. Technical details starts expanded and can be collapsed.
+- Read the actual failure and any distinct underlying cause above the recovery controls. Expand **Technical details** to inspect the captured model, exact session, and other diagnostics; it starts collapsed.
 - Follow the recovery guidance for the actions currently available on the live error.
 - Click **Retry** to follow the failed phase's normal retry path: archive and rerun a non-coding phase attempt, or reset the failed bead during Implementing.
 - Click **Retry with extra note...** to append guidance to User Retry Notes during Implementing, or send a prompt to the preserved setup session during Preparing Workspace Runtime.

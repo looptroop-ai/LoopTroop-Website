@@ -104,6 +104,25 @@ While a batch is open:
 
 After submit, LoopTroop persists the batch into the session snapshot, updates the canonical interview state, and either prepares the next batch or advances to coverage.
 
+Batch responses pass through the existing validation and normalization before
+becoming questions in the workspace. If normal parsing fails because the model
+wrapped known batch fields in tags, LoopTroop can convert those fields to YAML while keeping
+the emitted values, question wording, choices, and commentary. For example,
+`<batch_number>1</batch_number>` becomes `batch_number: 1`, and a
+`<questions>` container keeps its existing YAML question list. Literal tags
+inside question text or code examples remain part of that text during repair.
+The corrected batch then uses the existing normalization, including whitespace
+trimming and batch/choice limits. This repair rejects conflicting fields,
+including question and option aliases, or ambiguous structures through the
+normal retry or error path. Ordinary YAML parsing keeps its existing behavior.
+
+Accepted repairs appear in the ticket log with the rule, affected fields, and
+before/after corrections. If batch generation still fails, expand
+**Technical details** on the error page to inspect the captured model and exact
+OpenCode session. That section is collapsed by default. See
+[Output Normalization](output-normalization.md#interview-question-list-and-interview-document-artifacts)
+for the repair boundaries.
+
 > [!NOTE]
 > **Current behavior.** Batch identity, durable claim recovery, delayed
 > timeout fencing, and same-tick answer/skip guarding in this section describe
