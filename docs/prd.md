@@ -156,9 +156,21 @@ PRD coverage checks for:
 
 Unlike interview coverage, PRD coverage does **not** ask the user new questions. If gaps are found and the configured cap allows another pass, LoopTroop revises the PRD inside the same phase and promotes it to the next candidate version (`v1`, `v2`, and so on).
 
+The phase log names the candidate version and coverage check, then separates
+the audit from a gap-resolution revision. It reports the gap count and gives
+response attempts their own counter. Reconnecting to an existing session keeps
+the same check number. If an audit succeeds but communication fails during its
+revision, those log entries show which part completed and which operation
+failed. The error page names that operation and keeps the captured model,
+session, and available connection code and cause in collapsed **Technical details**.
+
 Coverage metadata is also filtered conservatively. LoopTroop keeps revision/change metadata only when it contains real, text-preserving semantic before/after items. If a model emits only section paths or vague summaries, LoopTroop records warnings and falls back to deriving the visible diff from the validated PRD versions themselves.
 
 If the candidate becomes clean, it advances to approval cleanly. If the cap is exhausted first, the latest candidate still advances, but unresolved coverage warnings stay visible for review instead of being hidden. From the approval warning, the user can request manual extra fixes one at a time; each extra fix reloads the latest server artifacts, revises only the listed gaps, runs a fresh coverage check, and records an `Extra Fix N` entry in the coverage report.
+
+The log labels this work `manual coverage fix N`, with revision and audit
+response attempts, so it stays separate from the automatic coverage check
+limit. A reconnection keeps the same manual fix number.
 
 ## 7. Approval, Editing, And Downstream Impact
 

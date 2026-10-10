@@ -153,6 +153,26 @@ For interview coverage, a clean result means **no gaps and no follow-up
 questions**. Setting Coverage Follow-Up Budget to `0%` means the coverage pass
 may still record gaps, but it generates **no** follow-up questions.
 
+Coverage logs name the current **coverage check** and its limit separately from
+the **response attempt** and its retry limit. Preparation messages mean the
+phase is assembling its work. Session messages distinguish a newly created
+session from reconnecting to an existing session. A session-ready message does
+not confirm a prompt was sent or accepted; request preparation and waiting are
+separate steps. Reconnecting keeps the current coverage check number. The check number advances only
+after its result is accepted and saved, so several reconnection messages may
+belong to the same check. PRD and beads logs identify the candidate version,
+separate audits from gap-resolution revisions, and report the number of gaps
+found. These messages leave coverage budgets and retry limits unchanged.
+
+For example, `coverage check 1 of 5` identifies the current coverage cycle.
+`response attempt 2 of 3` identifies a retry of its model response. A message
+that reconnects to an existing session can still show check 1 because the
+original work has not yet completed and been saved.
+
+Approval-screen AI gap fixes are logged as `manual coverage fix N`, with their
+own revision and audit response attempts. They remain separate from the
+automatic coverage check limit, and a reconnection keeps the same fix number.
+
 ### 3.8 Execution Band
 
 The execution band (`server/workflow/executionBand.ts`) is the set of statuses between pre-flight readiness and environment cleanup:
@@ -322,7 +342,7 @@ The state machine metadata directly drives the React user interface. Developers 
 - **`CLEANING_ENV`:** Deletes transient lockfiles, wrapper hooks, and session directories, preserving planning files and audit trails. It cannot be canceled; restarting the daemon retries any interrupted cleanup.
 
 ### Error & Terminal States
-- **`BLOCKED_ERROR`:** Recovery gate that preserves `previousStatus`, structured diagnostics, and any continuation candidate. The actual error stays visible, with the captured model, exact session, and other diagnostics in **Technical details**, collapsed by default. The UI renders only the server-advertised actions: depending on the failure, that may be retry, setup-plan editing or note retry for a live blocked runtime setup, implementation guidance, continuation of a preserved OpenCode session, or cancel. Setup approval itself does not imply those controls, and unknown statuses advertise none. Exhausted setup-plan parsing is reviewed at approval instead of becoming a blocked error; only unexpected drafting operations fail here. Final-test local-only file classification does not create a blocked-error action. Displayed errors remove terminal control sequences and repeated warning noise while raw logs remain unchanged.
+- **`BLOCKED_ERROR`:** Recovery gate that preserves `previousStatus`, structured diagnostics, and any continuation candidate. The actual error stays visible, including the failed OpenCode operation and reported error when available. The captured model, exact session, connection code, and other diagnostics are in **Technical details**, collapsed by default. The UI renders only the server-advertised actions: depending on the failure, that may be retry, setup-plan editing or note retry for a live blocked runtime setup, implementation guidance, continuation of a preserved OpenCode session, or cancel. Setup approval itself does not imply those controls, and unknown statuses advertise none. Exhausted setup-plan parsing is reviewed at approval instead of becoming a blocked error; only unexpected drafting operations fail here. Final-test local-only file classification does not create a blocked-error action. Displayed errors remove terminal control sequences and repeated warning noise while raw logs remain unchanged.
 - **`COMPLETED`:** Terminal success state after cleanup finishes and execution locks are released. Ticket artifacts, logs, and archived attempts remain available for audit.
 - **`CANCELED`:** Terminal stop state for user-driven cancellation or intentional planning rewinds. Existing artifacts/history remain, but no further automation continues.
 

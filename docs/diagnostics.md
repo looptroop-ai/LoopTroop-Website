@@ -355,6 +355,15 @@ token/cache metrics; if stopping the session also fails, the cleanup error keeps
 the original failure as its cause. Use the phase log's Debug view for the
 surrounding log history.
 
+OpenCode communication failures name the operation that failed, such as sending
+a prompt or reading session messages. LoopTroop keeps the original error cause
+and shows the reported connection code or cause when available. If OpenCode or
+the runtime reports only `fetch failed`, the message says that the underlying
+cause was not reported. This leaves a connection failure distinct from a model
+rejecting a request or an expired deadline. Technical details keeps the
+operation, connection code, and bounded sanitized cause message alongside the
+model and session.
+
 Use this surface when the ticket already blocked and you want the reason, not the whole-machine health picture.
 
 Startup artifact recovery distinguishes ordinary orphan content from an
@@ -494,6 +503,9 @@ The normalized blocked-error payload may include:
 | `summary` | Required short explanation shown in the UI when it differs from the primary ticket error |
 | `modelId` | LoopTroop/OpenCode model identifier used for the failed run |
 | `sessionId` | OpenCode session involved in the failure |
+| `operation` | OpenCode operation that failed |
+| `transportCode` | Reported connection error code, when available |
+| `causeMessage` | Bounded sanitized underlying error message, when available |
 | `providerId` | Provider identifier such as `openai` |
 | `providerModelId` | Provider-native model identifier when it differs from the requested model |
 | `requestModel` | Exact request model recorded by provider diagnostics |
@@ -511,6 +523,20 @@ The blocked-error panel shows available diagnostics in **Technical details**,
 including the bounded provider response preview and cache token counts. The
 section starts collapsed so the actual failure and recovery actions remain easy
 to find.
+
+Coverage phase logs separately label preparation and each audit or revision.
+Each coverage check has its own number, and response attempts within that check
+have a separate counter. Session messages say whether LoopTroop created a new
+session or reconnected to an existing one. A session-ready message does not
+confirm that a prompt was sent or accepted; request preparation and waiting
+are separate steps. A reconnection keeps the current check number. PRD and beads logs also name
+the candidate version and distinguish the coverage audit from a revision to
+resolve its reported gaps. See [Coverage Control](ticket-flow.md#_3-7-coverage-control)
+for the counters and limits.
+
+AI gap fixes requested from PRD or blueprint approval use a separate
+`manual coverage fix N` label, with revision and audit response attempts.
+Reconnecting keeps that fix number, too.
 
 ## 4. Structured Retry Diagnostics
 

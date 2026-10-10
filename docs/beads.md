@@ -30,6 +30,16 @@ LoopTroop implements only part of the broader "beads" idea popularized by Steve 
 
 This page starts at the point where beads are already expanded into execution-ready records and reviewed by a human. The earlier beads planning loop (`DRAFTING_BEADS` -> `COUNCIL_VOTING_BEADS` -> `REFINING_BEADS` -> `VERIFYING_BEADS_COVERAGE` -> `EXPANDING_BEADS`) is covered mainly in [Ticket Flow](ticket-flow.md) and [LLM Council](llm-council.md).
 
+Beads coverage logs name the candidate version and coverage check, report the
+gap count, and distinguish audit prompts from gap-resolution revisions.
+Response attempts have a separate counter. Reconnecting to an existing
+session keeps the same check number; see
+[Coverage Control](ticket-flow.md#_3-7-coverage-control) for the limits.
+
+An AI gap fix requested from blueprint approval is labeled
+`manual coverage fix N` in the log, with revision and audit response attempts. Its number stays
+separate from the automatic coverage check limit, including on reconnection.
+
 What this page focuses on:
 
 - the final approved bead shape

@@ -204,6 +204,12 @@ After that, the winning interview model runs coverage. Coverage checks for:
 
 Coverage may use the same focused read-only inspection to confirm technical facts, but it cannot infer product decisions from existing code.
 
+The phase log separates coverage check numbers from response attempts and says
+when it reconnects to an existing session. Reconnecting keeps the same check
+number. If communication with OpenCode fails, the error names the operation
+and reported error; the model, exact session, and available connection code
+and cause remain in collapsed **Technical details**.
+
 If real gaps remain and the follow-up budget allows it, coverage generates targeted follow-up questions and sends the ticket back to `WAITING_INTERVIEW_ANSWERS`.
 
 If coverage is clean, the interview moves to approval. A clean result means

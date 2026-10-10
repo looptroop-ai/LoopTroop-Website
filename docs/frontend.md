@@ -175,7 +175,9 @@ A live `BLOCKED_ERROR` from `PREPARING_EXECUTION_ENV` exposes **Edit setup plan.
 
 Blocked errors show the failed phase once and keep the complete sanitized error message visible at the top of the error card. A distinct underlying cause also stays visible when it adds information. Error-specific recovery guidance covers incomplete agent responses, coding timeouts, provider/environment interruptions, exhausted implementation retries, Final Testing failures, Git finalization failures, and workspace setup failures, and refers only to actions advertised for the live error. Available recovery actions sit between the message and **Technical details**, which is collapsed by default. Expanding it shows the captured model, exact session, provider metadata, codes, occurrence timing, and other available diagnostics. Interview-batch failures retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Historical occurrences show their own phase and resolution without live recovery controls or the current bead's counters and notes. Only the active coding error shows bead context. A paused current bead and its timer guidance take precedence over an older failed bead and its notes; failed-bead history appears when no current bead is paused.
 
-Technical details includes available input/output/reasoning and cache read/write
+Technical details includes the failed OpenCode operation and any reported
+connection code and sanitized underlying cause, along with available
+input/output/reasoning and cache read/write
 token counts, plus a provider response preview limited to 1,000 characters.
 Terminal control sequences are removed before recognized credential fields and
 common credential formats are redacted, and the length limit is applied last.
