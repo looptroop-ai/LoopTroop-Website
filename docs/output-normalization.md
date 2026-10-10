@@ -405,13 +405,17 @@ This section covers three closely related shapes that share normalization rules:
 
 **Batch field-tag recovery**
 
-Live interview batches have an additional formatting repair. Normal parsing
-runs first. If it fails, the parser can convert recognized batch-field tags at
-their expected positions into YAML fields. This handles responses that mix
-tags such as `<batch_number>`, `<progress>`, `<ai_commentary>`, and
-`<questions>` with an otherwise complete YAML batch.
+Live interview batches have an additional formatting repair for responses
+wrapped in `<INTERVIEW_BATCH>`. All ordinary tagged and fallback parsing
+candidates run first. If none succeeds, the parser can convert recognized
+batch-field tags into YAML fields. The complete batch must contain all five
+known root fields: `batch_number`, `progress`, `is_final_free_form`,
+`ai_commentary`, and `questions`. Root field tags must start at the beginning
+of their line. Scalar tags use the supported one-line form; containers use
+separate opening and closing lines. Progress must contain integer `current`
+and `total` values, either as YAML or separate child tags.
 
-For example:
+For example, these fields within a complete batch:
 
 ```text
 <batch_number>1</batch_number>
@@ -433,15 +437,21 @@ progress:
 The repair preserves emitted content. Text containers retain their wording and
 line breaks as YAML strings; question containers retain the existing list.
 Literal XML or HTML in question text and code examples remains text during
-repair. This repair rejects conflicting duplicate fields or question/option
-aliases, unknown structures, or values that would require guessing through the
-normal retry path. The corrected batch then runs through the existing validation
+repair. A stray terminal `</parameter>` can close an otherwise complete
+`<questions>` container; the repair removes that closer without stripping tags
+inside question values. Conflicting duplicate fields or question/option aliases,
+truncated containers, unknown structures, and values that would require guessing
+go through the normal retry or error path. A conflicting alias keeps its specific
+validation error. The corrected batch then runs through the existing validation
 and normalization, including whitespace trimming and batch/choice limits.
-Ordinary YAML parsing keeps its existing behavior.
+Ordinary YAML parsing keeps its existing behavior and takes priority over this
+additional repair.
 
 Accepted repairs are recorded in the ticket log with the rule, affected fields,
-and before/after corrections. Field-tag recovery is enabled only for interview
-batches. Other parsers retain their existing repair rules.
+and short before/after excerpts. Successful batches that needed a structured
+retry also record the retry details. Field-tag recovery is enabled only for
+explicitly wrapped interview batches. Other parsers retain their existing repair
+rules.
 
 **Question ID normalization**
 

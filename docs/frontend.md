@@ -176,10 +176,13 @@ A live `BLOCKED_ERROR` from `PREPARING_EXECUTION_ENV` exposes **Edit setup plan.
 Blocked errors show the failed phase once and keep the complete sanitized error message visible at the top of the error card. A distinct underlying cause also stays visible when it adds information. Error-specific recovery guidance covers incomplete agent responses, coding timeouts, provider/environment interruptions, exhausted implementation retries, Final Testing failures, Git finalization failures, and workspace setup failures, and refers only to actions advertised for the live error. Available recovery actions sit between the message and **Technical details**, which is collapsed by default. Expanding it shows the captured model, exact session, provider metadata, codes, occurrence timing, and other available diagnostics. Interview-batch failures retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Historical occurrences show their own phase and resolution without live recovery controls or the current bead's counters and notes. Only the active coding error shows bead context. A paused current bead and its timer guidance take precedence over an older failed bead and its notes; failed-bead history appears when no current bead is paused.
 
 Technical details includes available input/output/reasoning and cache read/write
-token counts, plus a provider response preview limited to 1,000 characters with
-recognized credentials redacted and terminal control sequences removed. Switching
-tickets or error occurrences closes the section again. Full log history remains
-in the phase log's Debug view.
+token counts, plus a provider response preview limited to 1,000 characters.
+Terminal control sequences are removed before recognized credential fields and
+common credential formats are redacted, and the length limit is applied last.
+The preview preserves structured formatting and repeated lines and can be
+scrolled with the keyboard. Background refreshes of the same failure preserve
+the open section and keyboard focus; switching tickets or error occurrences
+closes the section again. Full log history remains in the phase log's Debug view.
 
 ### Manual QA workspace
 
@@ -472,8 +475,10 @@ Future artifact companion payloads should persist parser and normalizer interven
 Parser repairs and structured retries are artifact processing notices, not coverage warnings. Coverage warnings should stay reserved for unresolved planning gaps, including unresolved contradictions inside the source artifacts when a prompt reports them.
 
 Accepted live interview-batch repairs are also recorded in the ticket log. The
-notice names the repair rule and affected fields and includes before/after
-corrections, preserving the original response for inspection.
+notice names the repair rule and affected fields and includes short before/after
+excerpts. These notices show the corrections without copying the full response;
+the model response remains in the surrounding logs. Successful batches that
+needed a structured retry also record the retry details.
 
 Voting artifacts keep one collapsed aggregate processing notice so scorecard repairs remain visible at the top of the results. Expanding that notice shows the full intervention details grouped by affected voter model only; the normal **Voter Details** scorecard section does not repeat the same notices.
 

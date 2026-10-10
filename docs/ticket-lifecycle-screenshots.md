@@ -668,7 +668,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 
 ::: details Screenshot
 ![Error (reason)](media/ticket-lifecycle/35-blocked-error.png)
-*The error workspace shows the failed phase and actual cause before recovery controls. Technical details is collapsed by default.*
+*This example shows Technical details expanded for inspection. The section starts collapsed when opening a ticket error.*
 :::
 
 **What you can do:**

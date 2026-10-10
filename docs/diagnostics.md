@@ -345,9 +345,15 @@ Pre-flight, workspace setup, final-test, and bead failures preserve the actual c
 When available, Technical details also includes the HTTP status, provider error
 type, retryability, response finish reason, and input/output/reasoning token
 counts, including cache reads and writes. The provider response preview removes
-recognized credentials and terminal control sequences and is limited to 1,000
-characters. Selecting another ticket or error occurrence closes Technical
-details again. Use the phase log's Debug view for the surrounding log history.
+terminal control sequences before redacting recognized credential fields and
+common credential formats, then applies its 1,000-character limit. Structured
+formatting and repeated lines remain readable, and the preview supports keyboard
+scrolling. Background refreshes of the same failure preserve the open section
+and keyboard focus. Selecting another ticket or error occurrence closes
+Technical details again. Interview parsing failures retain available finish and
+token/cache metrics; if stopping the session also fails, the cleanup error keeps
+the original failure as its cause. Use the phase log's Debug view for the
+surrounding log history.
 
 Use this surface when the ticket already blocked and you want the reason, not the whole-machine health picture.
 
@@ -501,7 +507,10 @@ The normalized blocked-error payload may include:
 | `inputTokens` / `outputTokens` / `reasoningTokens` | Token counts reported by OpenCode |
 | `cacheReadTokens` / `cacheWriteTokens` | Token-cache counts when OpenCode exposes them |
 
-The current compact blocked-error panel renders the most actionable subset of those fields. Less common fields, such as `responseBodyPreview` and cache token counts, can still exist in persisted payloads even if that panel does not show them today.
+The blocked-error panel shows available diagnostics in **Technical details**,
+including the bounded provider response preview and cache token counts. The
+section starts collapsed so the actual failure and recovery actions remain easy
+to find.
 
 ## 4. Structured Retry Diagnostics
 
