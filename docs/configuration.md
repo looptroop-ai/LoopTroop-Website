@@ -784,6 +784,8 @@ On Start, LoopTroop freezes both values and where each came from: `lockedAiQuest
 
 A collapsible panel opens at the top of the ticket and pushes the workspace down. There is no modal. When more than one model is asking, each gets its own tab. The countdown appears once, in the panel header, because there is only one. Elsewhere in the app a slim bar slides down naming the ticket that is waiting.
 
+Use **Send answer** or **Skip** in the panel header, to the left of the waiting count. These controls stay visible while long questions scroll; the panel can grow to half the viewport, and its header wraps on smaller screens. **Skip** skips the selected request, which can contain several questions. When more than one question is waiting, **Skip all** skips all currently pending requests for this ticket across model tabs. You can give one optional reason for the bulk skip; LoopTroop records it against each request.
+
 On the board, the ticket moves to **Needs Input** and its status badge pulses blue, distinct from the red used for errors, because a question is not a failure. The ticket's workflow status does not change; only the board column does.
 
 **What happens when nobody answers:**
