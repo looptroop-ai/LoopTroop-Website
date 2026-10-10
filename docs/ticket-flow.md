@@ -355,7 +355,9 @@ Approved interview and PRD documents can still be edited manually while in plann
 
 ## 9. Retry, Continue, And Blocked-Error Semantics
 
-When a phase encounters a fatal block, it routes to `BLOCKED_ERROR` while storing the failed status in `previousStatus`. Recovery pathways are phase-scoped:
+When a phase encounters a fatal block, it routes to `BLOCKED_ERROR` while storing the failed status in `previousStatus`.
+
+The error view leads with the failed phase and the complete sanitized error message. A distinct underlying cause and useful recovery guidance stay visible. **Technical details** shows codes, provider/model/session metadata, and occurrence timing beneath the message, expanded by default and available to collapse. Recovery controls appear only for the live error and follow the server-advertised actions. Historical errors retain their messages, details, and phase logs for review.
 
 ### The Retry Path (`RETRY`)
 - Archives the active phase attempt and initializes a fresh run.
