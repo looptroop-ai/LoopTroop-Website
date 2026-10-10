@@ -299,6 +299,8 @@ worktree paths; native Windows/macOS equivalent-case behavior is not claimed.
 
 These controls are what let multi-turn phases reuse a durable session when appropriate, while still allowing hard resets for flows that must discard the old transcript.
 
+New OpenCode v2 sessions use the fixed title `LoopTroop`, so OpenCode does not make a separate model call to generate a session title. LoopTroop ticket names stay independent of that title, and the ticket/model/session mapping identifies each run. OpenCode v1 sessions use its normal title behavior.
+
 Session creation records ownership in the project database before it relies on
 the remote session. If that write is unavailable, LoopTroop records a
 ticket-contained marker at `.ticket/runtime/opencode-pending-sessions.json`
@@ -366,7 +368,9 @@ OpenCode stream events are consumed server-side and then translated into LoopTro
 
 The v1 SDK and v2 HTTP transports consume OpenCode's event stream and filter events to the owned session before emitting LoopTroop events. This keeps unrelated project/session events out of the ticket log.
 
-OpenCode v2 does not persist bus history by default. Its ordered public event feed omits internal durable events, including title and compaction usage accounting, so a healthy stream can skip sequence numbers. Fork or transfer history can also contain reserved sequence gaps. LoopTroop uses the initial bootstrap cursor only as a starting boundary and accepts forward numbering gaps when it has continuously observed the public stream across them, including while waiting for idle. Live observation may reach or pass the log watermark; LoopTroop resumes from the last event consumed. After a disconnection, durable replay must still account for every sequence in the missing range.
+OpenCode v2 does not persist bus history by default. Its ordered public event feed omits internal durable events, including title and compaction usage accounting, so a healthy stream can skip sequence numbers. Fork or transfer history can also contain reserved sequence gaps. LoopTroop uses the initial bootstrap cursor only as a starting boundary. If the initial log scan finds an uncovered range after that boundary, the first durable live event must have the next sequence number before later forward numbering gaps can be accepted on the uninterrupted public stream, including while waiting for idle. Live observation may reach or pass the log watermark; LoopTroop resumes from the last event consumed. Each fresh log read must include a valid watermark at or beyond the already observed cursor. After a disconnection, durable replay must still account for every sequence in the missing range.
+
+OpenCode v2 retries transient stream reconnect failures within a bounded budget, including failures while opening the stream or reading permissions and history. Valid live progress resets the consecutive failure budget. Recovery verifies durable history before resuming and never resends an accepted prompt.
 
 At the first idle watermark LoopTroop starts a fresh inbox-competition check, waits for idle again, and requires the inbox to be empty before dispatch. Previously delivered and drained inbox entries at or before that watermark do not block a later prompt; competing inbox activity after it does. An unmapped or malformed durable event, an unseen backward sequence, an unrecoverable replay gap, or an incomplete inbox/execution lifecycle prevents LoopTroop from attributing the response safely. It does not guess which prompt owns an event or resend it. A prompt POST without a verifiable inbox receipt is non-continuable because acceptance cannot be proven.
 
@@ -374,8 +378,10 @@ The idle wait uses the caller's deadline when one is supplied. Without one, the
 wait is bounded to 60 seconds.
 
 Events without an explicit session ID are not assigned to a per-session stream,
-and events naming a different session are omitted. A directory-only or global
-event therefore cannot appear to belong to the active ticket by inference.
+and events naming a different session are omitted before validating the active
+session's durable envelope. Malformed events clearly owned by another session
+therefore cannot invalidate the active prompt's history. A directory-only or
+global event cannot appear to belong to the active ticket by inference.
 
 The prompt runner tracks:
 

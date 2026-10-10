@@ -668,11 +668,12 @@ There is no new screenshot for this status yet; this guide intentionally documen
 
 ::: details Screenshot
 ![Error (reason)](media/ticket-lifecycle/35-blocked-error.png)
-*Recovery screen that preserves diagnostics, remembers the failed phase, and shows only the continuation options that currently apply.*
+*The error workspace shows the failed phase and actual cause before recovery controls and expanded technical details.*
 :::
 
 **What you can do:**
-- Read plain-language root cause explanation, recommended actions, and technical error details under collapsed section
+- Read the actual failure and any distinct underlying cause above the recovery controls. Technical details starts expanded and can be collapsed.
+- Follow the recovery guidance for the actions currently available on the live error.
 - Click **Retry** to follow the failed phase's normal retry path: archive and rerun a non-coding phase attempt, or reset the failed bead during Implementing.
 - Click **Retry with extra note...** to append guidance to User Retry Notes during Implementing, or send a prompt to the preserved setup session during Preparing Workspace Runtime.
 - Click **Continue** to resume an addressable OpenCode session after transient provider, network, or rate-limit interruptions without archiving phase attempts
