@@ -340,7 +340,7 @@ For intermittent issues, save at least one report from a healthy moment and one 
 
 When a phase fails hard enough to enter `BLOCKED_ERROR`, LoopTroop persists a normalized diagnostic payload alongside the error occurrence. The workspace summary immediately names the failed phase, shows a bounded first line of the captured error, and explains the available recovery actions. The ticket error view keeps the complete sanitized error message visible beneath one failed-phase heading. A distinct underlying cause also appears when it adds information. **Technical details** shows codes, provider/model/session metadata, and occurrence timing beneath the message; it starts expanded and can be collapsed. The surrounding phase log has its own collapsible section. Diagnostics are normalized by `shared/errorDiagnostics.ts` and typically assembled by `server/opencode/blockedErrorDiagnostics.ts`.
 
-Pre-flight, workspace setup, final-test, and bead failures preserve the actual cause in the ticket and error-occurrence message; stable diagnostic codes remain separate. Error history shows each occurrence's phase and resolution without borrowing the current bead's counters or notes.
+Pre-flight, workspace setup, final-test, and bead failures preserve the actual cause in the ticket and error-occurrence message; stable diagnostic codes remain separate. Coding errors put the final stopping reason first, followed by earlier attempt failures from newest to oldest. Error history shows each occurrence's phase and resolution without borrowing the current bead's counters or notes.
 
 Use this surface when the ticket already blocked and you want the reason, not the whole-machine health picture.
 

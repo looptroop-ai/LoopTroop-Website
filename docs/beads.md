@@ -505,7 +505,7 @@ If the model cannot produce a good note, LoopTroop falls back to a deterministic
 
 ### Retry Budget Exhaustion
 
-If the bead reaches the configured retry cap, LoopTroop marks it `error`, attaches `BEAD_RETRY_BUDGET_EXHAUSTED`, and routes the ticket to `BLOCKED_ERROR`.
+If the bead reaches the configured retry cap, LoopTroop marks it `error`, attaches `BEAD_RETRY_BUDGET_EXHAUSTED`, and routes the ticket to `BLOCKED_ERROR`. The error message starts with the final stopping reason, followed by earlier attempt failures from newest to oldest.
 
 The separate automatic bead-response continuation loop inside each bead
 iteration is bounded by finite `maxIterations`; `maxIterations: 0` means
