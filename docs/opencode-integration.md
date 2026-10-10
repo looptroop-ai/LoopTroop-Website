@@ -377,8 +377,6 @@ Events without an explicit session ID are not assigned to a per-session stream,
 and events naming a different session are omitted. A directory-only or global
 event therefore cannot appear to belong to the active ticket by inference.
 
-LoopTroop ships a project-level OpenCode plugin at `.opencode/plugins/looptroop-listener-limit.js` that raises the Node/Bun EventTarget listener warning threshold to 20 inside the OpenCode process. This only changes the warning threshold for legitimate parallel stream listeners; it does not create a hard concurrency limit or replace stream cleanup.
-
 The prompt runner tracks:
 
 - text events
