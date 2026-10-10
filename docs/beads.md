@@ -39,6 +39,7 @@ session keeps the same check number; see
 An AI gap fix requested from blueprint approval is labeled
 `manual coverage fix N` in the log, with revision and audit response attempts. Its number stays
 separate from the automatic coverage check limit, including on reconnection.
+Its coverage check number has no `of Y` denominator.
 
 What this page focuses on:
 

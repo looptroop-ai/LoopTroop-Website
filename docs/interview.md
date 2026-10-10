@@ -118,11 +118,16 @@ stray `</parameter>` closer.
 The corrected batch then uses the existing normalization, including whitespace
 trimming and batch/choice limits. This repair rejects conflicting fields,
 including question and option aliases, or ambiguous structures through the
-normal retry or error path. Ordinary YAML parsing keeps its existing behavior.
+normal retry or error path. Rejected field-tag repairs identify the structural
+problem in validation errors. Fallback excerpts from the same tagged batch
+cannot discard its emitted final-batch flag or commentary; a malformed earlier
+wrapper cannot swallow later independent output. Ordinary YAML parsing keeps
+its existing behavior.
 
-Accepted repairs appear in the ticket log with the rule, affected fields, and
-short before/after excerpts. Successful structured retries are also recorded.
-If batch generation still fails, expand
+Accepted repair notices in the ticket log name the rule and affected fields.
+Short before/after excerpts are retained in the log entry's structured data;
+the visible log line does not show them. Successful structured retries are also
+recorded. If initial batch generation still fails, expand
 **Technical details** on the error page to inspect the captured model and exact
 OpenCode session and available finish and token/cache metrics. That section is
 collapsed by default. If stopping the session also fails, the original failure
@@ -209,6 +214,8 @@ when it reconnects to an existing session. Reconnecting keeps the same check
 number. If communication with OpenCode fails, the error names the operation
 and reported error; the model, exact session, and available connection code
 and cause remain in collapsed **Technical details**.
+Coverage timeouts also keep their captured model, session, operation, and
+diagnostic codes so existing recovery checks can use the available session.
 
 If real gaps remain and the follow-up budget allows it, coverage generates targeted follow-up questions and sends the ticket back to `WAITING_INTERVIEW_ANSWERS`.
 

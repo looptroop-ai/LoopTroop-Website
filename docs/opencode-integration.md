@@ -64,10 +64,14 @@ Requests use Basic auth when a nonblank password is configured. v2 fixes the use
 Session creation, exact session lookup, session listing, and message reads accept `AbortSignal`s and are wrapped with bounded transport-operation timeouts. Session creation also runs through a shared retry wrapper: after the initial failure, LoopTroop waits 1 s, 3 s, and 7 s before the three retry attempts. Each failed create attempt collects lightweight OpenCode health diagnostics, but the health probe is diagnostic-only and never replaces the actual session-create result.
 
 Communication errors preserve the original cause and identify the failed
-OpenCode operation. Available connection codes and sanitized cause messages
+OpenCode operation, including when session creation exhausts its retries or an
+AI retry error wraps the connection failure. Terminal session failures also
+retain their known operation. Available connection codes and sanitized cause messages
 appear in the error page's collapsed **Technical details**, with the captured
 model and session. If the runtime provides only `fetch failed`, the message says
-the underlying cause was not reported. These diagnostics do not change prompt
+the underlying cause was not reported. Non-connection codes stay separate from
+**Connection code**. Diagnostic text removes URL credentials, query strings,
+and fragments before persistence. These diagnostics do not change prompt
 retries, deadlines, or session continuation rules.
 
 LoopTroop creates sessions with a session-scoped allow-all permission rule, then refreshes the complete policy before every prompt so reused sessions cannot retain a previous phase's restrictions. If the connected OpenCode server is too old to support session-scoped permissions, session creation or policy application fails with an explicit upgrade message instead of silently degrading behavior.

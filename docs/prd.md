@@ -170,7 +170,8 @@ If the candidate becomes clean, it advances to approval cleanly. If the cap is e
 
 The log labels this work `manual coverage fix N`, with revision and audit
 response attempts, so it stays separate from the automatic coverage check
-limit. A reconnection keeps the same manual fix number.
+limit. Its coverage check number has no `of Y` denominator. A reconnection
+keeps the same manual fix number.
 
 ## 7. Approval, Editing, And Downstream Impact
 

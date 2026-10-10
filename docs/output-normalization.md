@@ -410,8 +410,9 @@ wrapped in `<INTERVIEW_BATCH>`. All ordinary tagged and fallback parsing
 candidates run first. If none succeeds, the parser can convert recognized
 batch-field tags into YAML fields. The complete batch must contain all five
 known root fields: `batch_number`, `progress`, `is_final_free_form`,
-`ai_commentary`, and `questions`. Root field tags must start at the beginning
-of their line. Scalar tags use the supported one-line form; containers use
+`ai_commentary`, and `questions`. Field tags must occupy their own supported
+line shape; leading indentation at the start of a candidate is trimmed. Scalar
+tags use the supported one-line form; containers use
 separate opening and closing lines. Progress must contain integer `current`
 and `total` values, either as YAML or separate child tags.
 
@@ -441,14 +442,21 @@ repair. A stray terminal `</parameter>` can close an otherwise complete
 `<questions>` container; the repair removes that closer without stripping tags
 inside question values. Conflicting duplicate fields or question/option aliases,
 truncated containers, unknown structures, and values that would require guessing
-go through the normal retry or error path. A conflicting alias keeps its specific
-validation error. The corrected batch then runs through the existing validation
-and normalization, including whitespace trimming and batch/choice limits.
+go through the normal retry or error path. Rejected field-tag repairs name the
+structural problem, such as a missing field or closing tag, in validation errors.
+A conflicting alias keeps its specific validation error. The corrected batch
+then runs through the existing validation and normalization, including
+whitespace trimming and batch/choice limits.
 Ordinary YAML parsing keeps its existing behavior and takes priority over this
 additional repair.
 
-Accepted repairs are recorded in the ticket log with the rule, affected fields,
-and short before/after excerpts. Successful batches that needed a structured
+Fallback excerpts from a tagged batch cannot silently drop its emitted final-batch
+flag or commentary. An unclosed earlier wrapper does not consume later independent
+batch output, and a prose line starting with a tag is not treated as a field tag.
+
+Accepted repair notices in the ticket log name the rule and affected fields.
+Short before/after excerpts remain in the log entry's structured data rather
+than the visible log line. Successful batches that needed a structured
 retry also record the retry details. Field-tag recovery is enabled only for
 explicitly wrapped interview batches. Other parsers retain their existing repair
 rules.

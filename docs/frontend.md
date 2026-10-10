@@ -173,14 +173,17 @@ The plan's environment variables are edited as rows with stable ids, each rememb
 
 A live `BLOCKED_ERROR` from `PREPARING_EXECUTION_ENV` exposes **Edit setup plan...**, **Retry with extra note...**, and **Retry** when the server advertises them. Recovery controls come before **Cancel…** in keyboard order. Both dotted labels open a dialog before changing anything. The retry dialog sends only the entered note to the preserved setup session and grants one manual attempt beyond the configured automatic retry budget. It keeps the current runtime phase attempt. The edit dialog asks for confirmation before archiving the failed runtime attempt and returning to the setup approval editor. Historical error occurrences show neither action, and setup approval does not imply either action. Coding uses the same **Retry with extra note...** label, but keeps its existing fresh-bead retry behavior. Unknown statuses render no recovery actions.
 
-Blocked errors show the failed phase once and keep the complete sanitized error message visible at the top of the error card. A distinct underlying cause also stays visible when it adds information. Error-specific recovery guidance covers incomplete agent responses, coding timeouts, provider/environment interruptions, exhausted implementation retries, Final Testing failures, Git finalization failures, and workspace setup failures, and refers only to actions advertised for the live error. Available recovery actions sit between the message and **Technical details**, which is collapsed by default. Expanding it shows the captured model, exact session, provider metadata, codes, occurrence timing, and other available diagnostics. Interview-batch failures retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Historical occurrences show their own phase and resolution without live recovery controls or the current bead's counters and notes. Only the active coding error shows bead context. A paused current bead and its timer guidance take precedence over an older failed bead and its notes; failed-bead history appears when no current bead is paused.
+Blocked errors show the failed phase once and keep the complete sanitized error message visible at the top of the error card. A distinct underlying cause also stays visible when it adds information. Error-specific recovery guidance covers incomplete agent responses, coding timeouts, provider/environment interruptions, exhausted implementation retries, Final Testing failures, Git finalization failures, and workspace setup failures, and refers only to actions advertised for the live error. Available recovery actions sit between the message and **Technical details**, which is collapsed by default. Expanding it shows the captured model, exact session, provider metadata, codes, occurrence timing, and other available diagnostics. Initial interview-batch failures that block the ticket retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Historical occurrences show their own phase and resolution without live recovery controls or the current bead's counters and notes. Only the active coding error shows bead context. A paused current bead and its timer guidance take precedence over an older failed bead and its notes; failed-bead history appears when no current bead is paused.
 
 Technical details includes the failed OpenCode operation and any reported
 connection code and sanitized underlying cause, along with available
 input/output/reasoning and cache read/write
-token counts, plus a provider response preview limited to 1,000 characters.
+token counts, plus a provider response preview. OpenCode error extraction caps
+that preview at 280 characters; the shared persistence normalizer also enforces
+an outer limit of 1,000 characters.
 Terminal control sequences are removed before recognized credential fields and
 common credential formats are redacted, and the length limit is applied last.
+URL credentials, query strings, and fragments are also removed.
 The preview preserves structured formatting and repeated lines and can be
 scrolled with the keyboard. Background refreshes of the same failure preserve
 the open section and keyboard focus; switching tickets or error occurrences
@@ -477,8 +480,9 @@ Future artifact companion payloads should persist parser and normalizer interven
 Parser repairs and structured retries are artifact processing notices, not coverage warnings. Coverage warnings should stay reserved for unresolved planning gaps, including unresolved contradictions inside the source artifacts when a prompt reports them.
 
 Accepted live interview-batch repairs are also recorded in the ticket log. The
-notice names the repair rule and affected fields and includes short before/after
-excerpts. These notices show the corrections without copying the full response;
+notice names the repair rule and affected fields. Short before/after excerpts
+remain in the log entry's structured data rather than the visible log line.
+These notices describe the corrections without copying the full response;
 the model response remains in the surrounding logs. Successful batches that
 needed a structured retry also record the retry details.
 

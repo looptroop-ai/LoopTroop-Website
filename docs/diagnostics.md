@@ -338,7 +338,7 @@ For intermittent issues, save at least one report from a healthy moment and one 
 
 ## 3. Blocked-Error Diagnostics
 
-When a phase fails hard enough to enter `BLOCKED_ERROR`, LoopTroop persists a normalized diagnostic payload alongside the error occurrence. The workspace summary immediately names the failed phase, shows a bounded first line of the captured error, and explains the available recovery actions. The ticket error view keeps the complete sanitized error message visible beneath one failed-phase heading. A distinct underlying cause also appears when it adds information. **Technical details** is collapsed by default beneath recovery actions. Expand it to inspect the captured model, exact OpenCode session, provider metadata, codes, occurrence timing, and other available diagnostics. Interview-batch failures retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Diagnostics are normalized by `shared/errorDiagnostics.ts` and typically assembled by `server/opencode/blockedErrorDiagnostics.ts`.
+When a phase fails hard enough to enter `BLOCKED_ERROR`, LoopTroop persists a normalized diagnostic payload alongside the error occurrence. The workspace summary immediately names the failed phase, shows a bounded first line of the captured error, and explains the available recovery actions. The ticket error view keeps the complete sanitized error message visible beneath one failed-phase heading. A distinct underlying cause also appears when it adds information. **Technical details** is collapsed by default beneath recovery actions. Expand it to inspect the captured model, exact OpenCode session, provider metadata, codes, occurrence timing, and other available diagnostics. Initial interview-batch failures that block the ticket retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Diagnostics are normalized by `shared/errorDiagnostics.ts` and typically assembled by `server/opencode/blockedErrorDiagnostics.ts`.
 
 Pre-flight, workspace setup, final-test, and bead failures preserve the actual cause in the ticket and error-occurrence message; stable diagnostic codes remain separate. Coding errors put the final stopping reason first, followed by earlier attempt failures from newest to oldest. Error history shows each occurrence's phase and resolution without borrowing the current bead's counters or notes.
 
@@ -346,23 +346,31 @@ When available, Technical details also includes the HTTP status, provider error
 type, retryability, response finish reason, and input/output/reasoning token
 counts, including cache reads and writes. The provider response preview removes
 terminal control sequences before redacting recognized credential fields and
-common credential formats, then applies its 1,000-character limit. Structured
-formatting and repeated lines remain readable, and the preview supports keyboard
-scrolling. Background refreshes of the same failure preserve the open section
+common credential formats, then applies the OpenCode extractor's 280-character
+limit. The shared persistence normalizer has an outer ceiling of 1,000 characters.
+Redaction covers recognized camelCase credential keys, labeled authorization
+values, Basic and Bearer credentials, and complete cookie header values.
+Common failure prose, structured formatting, and repeated lines remain readable,
+and the preview supports keyboard scrolling. Background refreshes of the same
+failure preserve the open section
 and keyboard focus. Selecting another ticket or error occurrence closes
-Technical details again. Interview parsing failures retain available finish and
-token/cache metrics; if stopping the session also fails, the cleanup error keeps
+Technical details again. Initial interview parsing failures that block the
+ticket retain available finish and token/cache metrics; if stopping the session
+also fails, the cleanup error keeps
 the original failure as its cause. Use the phase log's Debug view for the
 surrounding log history.
 
 OpenCode communication failures name the operation that failed, such as sending
 a prompt or reading session messages. LoopTroop keeps the original error cause
-and shows the reported connection code or cause when available. If OpenCode or
+through session-creation retries and nested AI retry errors, and shows the
+reported connection code or cause when available. If OpenCode or
 the runtime reports only `fetch failed`, the message says that the underlying
 cause was not reported. This leaves a connection failure distinct from a model
 rejecting a request or an expired deadline. Technical details keeps the
 operation, connection code, and bounded sanitized cause message alongside the
-model and session.
+model and session. Terminal session failures retain their known operation, and
+non-connection codes are not shown as **Connection code**. URL credentials,
+query strings, and fragments are removed before diagnostic text is saved or shown.
 
 Use this surface when the ticket already blocked and you want the reason, not the whole-machine health picture.
 
@@ -535,8 +543,11 @@ resolve its reported gaps. See [Coverage Control](ticket-flow.md#_3-7-coverage-c
 for the counters and limits.
 
 AI gap fixes requested from PRD or blueprint approval use a separate
-`manual coverage fix N` label, with revision and audit response attempts.
-Reconnecting keeps that fix number, too.
+`manual coverage fix N` label, with revision and audit response attempts. Their
+coverage check numbers do not show an automatic-limit denominator.
+Reconnecting keeps that fix number, too. Interview coverage timeouts retain
+their captured model, session, operation, and diagnostic codes in the error
+occurrence so existing continuation checks can use them.
 
 ## 4. Structured Retry Diagnostics
 
