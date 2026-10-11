@@ -401,6 +401,7 @@ sanitized stacks appear when available.
 
 ### The Retry Path (`RETRY`)
 - Archives the active phase attempt and initializes a fresh run.
+- **Resumed workspace view:** Successful recovery actions (Retry, Continue, Retry with extra note, Edit setup plan, and non-deleting Cancel) clear the active error selection so the workspace automatically follows the ticket to its resumed status or Canceled view.
 - **Planning Phases:** Manual retries create a new version of the draft spec or blueprint in the UI.
 - **`CODING` Exception:** `CODING` does not create new phase attempts. It runs a bead-scoped recovery loop: when safe, it resets the active bead's worktree back to its recorded `beadStartCommit` snapshot and schedules it again; a recovery conflict can refuse the destructive reset and leave the ticket blocked.
 - **Optional user guidance:** From a live implementation or execution-setup block, the server may advertise **Retry with extra note...**. It opens a dialog and requires a non-blank note of at most 20,000 characters. Coding recovery first proves that the same failed or paused bead can be safely reset, then appends a structured `userRetryNotes` entry and starts the existing fresh-bead retry. Execution setup sends only the note to the preserved OpenCode session and allows one manual attempt beyond the automatic budget. It does not archive the runtime phase attempt or save the note as future setup context. Setup approval does not imply this action. If recovery fails, the ticket stays blocked.

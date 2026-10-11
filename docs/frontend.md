@@ -103,6 +103,7 @@ Additional routing rules:
 - `fullLogOpen` forces `FullLogView` until the user selects another phase or error occurrence
 - reviewable past coding still uses `CodingView` in read-only mode
 - active or selected error occurrences render `ErrorView`
+- leaving `BLOCKED_ERROR` via recovery actions (Retry, Continue, Retry with extra note, Edit setup plan, or non-deleting Cancel) clears active error selection, allowing the workspace to follow the ticket to its resumed status or Canceled view without interrupting historical error reviews during other workflow transitions
 
 After the ticket list identifies a selected ticket, the router preloads that ticket's active workspace module. Once the active workspace is visible, an idle task prefetches the common `PhaseReviewView` module. Historical review retains the established curated artifact cards and direct-opening behavior.
 
