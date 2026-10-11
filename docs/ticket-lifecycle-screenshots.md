@@ -105,7 +105,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 **AI thinking** [?](configuration.md#ai-thinking "Open full documentation")
 
 1. **AI Response Timeout:** Time allowed for a planning-phase model request to complete. The default is 20 minutes. [?](configuration.md#ai-response-timeout "Open full documentation")
-2. **Minimum Council Quorum:** Minimum number of council members required for voting phases. [?](configuration.md#min-council-quorum "Open full documentation")
+2. **Minimum Council Quorum:** Minimum number of council members that must return a valid draft or vote for a drafting or voting phase to succeed. [?](configuration.md#min-council-quorum "Open full documentation")
 3. **Maximum Interview Questions:** Maximum questions generated during the interview. [?](configuration.md#max-interview-questions "Open full documentation")
 4. **Structured Output Retries:** Number of fresh attempts allowed when a model returns invalid structured output. [?](configuration.md#structured-output-retries "Open full documentation")
 
@@ -174,6 +174,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 **What you can do:**
 - Monitor multi-model logs while council members independently generate candidate question lists
 - View each model's progress and completed draft.
+- Stop or retry one model while the others keep drafting: open its chip and use the small **Stop** or **Retry** button in the top-right corner of its window. Both ask for confirmation. A stopped model does not count toward Min Council Quorum and still votes in the next step; a retried model starts over with a full AI response timeout of its own. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
 
 ::: details Screenshot
 ![Example interview draft](media/ticket-lifecycle/05-interview-draft.png)
@@ -194,6 +195,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 - Watch voting progress across council members
 - View anonymized candidate questionnaires and rubric scores (evaluating question relevance and coverage)
 - Inspect the score breakdown and winning draft selection
+- Stop or retry one voter while the others keep scoring: open **Voting Details** and use the small Stop or Retry icon on its badge in the **Voter Status** row. Both ask for confirmation. A stopped voter does not count toward Min Council Quorum; a retried voter scores again with a full AI response timeout of its own. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
 
 ::: details Screenshot
 ![Example anonymized voting results](media/ticket-lifecycle/06-interview-voting-example.png)
@@ -275,6 +277,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 **What you can do:**
 - Monitor Part 1 progress: council members fill skipped interview questions to create per-model Full Answers artifacts
 - Monitor Part 2 progress: council members draft complete PRD specifications from relevant files and Full Answers
+- Stop or retry one model from its Part 1 or Part 2 chip, using the small **Stop** or **Retry** button in the top-right corner of the window. Both ask for confirmation. Retry from Part 1 redoes both parts; Retry from Part 2 keeps Part 1 answers that passed validation and redoes only the PRD draft. Stop from either chip stops the model, which then does not count toward Min Council Quorum. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
 
 ::: details Screenshot
 ![Example Full Answers artifact](media/ticket-lifecycle/11-ai-answers.png)
@@ -299,6 +302,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 - Watch voting progress across council members
 - View anonymized PRD drafts and weighted rubric scores (evaluating requirement completeness, acceptance criteria quality, edge cases, test intent, and coherence)
 - Inspect vote resolution and winning draft selection
+- Stop or retry one voter while the others keep scoring: open **Voting Details** and use the small Stop or Retry icon on its badge in the **Voter Status** row. Both ask for confirmation. A stopped voter does not count toward Min Council Quorum; a retried voter scores again with a full AI response timeout of its own. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
 
 ---
 
@@ -366,6 +370,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 **What you can do:**
 - Monitor parallel blueprint generation as council members split the PRD into semantic task units
 - View task counts, dependency graph structures, and beads structure for each council member's draft
+- Stop or retry one model while the others keep drafting: open its chip and use the small **Stop** or **Retry** button in the top-right corner of its window. Both ask for confirmation. A stopped model does not count toward Min Council Quorum and still votes in the next step; a retried model starts over with a full AI response timeout of its own. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
 
 ::: details Screenshot
 ![Example bead blueprint](media/ticket-lifecycle/16-bead-draft-example.png)
@@ -385,6 +390,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 - Watch voting progress across council members
 - View anonymized blueprints and architecture rubric scores (evaluating task decomposition, feasibility, dependency acyclicity, and testability)
 - Inspect vote resolution and winning blueprint selection
+- Stop or retry one voter while the others keep scoring: open **Voting Details** and use the small Stop or Retry icon on its badge in the **Voter Status** row. Both ask for confirmation. A stopped voter does not count toward Min Council Quorum; a retried voter scores again with a full AI response timeout of its own. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
 
 ---
 

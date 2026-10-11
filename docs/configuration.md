@@ -387,12 +387,12 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | Setting | Default | Range | Group | Read timing |
 | --- | --- | --- | --- | --- |
 | [Main Implementer Model](#main-implementer-model) | _(required)_ | any available model | AI Models | ticket start lock |
-| [Council Members](#council-members) | _(required, 1 to 3 additional)_ | any available models | AI Models | ticket start lock |
+| [Council Members](#council-members) | _(required, 1 to 9 additional)_ | any available models | AI Models | ticket start lock |
 | [OpenCode Retry Limit](#opencode-retry-limit) | 10 | 0 to 50 | OpenCode Provider Recovery | next OpenCode prompt/session |
 | [OpenCode Retry Grace Window](#opencode-retry-grace-window) | 60 s | 0 to 3600 s | OpenCode Provider Recovery | next OpenCode prompt/session |
 | [OpenCode Max Steps](#opencode-max-steps) | 0 (no limit) | 0 to 500 | OpenCode Provider Recovery | next coding/final-test session |
 | [AI Response Timeout](#ai-response-timeout) | 1200 s | 10 to 3600 s | AI Thinking | next planning/final-test model phase |
-| [Min Council Quorum](#min-council-quorum) | 2 | 1 to 4 | AI Thinking | next planning phase |
+| [Min Council Quorum](#min-council-quorum) | 2 | 1 to 6 | AI Thinking | next planning phase |
 | [Max Interview Questions](#max-interview-questions) | 50 | 0 to 50 | AI Thinking | ticket start lock |
 | [Structured Output Retries](#structured-output-retries) | 1 | 0 to 5 | AI Thinking | ticket start lock |
 | [AI Questions](#ai-questions) | On | On / Off | Advanced | ticket start lock |
@@ -494,7 +494,7 @@ You can change the main implementer between tickets. The choice is locked per-ti
 
 ### Council Members
 
-**Type:** model selector (1 to 5 slots, in addition to the main implementer)
+**Type:** model selector (1 to 9 slots, in addition to the main implementer)
 **Required:** at least 1 additional member
 
 Council members are the additional models that participate in independent drafting and structured voting during the interview, PRD, and beads planning phases.
@@ -514,6 +514,8 @@ Council members do not participate in execution. Coding, final testing, and PR c
 Diversity matters more than raw quality here. Mixing models from different families, sizes, or providers tends to surface more varied plans and catch more blind spots than stacking three instances of the same model.
 
 The minimum viable council is the main implementer plus one additional member. The `Min Council Quorum` setting determines how many members must return a valid response before the pipeline trusts the result.
+
+While a council step runs, you can stop or retry one member without affecting the others. A member you stop does not count toward quorum. See [LLM Council → Stopping Or Retrying One Model](/llm-council#stopping-or-retrying-one-model).
 
 The UI prevents duplicate picks across council slots, so if you cannot select a model twice that is intentional rather than a catalog bug.
 
@@ -541,7 +543,7 @@ The selected named variant is passed as part of the model configuration when Loo
 
 - For the main implementer on complex or large-scope tickets, prefer a higher-effort variant.
 - For council members, a balance of one high-effort and one lower-effort member often gives diverse results without making every planning phase slow.
-- If a model times out repeatedly under `AI Response Timeout`, lower its effort variant before increasing the timeout.
+- If a model times out repeatedly under `AI Response Timeout`, lower its effort variant before increasing the timeout. During a council step you can also stop a slow model, or retry it, without waiting for the timeout.
 
 ---
 
@@ -653,6 +655,8 @@ This setting does **not** govern coding attempts or `PREPARING_EXECUTION_ENV` wo
 
 The request is abandoned and the active phase handles the timeout according to its workflow. In council phases, timed-out responses do not count toward `Min Council Quorum`; if quorum is no longer met, the phase enters `BLOCKED_ERROR`. In single-model planning phases, the ticket blocks with timeout diagnostics. In `RUNNING_FINAL_TEST`, only model prompt waits use this setting; shell command execution remains governed by the execution/final-test timeout budget.
 
+In a council step you can stop a slow model instead of waiting for its timeout. A stopped model does not count toward `Min Council Quorum` either. A model you retry gets the full timeout again, counted from its restart, so a step with a retried model can run longer than this setting. See [LLM Council → Stopping Or Retrying One Model](/llm-council#stopping-or-retrying-one-model).
+
 **Trade-offs:**
 
 | Lower | Higher |
@@ -674,23 +678,25 @@ The request is abandoned and the active phase handles the timeout according to i
 
 **Type:** integer  
 **Default:** 2  
-**Range:** 1 to 4
+**Range:** 1 to 6
 
 The minimum number of valid council responses LoopTroop requires before it trusts a drafting or voting phase.
 
 **What "valid" means:**
 
-A model response is valid if it returns within `AI Response Timeout` and its structured output can be parsed without terminal errors. Malformed or timed-out responses do not count toward quorum.
+A model response is valid if it returns within `AI Response Timeout` and its structured output can be parsed without terminal errors. Malformed or timed-out responses do not count toward quorum, and neither does a model you stopped.
 
 **What happens when quorum is not met:**
 
 The phase enters `BLOCKED_ERROR`. This is intentional: a plan built from one draft when you configured two is not trustworthy, so LoopTroop refuses to advance silently.
 
+If stopping a model would leave the step unable to reach quorum, the Stop confirmation warns you first. You can still stop it, and the step then fails this way when the round ends.
+
 **Trade-offs:**
 
-| Lower (1) | Higher (3 to 4) |
+| Lower (1) | Higher (3 to 6) |
 | --- | --- |
-| Survives when one model is unavailable | Requires all models to be healthy and responsive |
+| Survives when one model is unavailable | Needs more of the council to be healthy and responsive |
 | Lower diversity guarantee | Stronger diversity guarantee |
 | Useful if running a lean council | Only practical with a full council of that size |
 

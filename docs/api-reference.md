@@ -686,6 +686,8 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 | `POST` | `/api/tickets/:id/verify` | Alias for the merge handler: both routes call the same handler |
 | `POST` | `/api/tickets/:id/retry` | Retry a blocked ticket or failed phase; an optional `{ "note": "..." }` body adds CODING bead guidance or sends one direct message to a preserved execution setup session |
 | `POST` | `/api/tickets/:id/continue` | Continue a blocked ticket only when eligible OpenCode/provider diagnostics, including `HTTP 402 Payment Required`, have a matching active preserved OpenCode session |
+| `POST` | `/api/tickets/:id/council/members/stop` | Stop one model while a council drafting or voting step runs; the step continues with the other models (see below) |
+| `POST` | `/api/tickets/:id/council/members/retry` | Restart one model of a running council drafting or voting step with a full AI response timeout of its own (see below) |
 | `POST` | `/api/tickets/:id/dev-event` | Disabled by default; requires `LOOPTROOP_ENABLE_DEV_EVENT=1`, `LOOPTROOP_DEV_EVENT_TOKEN`, and `X-LoopTroop-Dev-Event-Token` |
 
 Merge and Close Without Merge read the live pull request before making a
@@ -789,6 +791,34 @@ The body is validated strictly. A malformed or oversized field returns `400` and
 The cancel endpoint will return `409` while the ticket is
 in `CLEANING_ENV` and after a verified merge has been recorded. In either case,
 the ticket remains unchanged.
+
+`POST /api/tickets/:id/council/members/stop` and `POST /api/tickets/:id/council/members/retry` act on one model while a council drafting or voting step runs. The interface asks for confirmation before it calls either one. Both take a JSON body that names the step and the model:
+
+```json
+{
+  "phase": "COUNCIL_VOTING_PRD",
+  "memberId": "anthropic/claude-sonnet-4"
+}
+```
+
+`phase` is one of `COUNCIL_DELIBERATING`, `COUNCIL_VOTING_INTERVIEW`, `DRAFTING_PRD`, `COUNCIL_VOTING_PRD`, `DRAFTING_BEADS`, or `COUNCIL_VOTING_BEADS`. `memberId` is the model ID of a member of that step's council. Every stop and retry writes a line to the phase log.
+
+Stop closes the model's OpenCode session, marks it `stopped`, discards whatever it had written, and lets the step continue with the other models. It returns `{ "success": true, "phase": "...", "memberId": "...", "outcome": "stopped" }`. `outcome` is usually `stopped`; when the model finished in the moment before the stop landed, it is that model's own outcome instead. A stopped model does not count toward Min Council Quorum, so a step that ends below quorum fails into `BLOCKED_ERROR` as usual. If the stopped model was the last one still working, the step ends right away.
+
+Retry restarts one model with a full AI response timeout of its own. While the step is still running, it accepts a model that is still working, one that ended without a usable result, and one that finished, whose draft or vote is then discarded for good. An optional `part` is read only in `DRAFTING_PRD`: `full_answers` redoes Full Answers and the PRD draft, while `prd_draft`, the default, keeps Full Answers that passed validation and redoes only the PRD draft; without them it redoes both parts. Retry returns `{ "success": true, "phase": "...", "memberId": "..." }` once the old run has stopped and the new one has started.
+
+If the model was waiting on an AI question nobody had answered, both routes refuse that question first. Its skip receipt records `skippedBy: user`, and the `opencode_question_resolved` event carries `resolution: "member_stopped"` or `"member_restarted"`.
+
+An invalid body returns `400`, and an unknown ticket returns `404`. A refused stop or retry returns `409` with `{ "error": "...", "code": "..." }`. The `error` text is written for people, so match on `code`:
+
+| `code` | Meaning |
+| --- | --- |
+| `STEP_NOT_RUNNING` | No council step of that status is running for the ticket, for example because every model has already finished |
+| `UNKNOWN_MEMBER` | The model is not on this step's council |
+| `MEMBER_FINISHED` | Stop was sent for a model that already finished its turn |
+| `MEMBER_BUSY` | A stop or retry for that model is already under way |
+
+If OpenCode does not confirm that the model's session stopped, the route returns `500` with `code: "STOP_UNCONFIRMED"` and `details`. The step then fails into `BLOCKED_ERROR`, because two copies of the model could otherwise end up running at once. A model that times out follows the same rule.
 
 ### Interview And Planning Editing
 
@@ -1119,7 +1149,7 @@ Reject payload, where `reason` is optional and capped at 20,000 characters:
 { "reason": "Answered in the ticket description already." }
 ```
 
-There is deliberately no `skippedBy` field. A client claiming `timeout` would forge a machine decision into the audit trail, so this route always records `user`. A question the wait ran out on is refused by the server under `timeout`, and one refused because a restart could not re-attach its session is refused under `system`.
+There is deliberately no `skippedBy` field. A client claiming `timeout` would forge a machine decision into the audit trail, so this route always records `user`. A question the wait ran out on is refused by the server under `timeout`, and one refused because a restart could not re-attach its session is refused under `system`. A question refused because you stopped or retried the council model that asked it is recorded under `user`.
 
 `POST /api/tickets/:id/opencode/question-timer/stop` takes an empty object and returns `{ "success": true, "timers": [...], "timer": ... }`. Every way of engaging goes through it: switching model tabs, moving between questions, focusing an answer field, and pressing **Stop timer**. It is idempotent, and a second call returns the same state rather than an error. There is no matching resume; the ways out of a stopped countdown are answering and skipping.
 
@@ -1438,7 +1468,7 @@ The stream endpoint emits two categories of events:
 | --- | --- | --- |
 | `opencode_question` | A model asked | `action: "asked"`, `sessionId`, `requestId`, `questions`, `questionCount`, `phase`, `modelId`, `tool` |
 | `opencode_question_updated` | The countdown was armed, reset, or stopped | `timer`, `requests`, `phase`, `phaseAttempt` |
-| `opencode_question_resolved` | A request was answered or refused | `action: "replied"` or `"rejected"`, `requestId`, `sessionId`, and on a refusal `resolution` (`user_skipped`, `window_elapsed`, `ticket_canceled`, `session_lost`, `daemon_restart`) plus `rejectFailed` when OpenCode could not be told |
+| `opencode_question_resolved` | A request was answered or refused | `action: "replied"` or `"rejected"`, `requestId`, `sessionId`, and on a refusal `resolution` (`user_skipped`, `window_elapsed`, `ticket_canceled`, `session_lost`, `daemon_restart`, `member_stopped`, `member_restarted`) plus `rejectFailed` when OpenCode could not be told |
 
 `timer` uses the shape shown under [OpenCode Question Routes](#opencode-question-routes). `requests` lists every request still outstanding on that countdown, each with its `sessionId`, `requestId`, `memberId`, `questions`, `questionCount`, and `timerKey`. Both are additive; the fields the browser already read are unchanged.
 
