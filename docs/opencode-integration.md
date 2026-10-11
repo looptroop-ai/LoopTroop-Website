@@ -74,6 +74,14 @@ the underlying cause was not reported. Non-connection codes stay separate from
 and fragments before persistence. These diagnostics do not change prompt
 retries, deadlines, or session continuation rules.
 
+For every ticket error, Technical details also shows the last five matching
+Debug-view records newest first, with each record collapsed by default. Expanding
+a record shows its complete structured data after credential redaction.
+The failed occurrence's phase and time window excludes later retries, including
+retries that reused the same session. Native OpenCode records keep their original
+log line in structured data when available. The separate phase log retains the
+full history.
+
 LoopTroop creates sessions with a session-scoped allow-all permission rule, then refreshes the complete policy before every prompt so reused sessions cannot retain a previous phase's restrictions. If the connected OpenCode server is too old to support session-scoped permissions, session creation or policy application fails with an explicit upgrade message instead of silently degrading behavior.
 
 ## 3. Base URL And Modes

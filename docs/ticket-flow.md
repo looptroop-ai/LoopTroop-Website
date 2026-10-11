@@ -343,7 +343,7 @@ The state machine metadata directly drives the React user interface. Developers 
 - **`CLEANING_ENV`:** Deletes transient lockfiles, wrapper hooks, and session directories, preserving planning files and audit trails. It cannot be canceled; restarting the daemon retries any interrupted cleanup.
 
 ### Error & Terminal States
-- **`BLOCKED_ERROR`:** Recovery gate that preserves `previousStatus`, structured diagnostics, and any continuation candidate. The actual error stays visible, including the failed OpenCode operation and reported error when available. The captured model, exact session, connection code, and other diagnostics are in **Technical details**, collapsed by default. The UI renders only the server-advertised actions: depending on the failure, that may be retry, setup-plan editing or note retry for a live blocked runtime setup, implementation guidance, continuation of a preserved OpenCode session, or cancel. Setup approval itself does not imply those controls, and unknown statuses advertise none. Exhausted setup-plan parsing is reviewed at approval instead of becoming a blocked error; only unexpected drafting operations fail here. Final-test local-only file classification does not create a blocked-error action. Displayed errors remove terminal control sequences and repeated warning noise while raw logs remain unchanged.
+- **`BLOCKED_ERROR`:** Recovery gate that preserves `previousStatus`, structured diagnostics, and any continuation candidate. The actual error stays visible, including the failed OpenCode operation and reported error when available. Readiness errors name the failed doctor check. **Technical details**, collapsed by default, includes ticket and occurrence identity, failed phase, exact timestamp, complete sanitized error, and the last five matching Debug-view records for every occurrence, with captured model, exact session, connection code, and request metrics when available. The UI renders only the server-advertised actions: depending on the failure, that may be retry, setup-plan editing or note retry for a live blocked runtime setup, implementation guidance, continuation of a preserved OpenCode session, or cancel. Setup approval itself does not imply those controls, and unknown statuses advertise none. Exhausted setup-plan parsing is reviewed at approval instead of becoming a blocked error; only unexpected drafting operations fail here. Final-test local-only file classification does not create a blocked-error action. Displayed errors remove terminal control sequences and repeated warning noise while source logs remain unchanged.
 - **`COMPLETED`:** Terminal success state after cleanup finishes and execution locks are released. Ticket artifacts, logs, and archived attempts remain available for audit.
 - **`CANCELED`:** Terminal stop state for user-driven cancellation or intentional planning rewinds. Existing artifacts/history remain, but no further automation continues.
 
@@ -378,7 +378,7 @@ Approved interview and PRD documents can still be edited manually while in plann
 
 When a phase encounters a fatal block, it routes to `BLOCKED_ERROR` while storing the failed status in `previousStatus`.
 
-The error view leads with the failed phase and the complete sanitized error message. A distinct underlying cause stays visible, and live recovery guidance follows the server-advertised actions. **Technical details** is collapsed by default beneath recovery actions; expand it to inspect the captured model, exact session, provider metadata, codes, occurrence timing, and other available diagnostics. Recovery controls appear only for the live error. Historical errors retain their messages, details, and phase logs for review; past coding failures show the phase without the current bead's counters or notes.
+The error view leads with the failed phase and the complete sanitized error message. A distinct underlying cause stays visible, and live recovery guidance follows the server-advertised actions. **Technical details** is collapsed by default beneath recovery actions. Every occurrence includes ticket and occurrence identity, failed phase, exact timestamp, complete sanitized error, and the last five matching Debug-view records, even when no provider or model details were captured. Missing evidence is stated explicitly. Captured model, exact session, provider metadata, codes, request timing, and metrics add context when available. Recovery controls appear only for the live error. Historical errors retain their messages, details, and phase logs for review; past coding failures show the phase without the current bead's counters or notes.
 
 Details stay open and keep keyboard focus while the same failure refreshes;
 selecting another ticket or error occurrence closes them again. Available
@@ -386,6 +386,18 @@ diagnostics include finish and token/cache metrics and a bounded provider previe
 with recognized credentials redacted. The preview preserves structured formatting
 and can be scrolled with the keyboard. If stopping a failed interview session also
 fails, the cleanup error keeps the original failure as its underlying cause.
+
+The five debug records appear newest first, and each record starts collapsed.
+Expand a record to inspect its complete multiline message and structured data
+after credential redaction. Each original JSONL line counts as one record.
+Recorded occurrences use the failed phase's time window, so later retries do not
+appear as evidence even when they reused the same OpenCode session. Reconstructed
+errors label their phase/time match; missing metadata, absent records, and failed
+reads are explicit. Technical details has no older-record control. The separate
+phase log's **Debug** view still provides the complete history. Failed readiness
+steps stay in the recorded error and debug evidence. The step prefix uses regular
+text; only the actionable cause is bold. Captured error types and bounded
+sanitized stacks appear when available.
 
 ### The Retry Path (`RETRY`)
 - Archives the active phase attempt and initializes a fresh run.

@@ -173,7 +173,7 @@ The plan's environment variables are edited as rows with stable ids, each rememb
 
 A live `BLOCKED_ERROR` from `PREPARING_EXECUTION_ENV` exposes **Edit setup plan...**, **Retry with extra note...**, and **Retry** when the server advertises them. Recovery controls come before **Cancel…** in keyboard order. Both dotted labels open a dialog before changing anything. The retry dialog sends only the entered note to the preserved setup session and grants one manual attempt beyond the configured automatic retry budget. It keeps the current runtime phase attempt. The edit dialog asks for confirmation before archiving the failed runtime attempt and returning to the setup approval editor. Historical error occurrences show neither action, and setup approval does not imply either action. Coding uses the same **Retry with extra note...** label, but keeps its existing fresh-bead retry behavior. Unknown statuses render no recovery actions.
 
-Blocked errors show the failed phase once and keep the complete sanitized error message visible at the top of the error card. A distinct underlying cause also stays visible when it adds information. Error-specific recovery guidance covers incomplete agent responses, coding timeouts, provider/environment interruptions, exhausted implementation retries, Final Testing failures, Git finalization failures, and workspace setup failures, and refers only to actions advertised for the live error. Available recovery actions sit between the message and **Technical details**, which is collapsed by default. Expanding it shows the captured model, exact session, provider metadata, codes, occurrence timing, and other available diagnostics. Initial interview-batch failures that block the ticket retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Historical occurrences show their own phase and resolution without live recovery controls or the current bead's counters and notes. Only the active coding error shows bead context. A paused current bead and its timer guidance take precedence over an older failed bead and its notes; failed-bead history appears when no current bead is paused.
+Blocked errors show the failed phase once and keep the complete sanitized error message visible at the top of the error card. A distinct underlying cause also stays visible when it adds information. Readiness errors name the doctor check that failed and its reason. Error-specific recovery guidance covers incomplete agent responses, coding timeouts, provider/environment interruptions, exhausted implementation retries, Final Testing failures, Git finalization failures, and workspace setup failures, and refers only to actions advertised for the live error. Available recovery actions sit between the message and **Technical details**, which is collapsed by default. Every occurrence includes its ticket and occurrence identity, failed phase, exact timestamp, complete sanitized error, and the last five matching Debug-view records, even when no model or provider diagnostics were captured. Missing evidence is stated explicitly. Captured model, exact session, provider metadata, codes, request timing, and metrics add further context when available. Initial interview-batch failures that block the ticket retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Historical occurrences show their own phase and resolution without live recovery controls or the current bead's counters and notes. Only the active coding error shows bead context. A paused current bead and its timer guidance take precedence over an older failed bead and its notes; failed-bead history appears when no current bead is paused.
 
 Technical details includes the failed OpenCode operation and any reported
 connection code and sanitized underlying cause, along with available
@@ -187,7 +187,20 @@ URL credentials, query strings, and fragments are also removed.
 The preview preserves structured formatting and repeated lines and can be
 scrolled with the keyboard. Background refreshes of the same failure preserve
 the open section and keyboard focus; switching tickets or error occurrences
-closes the section again. Full log history remains in the phase log's Debug view.
+closes the section again.
+
+The five debug records appear newest first, and each record starts collapsed.
+Expand a record to inspect its complete multiline message and structured data
+after credential redaction. Each original JSONL line counts as one record,
+even when its displayed data spans several lines. The server matches a recorded
+occurrence's failed-phase time window, so later retries stay out of historical
+evidence even if they reused the same OpenCode session. A reconstructed error
+labels its phase/time match. Missing metadata, absent logs, and failed reads are
+explicit; a failed read offers **Retry loading debug records**. Details has no
+older-record control. Full history remains in the separate phase log's **Debug**
+view. Available error types and bounded sanitized stacks also appear in details.
+Failed readiness steps stay in the recorded error and debug evidence. The step
+prefix uses regular text; only the actionable cause is bold.
 
 ### Manual QA workspace
 

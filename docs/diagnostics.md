@@ -338,9 +338,15 @@ For intermittent issues, save at least one report from a healthy moment and one 
 
 ## 3. Blocked-Error Diagnostics
 
-When a phase fails hard enough to enter `BLOCKED_ERROR`, LoopTroop persists a normalized diagnostic payload alongside the error occurrence. The workspace summary immediately names the failed phase, shows a bounded first line of the captured error, and explains the available recovery actions. The ticket error view keeps the complete sanitized error message visible beneath one failed-phase heading. A distinct underlying cause also appears when it adds information. **Technical details** is collapsed by default beneath recovery actions. Expand it to inspect the captured model, exact OpenCode session, provider metadata, codes, occurrence timing, and other available diagnostics. Initial interview-batch failures that block the ticket retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Diagnostics are normalized by `shared/errorDiagnostics.ts` and typically assembled by `server/opencode/blockedErrorDiagnostics.ts`.
+When a phase fails hard enough to enter `BLOCKED_ERROR`, LoopTroop persists a normalized diagnostic payload alongside the error occurrence. The workspace summary immediately names the failed phase, shows a bounded first line of the captured error, and explains the available recovery actions. The ticket error view keeps the complete sanitized error message visible beneath one failed-phase heading. A distinct underlying cause also appears when it adds information. **Technical details** is collapsed by default beneath recovery actions. Every occurrence includes its ticket and occurrence identity, failed phase, exact timestamp, complete sanitized error, and the last five matching Debug-view records, even when no model or provider diagnostics were captured. Missing evidence is stated explicitly. The captured model, exact OpenCode session, provider metadata, codes, request timing, and metrics add further context when available. Initial interview-batch failures that block the ticket retain the model and session used for the failed response. The surrounding phase log has its own collapsible section. Diagnostics are normalized by `shared/errorDiagnostics.ts` and typically assembled by `server/opencode/blockedErrorDiagnostics.ts`.
 
-Pre-flight, workspace setup, final-test, and bead failures preserve the actual cause in the ticket and error-occurrence message; stable diagnostic codes remain separate. Coding errors put the final stopping reason first, followed by earlier attempt failures from newest to oldest. Error history shows each occurrence's phase and resolution without borrowing the current bead's counters or notes.
+Pre-flight, workspace setup, final-test, and bead failures preserve the actual cause in the ticket and error-occurrence message; stable diagnostic codes remain separate. Readiness failures name every failed doctor check and its reason. OpenCode health and model discovery can pass while the actual capability request fails, for example because the model provider's login expired. Capability-probe failures preserve the reported model, provider, session, operation, and cause when available. Coding errors put the final stopping reason first, followed by earlier attempt failures from newest to oldest. Error history shows each occurrence's phase and resolution without borrowing the current bead's counters or notes.
+
+Workspace initialization failures retain the actual error and available nested
+cause stacks, with the operation `initializing the ticket workspace`, runtime/system
+diagnostics, and their `INIT_*` codes. A Git authentication failure stays a
+workspace initialization failure; AI-provider login advice requires evidence of
+an AI-provider authentication failure.
 
 When available, Technical details also includes the HTTP status, provider error
 type, retryability, response finish reason, and input/output/reasoning token
@@ -358,8 +364,19 @@ and keyboard focus. Selecting another ticket or error occurrence closes
 Technical details again. Initial interview parsing failures that block the
 ticket retain available finish and token/cache metrics; if stopping the session
 also fails, the cleanup error keeps
-the original failure as its cause. Use the phase log's Debug view for the
-surrounding log history.
+the original failure as its cause.
+
+The five debug records appear newest first, and each record starts collapsed.
+Expand a record to inspect its complete multiline message and structured data
+after credential redaction. Each original JSONL line counts as one record,
+even when its displayed data spans many lines. LoopTroop matches the selected
+error occurrence's failed phase and time window, so later retries cannot replace
+the evidence, including retries that reused the same OpenCode session. If only a
+reconstructed error is available, the view says that it matched records by phase
+and time. Missing metadata, absent records, and log-read failures are explicit;
+a failed read offers **Retry loading debug records**. Technical details does not
+page through older records. Use the separate phase log's **Debug** view for the
+complete history.
 
 OpenCode communication failures name the operation that failed, such as sending
 a prompt or reading session messages. LoopTroop keeps the original error cause
@@ -510,9 +527,12 @@ The normalized blocked-error payload may include:
 | Field | Meaning |
 | --- | --- |
 | `summary` | Required short explanation shown in the UI when it differs from the primary ticket error |
+| `errorName` | Captured error type, such as `TypeError`, when available |
+| `stackTrace` | Sanitized error stack and available nested cause stacks, bounded to 12,000 characters |
 | `modelId` | LoopTroop/OpenCode model identifier used for the failed run |
 | `sessionId` | OpenCode session involved in the failure |
 | `operation` | OpenCode operation that failed |
+| `failedChecks` | Every failed readiness check, with its stable name, category, reported reason, and available detailed evidence |
 | `transportCode` | Reported connection error code, when available |
 | `causeMessage` | Bounded sanitized underlying error message, when available |
 | `providerId` | Provider identifier such as `openai` |
@@ -529,9 +549,14 @@ The normalized blocked-error payload may include:
 | `cacheReadTokens` / `cacheWriteTokens` | Token-cache counts when OpenCode exposes them |
 
 The blocked-error panel shows available diagnostics in **Technical details**,
-including the bounded provider response preview and cache token counts. The
-section starts collapsed so the actual failure and recovery actions remain easy
-to find.
+including error type and stack, the bounded provider response preview, and cache
+token counts. Failed readiness steps remain in the recorded error and debug
+evidence. The step prefix uses regular text; only the actionable cause is bold.
+The section starts collapsed so the actual failure and recovery actions remain
+easy to find. The log supplies the last five matching debug records. Normal and
+native OpenCode records are redacted before leaving the backend. Nested data
+stops at 100 levels with an explicit
+omission marker; ordinary record text is not shortened.
 
 Coverage phase logs separately label preparation and each audit or revision.
 Each coverage check has its own number, and response attempts within that check

@@ -465,6 +465,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 **What you can do:**
 - Monitor pre-flight validation checks: workspace directory existence, required artifacts, Git worktree cleanliness, OpenCode connectivity, execution capability probe prompt, and bead graph acyclicity
 - Review generated pre-flight report detailing pass, warning, and failure entries
+- If readiness fails, read the failed doctor check and its reason in the error. A model can appear available while its actual probe request fails authentication; **Technical details** keeps the available request and debug evidence.
 
 ::: details Screenshot
 ![Successful readiness check](media/ticket-lifecycle/22-doctor-results.png)
@@ -672,7 +673,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 :::
 
 **What you can do:**
-- Read the actual failure and any distinct underlying cause above the recovery controls. Expand **Technical details** to inspect the captured model, exact session, and other diagnostics; it starts collapsed.
+- Read the actual failure and any distinct underlying cause above the recovery controls. The error keeps the failed-step prefix in regular text and makes only the actionable cause bold. Expand **Technical details** to inspect the ticket and occurrence identity, failed phase, exact timestamp, complete sanitized error, and available model, session, and other diagnostics. The last five matching debug records appear newest first, each collapsed by default; expand a record for its complete structured data. Technical details also starts collapsed, and missing evidence is stated explicitly. Use the separate phase log's **Debug** view for the full history.
 - Follow the recovery guidance for the actions currently available on the live error.
 - Click **Retry** to follow the failed phase's normal retry path: archive and rerun a non-coding phase attempt, or reset the failed bead during Implementing.
 - Click **Retry with extra note...** to append guidance to User Retry Notes during Implementing, or send a prompt to the preserved setup session during Preparing Workspace Runtime.

@@ -1147,6 +1147,24 @@ The manifest route accepts the same filters and returns `{ "artifacts": [...] }`
 
 The projected log route accepts `scope=phase|lifecycle`, `view=overview|system|command|ai|error|debug`, optional `phase`, `phaseAttempt`, and `modelId`, `limit=1..500`, and an opaque `before` cursor. When `limit` is omitted, it defaults to 20 so ticket and status views can paint the latest activity quickly; the frontend then requests older cursor pages in batches of up to 250 as the user scrolls upward. Overview excludes command-classified rows before applying the page limit because commands have their own view and are not rendered in ALL. The newest-page response returns chronological `entries`, `olderCursor`, `hasOlder`, cursor-independent `totalEntries`, and `totalTextLines` for the complete matching filter; older cursor pages omit the unchanged totals to avoid repeating the aggregate work. Empty content contributes zero text lines; non-empty content contributes one plus its newline count. These totals are aggregated in SQLite and do not load historical entry bodies into the application or browser. The AI channel includes model-scoped error rows so provider recovery information is also visible beside that model; the same durable event remains available from the ERROR view. Projection catch-up reads unindexed JSONL suffixes cooperatively and deduplicates concurrent catch-up requests; it does not change the live SSE or durable log-writing paths.
 
+Both log routes accept optional `errorOccurrenceId`, a positive integer identifying
+an error belonging to the requested ticket. The server selects that occurrence's
+failed phase and the time window from its latest phase entry through its failure
+timestamp. This overrides phase, attempt, model, and bead filters so later retries
+cannot appear as evidence for the selected error. An invalid id returns `400`;
+an occurrence outside the ticket returns `404`. The page's `boundary` includes
+`errorOccurrenceId`, `startedAt`, and `endedAt` when this filter is used.
+Technical details requests the last five Debug-view records from this window,
+shows them newest first, and starts each record collapsed.
+Each record retains its complete structured data after credential redaction;
+normal and native OpenCode record fields are sanitized before the response leaves
+the backend. Exceptionally deep nested data has an explicit omission marker.
+
+Ticket error-occurrence diagnostics also expose available `errorName`, sanitized
+`stackTrace` bounded to 12,000 characters, and `failedChecks` entries containing
+`name`, `category`, `message`, and optional `details`. These fields are stored in
+the existing diagnostic JSON payload.
+
 > [!NOTE]
 > **Current behavior.** Complete `DEBUG` history and export use the full
 > available native OpenCode history, including older files beyond the bounded
