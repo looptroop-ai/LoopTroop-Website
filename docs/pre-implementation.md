@@ -36,6 +36,8 @@ The execution-capability probe is stricter than a plain health check. LoopTroop 
 
 OpenCode can be reachable and list the chosen model while the model's actual request fails. An expired provider login is one example: discovery succeeds, but the provider rejects the probe. The error names the failed check and preserves the reported cause, with the model, provider, exact session, and failed operation in **Technical details** when available. Refresh the provider login reported as expired before using **Retry**; OpenCode being reachable does not prove that the login works.
 
+Authentication failures during OpenCode health checks, model listing, or probe session creation concern the OpenCode server connection. The error preserves that operation and its reported cause without suggesting a model-provider login refresh.
+
 ### 1.3 Outcomes and failure behavior
 
 - LoopTroop persists a `preflight_report` artifact containing every pass, warning, and failure.
