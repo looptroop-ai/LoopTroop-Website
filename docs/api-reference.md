@@ -757,6 +757,12 @@ Billing, quota, invalid-request, and policy denials do not qualify for this
 server-login exception. Model-provider prompt rejections retain provider
 diagnostics and follow their existing recovery rules.
 
+Aborts and timeouts retain their existing handling. Other failures while reading
+an unsuccessful OpenCode HTTP response body keep the known status, any established
+origin, and the original read cause when available. An unreadable `404` does not
+prove an existing session is gone, so its ownership remains preserved for later
+verification. An unidentified prompt rejection keeps neutral guidance and Retry.
+
 The Retry endpoint accepts an empty body for ordinary recovery. It also accepts the following body when the ticket is currently in `BLOCKED_ERROR` with `previousStatus: "CODING"` or `previousStatus: "PREPARING_EXECUTION_ENV"`:
 
 ```json
@@ -1207,6 +1213,11 @@ failure, rather than filter a page of newer records in the browser. A saved
 `errorOccurrenceId` takes precedence over supplied bounds. Cursors belong to the
 complete request scope, including its time window; reusing one with a different
 scope returns `409` with `code: "LOG_CURSOR_EXPIRED"`.
+
+Native session ownership is discovered before applying the record time window,
+within the requested ticket, phase, attempt, and bead scope. An ownership record
+before the window can therefore identify a matching native error inside it.
+Foreign sessions and records outside the window remain excluded from the evidence.
 
 Technical details requests the last five Debug-view records from this window,
 shows them newest first, and starts each record collapsed.

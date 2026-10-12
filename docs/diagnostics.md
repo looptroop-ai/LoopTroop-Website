@@ -420,8 +420,19 @@ a failed read offers **Retry loading debug records**. Technical details does not
 page through older records. Use the separate phase log's **Debug** view for the
 complete history.
 
+LoopTroop discovers native session ownership within the selected ticket and phase
+scope before filtering record times. An earlier ownership record can link a
+native error inside the failure window without appearing as evidence itself.
+Attempt and bead filters still apply, and foreign sessions and out-of-window
+records remain excluded.
+
 OpenCode communication failures name the operation that failed, such as sending
-a prompt or reading session messages. LoopTroop keeps the original error cause
+a prompt or reading session messages. Aborts and timeouts retain their existing
+handling. Other failures while reading an unsuccessful HTTP response body keep
+the known status, any established origin, and the original read cause when
+available. An unreadable `404` does not prove an existing session is gone, so its
+ownership remains preserved for later verification. An unidentified prompt
+rejection keeps neutral guidance and Retry. LoopTroop keeps the original error cause
 through session-creation retries and nested AI retry errors, and shows the
 reported connection code or cause when available. If OpenCode or
 the runtime reports only `fetch failed`, the message says that the underlying

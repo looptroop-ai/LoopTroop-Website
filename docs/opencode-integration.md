@@ -74,6 +74,12 @@ the underlying cause was not reported. Non-connection codes stay separate from
 and fragments before persistence. Prompt retries and deadlines stay unchanged;
 same-session recovery follows the ownership checks below.
 
+Aborts and timeouts retain their existing handling. Other failures while reading
+an unsuccessful HTTP response body keep the known status, any established origin,
+and the original read cause when available. An unreadable `404` does not prove an
+existing session is gone, so its ownership remains preserved for later verification.
+An unidentified prompt rejection keeps neutral guidance and Retry.
+
 Known server failures retain OpenCode-server attribution. Prompt-dispatch
 rejections keep reported provider evidence, including provider identity, HTTP
 status, error type, and response preview. An error arriving through OpenCode is
@@ -99,7 +105,10 @@ identifiers match.
 The failed occurrence's phase and time window excludes later retries, including
 retries that reused the same session. Errors without a saved occurrence send
 their phase and time bounds before the five-record page is selected. Native
-OpenCode records accept both `time` and `timestamp` fields and retain a sanitized
+session ownership is discovered first within the selected ticket, phase,
+attempt, and bead scope. An earlier ownership record can identify native errors
+inside the window; foreign sessions and out-of-window records stay excluded.
+Native OpenCode records accept both `time` and `timestamp` fields and retain a sanitized
 copy of their original log line in structured `rawLine` data when available.
 Cookie redaction keeps unambiguous neighboring log fields and valid structured
 formatting while removing actual cookie secrets.
