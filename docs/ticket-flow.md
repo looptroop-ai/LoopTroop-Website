@@ -393,12 +393,15 @@ Expand a record to inspect its complete multiline message and structured data
 after credential redaction. Each original JSONL line counts as one record.
 Recorded occurrences use the failed phase's time window, so later retries do not
 appear as evidence even when they reused the same OpenCode session. Reconstructed
-errors label their phase/time match; missing metadata, absent records, and failed
+errors label their phase/time match and apply those bounds on the server before
+selecting the five records; missing metadata, absent records, and failed
 reads are explicit. Technical details has no older-record control. The separate
 phase log's **Debug** view still provides the complete history. Failed readiness
-steps stay in the recorded error and debug evidence. The step prefix uses regular
-text; only the actionable cause is bold. Captured error types and bounded
-sanitized stacks appear when available.
+steps stay in the recorded error and debug evidence. Each failure line keeps its
+step, error-type prefix, and HTTP status in regular text; only the actionable
+cause is bold. Captured error types and bounded sanitized stacks appear when
+available. Provider-login guidance requires provider evidence; an expired token
+from a test or setup command keeps that phase's recovery explanation.
 
 ### The Retry Path (`RETRY`)
 - Archives the active phase attempt and initializes a fresh run.
@@ -411,7 +414,8 @@ sanitized stacks appear when available.
 
 ### The Continue Path (`CONTINUE`)
 - Resumes an in-progress session without resetting or creating new attempts.
-- Used for continuable, transient errors (HTTP 402, rate/usage limits, overload capacity, provider timeouts) where the remote OpenCode session is still active and addressable.
+- Used for continuable errors (HTTP 402, rate/usage limits, overload capacity, provider timeouts, and known OpenCode-server login or access rejections) where the same owned remote session is still active and addressable.
+- After a known OpenCode-server HTTP `401` or `403` login or access rejection, repair server login or access before continuing; the usual exact-session ownership and availability checks still apply. Failed session creation without an existing session stays Retry-only. Model-provider authentication failures remain ineligible for Continue.
 - User-facing Continue across workflow phases is separate from the automatic bead-response continuation loop inside each bead iteration, so it does not consume `maxIterations`. That automatic path is bounded by finite `maxIterations`; `0` leaves its cap unlimited. A local cancellation request is not treated as a confirmed remote stop.
 - LoopTroop locks onto the preserved session and sends exactly:
   ```text

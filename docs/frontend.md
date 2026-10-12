@@ -196,12 +196,26 @@ after credential redaction. Each original JSONL line counts as one record,
 even when its displayed data spans several lines. The server matches a recorded
 occurrence's failed-phase time window, so later retries stay out of historical
 evidence even if they reused the same OpenCode session. A reconstructed error
-labels its phase/time match. Missing metadata, absent logs, and failed reads are
+labels its phase/time match and sends its bounds to the server before the
+five-record page is selected. A reconstructed timestamp is labeled approximate;
+without a phase or usable end time, matching records are reported unavailable.
+Full original records are retained for this evidence
+request; ordinary Debug pages keep their existing normalized entries. Missing metadata, absent logs, and failed reads are
 explicit; a failed read offers **Retry loading debug records**. Details has no
 older-record control. Full history remains in the separate phase log's **Debug**
 view. Available error types and bounded sanitized stacks also appear in details.
-Failed readiness steps stay in the recorded error and debug evidence. The step
-prefix uses regular text; only the actionable cause is bold.
+Failed readiness steps stay in the recorded error and debug evidence. Each failure
+line keeps its step, error-type prefix, and HTTP status in regular text; only the
+actionable cause is bold. Generic missing-detail messages remain in regular text.
+Provider-login guidance requires provider diagnostic evidence or a provider-auth
+code; an expired token reported by a test or setup command retains that phase's
+explanation. Explicit OpenCode-server authentication failures retain server advice.
+If several readiness checks fail, the summary identifies the combined failure
+while the original error retains each named reason, without a duplicate checklist.
+After a known OpenCode-server login or access rejection, the server can advertise **Continue**
+for an existing preserved session once server login or access is repaired and the usual safety
+checks pass. Failed session creation without an existing session stays Retry-only;
+model-provider authentication failures remain ineligible for Continue.
 
 ### Manual QA workspace
 

@@ -363,7 +363,7 @@ Operational notes:
 
 - each new blocked incident increments `occurrence_number`
 - `error_codes` is stored as a JSON array string
-- `diagnostic_details` stores normalized diagnostic payloads used for recovery decisions and UI detail, including available error type, sanitized bounded stack, and failed readiness checks. These fields use the existing JSON payload; there are no separate columns. The last five debug records shown in Technical details are read from the occurrence's failed-phase time window rather than copied into this table.
+- `diagnostic_details` stores normalized diagnostic payloads used for recovery decisions and UI detail, including available error type, sanitized bounded stack, and compact failed readiness checks (`name`, `category`, `message`). Full check evidence remains in sanitized debug records and the pre-flight report, avoiding repeated check stacks in ticket payloads. These fields use the existing JSON payload; there are no separate columns. The last five debug records shown in Technical details are read from the occurrence's failed-phase time window rather than copied into this table.
 - resolution is modeled explicitly with `resolved_at`, `resolution_status`, and `resumed_to_status`
 
 ### `bead_execution_metrics`

@@ -348,13 +348,28 @@ diagnostics, and their `INIT_*` codes. A Git authentication failure stays a
 workspace initialization failure; AI-provider login advice requires evidence of
 an AI-provider authentication failure.
 
+Known OpenCode-server operations and transport failures keep server attribution,
+including a refused prompt dispatch. Provider-login guidance requires actual
+provider diagnostic evidence or a provider-auth code. An expired token reported
+by a test, setup command, or another service keeps that phase's explanation.
+When several readiness checks fail, the summary identifies the combined readiness
+failure and the original error keeps each named reason. It does not add a second
+failed-check checklist.
+
+After a known OpenCode-server login or access rejection (HTTP `401` or `403`),
+an existing preserved session can offer **Continue** once server login or access
+is repaired and the usual exact-session ownership and availability checks pass.
+Failed session creation without an existing session stays **Retry**-only.
+Model-provider authentication failures keep their existing Retry behavior.
+
 When available, Technical details also includes the HTTP status, provider error
 type, retryability, response finish reason, and input/output/reasoning token
 counts, including cache reads and writes. The provider response preview removes
 terminal control sequences before redacting recognized credential fields and
 common credential formats, then applies the OpenCode extractor's 280-character
 limit. The shared persistence normalizer has an outer ceiling of 1,000 characters.
-Redaction covers recognized camelCase credential keys, including assignments
+Redaction covers recognized credential keys, including camelCase assignments,
+secret and signing keys, SSH keys, passphrases, JWTs, and bearer values. It handles assignments
 split across lines in formatted JSON, labeled authorization values, Basic and
 Bearer credentials, and complete cookie header values.
 Common failure prose, structured formatting, and repeated lines remain readable,
@@ -373,7 +388,11 @@ even when its displayed data spans many lines. LoopTroop matches the selected
 error occurrence's failed phase and time window, so later retries cannot replace
 the evidence, including retries that reused the same OpenCode session. If only a
 reconstructed error is available, the view says that it matched records by phase
-and time. Missing metadata, absent records, and log-read failures are explicit;
+and time and labels a reconstructed failure time as approximate. If a phase or
+usable end time is missing, the view says that matching records are unavailable.
+The server applies known bounds before selecting the five records, so
+newer activity cannot hide earlier evidence. OpenCode native records use either
+`time` or `timestamp` for their recorded time. Missing metadata, absent records, and log-read failures are explicit;
 a failed read offers **Retry loading debug records**. Technical details does not
 page through older records. Use the separate phase log's **Debug** view for the
 complete history.
@@ -532,7 +551,7 @@ The normalized blocked-error payload may include:
 | `modelId` | LoopTroop/OpenCode model identifier used for the failed run |
 | `sessionId` | OpenCode session involved in the failure |
 | `operation` | OpenCode operation that failed |
-| `failedChecks` | Every failed readiness check, with its stable name, category, reported reason, and available detailed evidence |
+| `failedChecks` | Compact summaries of every failed readiness check: stable name, category, and reported reason; detailed evidence stays in debug records and the pre-flight report |
 | `transportCode` | Reported connection error code, when available |
 | `causeMessage` | Bounded sanitized underlying error message, when available |
 | `providerId` | Provider identifier such as `openai` |
@@ -551,12 +570,18 @@ The normalized blocked-error payload may include:
 The blocked-error panel shows available diagnostics in **Technical details**,
 including error type and stack, the bounded provider response preview, and cache
 token counts. Failed readiness steps remain in the recorded error and debug
-evidence. The step prefix uses regular text; only the actionable cause is bold.
+evidence. Each failure line keeps its step, error-type prefix, and HTTP status in
+regular text; only the actionable cause is bold. Generic missing-detail messages
+remain in regular text.
 The section starts collapsed so the actual failure and recovery actions remain
-easy to find. The log supplies the last five matching debug records. Normal and
-native OpenCode records are redacted before leaving the backend. Nested data
-stops at 100 levels with an explicit
-omission marker; ordinary record text is not shortened.
+easy to find. The log supplies the last five matching debug records. Evidence
+entries requested by occurrence or time window are redacted before leaving the
+backend; ordinary log pages and exports retain their existing content and opaque
+cursors. Native records' added `rawLine` field is sanitized in the common reader
+for every consumer. The source files stay unchanged. Doctor reports are sanitized
+before they become debug records or report artifacts. Nested diagnostic data
+stops at 100 levels with an explicit omission marker. Debug evidence has no
+preview-length limit.
 
 Coverage phase logs separately label preparation and each audit or revision.
 Each coverage check has its own number, and response attempts within that check

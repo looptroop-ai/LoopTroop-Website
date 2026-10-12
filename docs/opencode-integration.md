@@ -71,16 +71,26 @@ appear in the error page's collapsed **Technical details**, with the captured
 model and session. If the runtime provides only `fetch failed`, the message says
 the underlying cause was not reported. Non-connection codes stay separate from
 **Connection code**. Diagnostic text removes URL credentials, query strings,
-and fragments before persistence. These diagnostics do not change prompt
-retries, deadlines, or session continuation rules.
+and fragments before persistence. Prompt retries and deadlines stay unchanged;
+same-session recovery follows the ownership checks below.
+
+Known server operations and transport failures keep OpenCode-server attribution,
+including a refused prompt dispatch. Provider-login guidance requires actual
+provider evidence; generic expired-token text alone cannot identify which login
+failed.
 
 For every ticket error, Technical details also shows the last five matching
 Debug-view records newest first, with each record collapsed by default. Expanding
 a record shows its complete structured data after credential redaction.
 The failed occurrence's phase and time window excludes later retries, including
-retries that reused the same session. Native OpenCode records keep their original
-log line in structured data when available. The separate phase log retains the
-full history.
+retries that reused the same session. Errors without a saved occurrence send
+their phase and time bounds before the five-record page is selected. Native
+OpenCode records accept both `time` and `timestamp` fields and retain a sanitized
+copy of their original log line in structured `rawLine` data when available.
+That added field is sanitized in the common reader for every consumer. Additional
+diagnostic redaction applies to failure-evidence requests; ordinary history and
+exports keep their existing content. The separate phase log retains the full
+history, and source log files remain unchanged.
 
 LoopTroop creates sessions with a session-scoped allow-all permission rule, then refreshes the complete policy before every prompt so reused sessions cannot retain a previous phase's restrictions. If the connected OpenCode server is too old to support session-scoped permissions, session creation or policy application fails with an explicit upgrade message instead of silently degrading behavior.
 
@@ -279,7 +289,7 @@ cancelled prompt cannot look successful.
 
 Retry-status handling uses OpenCode stream events as well as log text. The runner watches `session.status` retry events across OpenCode-backed phases and treats matching rate-limit, usage-limit, resource-exhaustion, overload/capacity, temporary-unavailability, timeout/deadline, fetch, network, and socket-reset messages as continuable provider interruptions. The profile's `OpenCode Retry Limit` blocks after a configured number of matching retry events, and `OpenCode Retry Grace Window` blocks when a matching retry state produces no progress for the configured window. A zero retry limit blocks on the first matching retry event; a zero grace window disables the timer.
 
-When a ticket is blocked by a resumable OpenCode/provider interruption, the prompt runner can preserve the active owned session instead of abandoning it. Eligible interruptions include retryable diagnostics, HTTP 402/408/429/500/502/503/504/529, rate or usage limits, overload/capacity messages, timeouts, and transport failures. `HTTP 402 Payment Required` is treated as externally clearable, so Continue can resume the same session after payment or workspace access is restored. Auth, invalid request, request-size, permission, missing API key, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt remain non-continuable because acceptance cannot be proven. Missing replay payloads alone do not block continuation when LoopTroop has verified a starting boundary and continuously observed the later event sequence.
+When a ticket is blocked by a resumable OpenCode/provider interruption, the prompt runner can preserve the active owned session instead of abandoning it. Eligible interruptions include retryable diagnostics, HTTP 402/408/429/500/502/503/504/529, rate or usage limits, overload/capacity messages, timeouts, and transport failures. `HTTP 402 Payment Required` is treated as externally clearable, so Continue can resume the same session after payment or workspace access is restored. A known OpenCode-server login or access rejection (HTTP `401` or `403`) can also preserve an existing session for Continue after server login or access is repaired, with the usual exact-session ownership and availability checks. Failed session creation without an existing session stays Retry-only. Model-provider auth, invalid request, request-size, provider permission, missing API key, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt remain non-continuable. Missing replay payloads alone do not block continuation when LoopTroop has verified a starting boundary and continuously observed the later event sequence.
 
 CODING also carries the latest meaningful OpenCode retry/session/output-limit diagnostic forward when a bead later blocks for completion-marker or bead retry-budget reasons, so the Error view can show the underlying provider/session cause alongside the bead wrapper failure.
 
@@ -366,7 +376,7 @@ For Continue, the route performs one extra live check: if the OpenCode server ca
 - An active error occurrence with a diagnostic `sessionId` must exist.
 - A matching active `opencode_sessions` row must exist for that ticket, previous phase, and session ID.
 - The OpenCode server must still have the session addressable by that exact ID.
-- The error diagnostics must be of a continuable type (retryable provider errors, HTTP 402/408/429/500/502/503/504/529, rate/usage limits, transport failures, timeout-style interruptions).
+- The error diagnostics must be of a continuable type (retryable provider errors, HTTP 402/408/429/500/502/503/504/529, rate/usage limits, transport failures, timeout-style interruptions, or a known OpenCode-server login or access rejection with an existing session).
 
 Backend, OpenCode, WSL, OS, and machine restarts preserve the same eligibility
 when those exact ownership checks and a durable database record or ticket marker
@@ -375,7 +385,7 @@ rather than removing Continue permanently; a later read or restart may verify
 it again. Only confirmed remote absence or provably stale ownership abandons the
 local session record.
 
-**Non-continuable errors:** Auth failures, invalid requests, permission errors, missing API keys, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt are not eligible for Continue.
+**Non-continuable errors:** Model-provider auth failures, invalid requests, provider permission errors, missing API keys, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt are not eligible for Continue. A server login failure without an existing session, including failed session creation, also stays Retry-only.
 
 When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please`. It does not rebuild context or create a new attempt version.
 

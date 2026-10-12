@@ -166,7 +166,9 @@ session, and available connection code and cause in collapsed **Technical detail
 Details also includes the last five matching Debug-view records newest first,
 with each record collapsed by default. Expanding a record shows its complete
 structured data after credential redaction, scoped to that failure so later
-retries do not replace its evidence. The separate phase log retains the full history.
+retries do not replace its evidence. For errors without a saved occurrence,
+the server applies the reported time window before selecting those five records.
+The separate phase log retains the full history.
 
 Coverage metadata is also filtered conservatively. LoopTroop keeps revision/change metadata only when it contains real, text-preserving semantic before/after items. If a model emits only section paths or vague summaries, LoopTroop records warnings and falls back to deriving the visible diff from the validated PRD versions themselves.
 

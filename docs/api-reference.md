@@ -745,6 +745,15 @@ Most action routes in this section respond with the latest machine snapshot so c
 
 The Continue endpoint is available only from `BLOCKED_ERROR`. It requires a known `previousStatus`, an unresolved active error occurrence with a diagnostic `sessionId`, a matching active `opencode_sessions` row for that ticket and previous phase, and an OpenCode session that is still addressable by that exact id. It returns `409` and leaves the ticket blocked when those checks fail. On success it dispatches `CONTINUE`, records the pending session continuation, and the next owned prompt sends exactly `continue please` without creating a fresh phase attempt.
 
+A known OpenCode-server login or access rejection (HTTP `401` or `403`) can
+use Continue after server login or access is repaired, provided the same existing session
+passes these ownership and availability checks. A failed session creation with no
+session stays Retry-only. Model-provider authentication failures remain ineligible
+for Continue.
+The server-side exception requires diagnostic `kind: "opencode_session"`,
+`source: "opencode"`, and HTTP `statusCode` `401` or `403`; an explicit provider-auth
+code still excludes Continue.
+
 The Retry endpoint accepts an empty body for ordinary recovery. It also accepts the following body when the ticket is currently in `BLOCKED_ERROR` with `previousStatus: "CODING"` or `previousStatus: "PREPARING_EXECUTION_ENV"`:
 
 ```json
@@ -1184,16 +1193,32 @@ timestamp. This overrides phase, attempt, model, and bead filters so later retri
 cannot appear as evidence for the selected error. An invalid id returns `400`;
 an occurrence outside the ticket returns `404`. The page's `boundary` includes
 `errorOccurrenceId`, `startedAt`, and `endedAt` when this filter is used.
+
+Both routes also accept `startedAt` and `endedAt` ISO timestamps with a UTC marker
+or explicit offset. The server normalizes them to UTC and applies the window
+before pagination. Invalid timestamps or a start after the end return `400`.
+This lets errors without a saved occurrence request the records preceding the
+failure, rather than filter a page of newer records in the browser. A saved
+`errorOccurrenceId` takes precedence over supplied bounds. Cursors belong to the
+complete request scope, including its time window; reusing one with a different
+scope returns `409` with `code: "LOG_CURSOR_EXPIRED"`.
+
 Technical details requests the last five Debug-view records from this window,
 shows them newest first, and starts each record collapsed.
 Each record retains its complete structured data after credential redaction;
-normal and native OpenCode record fields are sanitized before the response leaves
-the backend. Exceptionally deep nested data has an explicit omission marker.
+occurrence- or time-window-filtered entries are sanitized before the response
+leaves the backend. Their export sanitizes each evidence entry separately.
+Cursor and boundary metadata are preserved. Ordinary log pages and exports keep
+their existing content; the added native OpenCode `rawLine` field is sanitized in
+the common reader for every consumer. Source log files remain unchanged.
+Exceptionally deep nested diagnostic data has an explicit omission marker.
 
 Ticket error-occurrence diagnostics also expose available `errorName`, sanitized
 `stackTrace` bounded to 12,000 characters, and `failedChecks` entries containing
-`name`, `category`, `message`, and optional `details`. These fields are stored in
-the existing diagnostic JSON payload.
+`name`, `category`, and `message`. These compact summaries use the existing
+diagnostic JSON payload. Detailed check evidence remains in sanitized debug
+records and the pre-flight report instead of being copied into every ticket
+response.
 
 > [!NOTE]
 > **Current behavior.** Complete `DEBUG` history and export use the full
