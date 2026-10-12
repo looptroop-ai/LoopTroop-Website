@@ -277,7 +277,7 @@ Collapsing **Advanced** preserves unfinished input and validation. An invalid ac
 **What you can do:**
 - Monitor Part 1 progress: council members fill skipped interview questions to create per-model Full Answers artifacts
 - Monitor Part 2 progress: council members draft complete PRD specifications from relevant files and Full Answers
-- Stop or retry one model from its Part 1 or Part 2 chip, using the small **Stop** or **Retry** button in the top-right corner of the window. Both ask for confirmation. Retry from Part 1 redoes both parts; Retry from Part 2 keeps Part 1 answers that passed validation and redoes only the PRD draft. Stop from either chip stops the model, which then does not count toward Min Council Quorum. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
+- Stop or retry one model from its Part 1 or Part 2 chip, using the small **Stop** or **Retry** button in the top-right corner of the window. Both ask for confirmation. Retry from Part 1 redoes both parts; Retry from Part 2 keeps Part 1 answers that passed validation and redoes only the PRD draft. Stop from either chip stops the model and throws away both parts, so it does not count toward Min Council Quorum. [?](llm-council.md#stopping-or-retrying-one-model "Open full documentation")
 
 ::: details Screenshot
 ![Example Full Answers artifact](media/ticket-lifecycle/11-ai-answers.png)

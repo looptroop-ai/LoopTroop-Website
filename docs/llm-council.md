@@ -44,7 +44,7 @@ PRD drafting has an extra first part: each member first produces its own Full An
 
 Full Answers, PRD and beads drafting, refinement, coverage, and bead expansion can use focused read-only repository inspection when their supplied artifacts do not provide concrete evidence for a repository-specific claim. They review `relevant_files` first and inspect only the smallest useful manifests, build definitions, task configuration, CI files, or source locations needed to confirm a command, path, framework, package manager, build system, or test runner. Full Answers use inspection only for technical facts needed to resolve skipped answers; all voting remains tool-disabled.
 
-If a member's Full Answers artifact is invalid after the configured structured retries, that member's PRD draft is not started. LoopTroop records a concise skipped/invalid PRD draft diagnostic instead of copying the Full Answers malformed text into the PRD draft artifact. A member you stop during Part 1 does not start its PRD draft either, and retrying it redoes both parts (see [Stopping Or Retrying One Model](#stopping-or-retrying-one-model)).
+If a member's Full Answers artifact is invalid after the configured structured retries, that member's PRD draft is not started. LoopTroop records a concise skipped/invalid PRD draft diagnostic instead of copying the Full Answers malformed text into the PRD draft artifact. A member you stop during Part 1 does not start its PRD draft either. One you stop during Part 2 loses its Part 1 answers as well, so nothing it wrote reaches the vote or the refinement, and retrying it redoes both parts (see [Stopping Or Retrying One Model](#stopping-or-retrying-one-model)).
 
 Rejected model responses are diagnostic data, not draft bodies. Accepted drafts persist normalized artifact content; invalid, failed, or timed-out outputs show only outcome, model, validation/retry diagnostics, and short excerpts in the structured artifact view. The full malformed responses remain available through Raw attempt views and execution logs. A member you stopped shows as Stopped, and nothing it wrote becomes a draft.
 
@@ -155,9 +155,9 @@ Retry restarts just that model with a full AI response timeout of its own, so th
 - a model that ended without a usable result: failed, invalid output, timed out, or stopped;
 - a model that finished fine. Its draft or vote is thrown away for good, and if the new run fails, the model counts as failed.
 
-In Council Drafting Specs each model has two chips, one for Part 1 (Full Answers) and one for Part 2 (the PRD draft). Retry from the Part 1 chip redoes both parts. Retry from the Part 2 chip keeps Part 1 answers that passed validation and redoes only the PRD draft; without them it redoes both parts. Stop from either chip stops the model.
+In Council Drafting Specs each model has two chips, one for Part 1 (Full Answers) and one for Part 2 (the PRD draft). Retry from the Part 1 chip redoes both parts. Retry from the Part 2 chip keeps Part 1 answers that passed validation and redoes only the PRD draft; without them, or after a stop, it redoes both parts. Stop from either chip stops the model and throws away both parts.
 
-If the model was waiting on an AI question you had not answered, Stop and Retry refuse that question first. The skip trail records the refusal as yours, made because you stopped or restarted the model.
+In Council Drafting Specs and Council Drafting Blueprint a model can be waiting on an AI question you had not answered. Stop and Retry close that question together with the model's session, and the skip trail records it as refused by you, because you stopped or restarted the model. The other council steps never ask AI questions.
 
 If OpenCode cannot confirm that the model's session stopped, the step fails into `BLOCKED_ERROR`, because two copies of the model could otherwise end up running at once. A model that times out follows the same rule.
 

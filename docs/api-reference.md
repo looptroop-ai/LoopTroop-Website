@@ -814,9 +814,9 @@ the ticket remains unchanged.
 
 Stop closes the model's OpenCode session, marks it `stopped`, discards whatever it had written, and lets the step continue with the other models. It returns `{ "success": true, "phase": "...", "memberId": "...", "outcome": "stopped" }`. `outcome` is usually `stopped`; when the model finished in the moment before the stop landed, it is that model's own outcome instead. A stopped model does not count toward Min Council Quorum, so a step that ends below quorum fails into `BLOCKED_ERROR` as usual. If the stopped model was the last one still working, the step ends right away.
 
-Retry restarts one model with a full AI response timeout of its own. While the step is still running, it accepts a model that is still working, one that ended without a usable result, and one that finished, whose draft or vote is then discarded for good. An optional `part` is read only in `DRAFTING_PRD`: `full_answers` redoes Full Answers and the PRD draft, while `prd_draft`, the default, keeps Full Answers that passed validation and redoes only the PRD draft; without them it redoes both parts. Retry returns `{ "success": true, "phase": "...", "memberId": "..." }` once the old run has stopped and the new one has started.
+Retry restarts one model with a full AI response timeout of its own. While the step is still running, it accepts a model that is still working, one that ended without a usable result, and one that finished, whose draft or vote is then discarded for good. An optional `part` is read only in `DRAFTING_PRD`: `full_answers` redoes Full Answers and the PRD draft, while `prd_draft`, the default, keeps Full Answers that passed validation and redoes only the PRD draft; without them, or after a stop, it redoes both parts. Naming a `part` for any other step returns `400`. Retry returns `{ "success": true, "phase": "...", "memberId": "..." }` once the old run has stopped and the new one has started.
 
-If the model was waiting on an AI question nobody had answered, both routes refuse that question first. Its skip receipt records `skippedBy: user`, and the `opencode_question_resolved` event carries `resolution: "member_stopped"` or `"member_restarted"`.
+If the model was waiting on an AI question nobody had answered (only Council Drafting Specs and Council Drafting Blueprint can ask), that question closes together with the model's session. Its skip receipt records `skippedBy: user` with the expiry reason `member_stopped` or `member_restarted`.
 
 An invalid body returns `400`, and an unknown ticket returns `404`. A refused stop or retry returns `409` with `{ "error": "...", "code": "..." }`. The `error` text is written for people, so match on `code`:
 
@@ -827,7 +827,7 @@ An invalid body returns `400`, and an unknown ticket returns `404`. A refused st
 | `MEMBER_FINISHED` | Stop was sent for a model that already finished its turn |
 | `MEMBER_BUSY` | A stop or retry for that model is already under way |
 
-If OpenCode does not confirm that the model's session stopped, the route returns `500` with `code: "STOP_UNCONFIRMED"` and `details`. The step then fails into `BLOCKED_ERROR`, because two copies of the model could otherwise end up running at once. A model that times out follows the same rule.
+If OpenCode does not confirm that the model's session stopped, the route returns `500` with `code: "STOP_UNCONFIRMED"` and `details`. The step then fails into `BLOCKED_ERROR` once the other models finish, because two copies of the model could otherwise end up running at once. Until then, another stop or retry of that model returns the same code. A model that times out follows the same rule.
 
 ### Interview And Planning Editing
 
@@ -1493,7 +1493,7 @@ The stream endpoint emits two categories of events:
 | --- | --- | --- |
 | `opencode_question` | A model asked | `action: "asked"`, `sessionId`, `requestId`, `questions`, `questionCount`, `phase`, `modelId`, `tool` |
 | `opencode_question_updated` | The countdown was armed, reset, or stopped | `timer`, `requests`, `phase`, `phaseAttempt` |
-| `opencode_question_resolved` | A request was answered or refused | `action: "replied"` or `"rejected"`, `requestId`, `sessionId`, and on a refusal `resolution` (`user_skipped`, `window_elapsed`, `ticket_canceled`, `session_lost`, `daemon_restart`, `member_stopped`, `member_restarted`) plus `rejectFailed` when OpenCode could not be told |
+| `opencode_question_resolved` | A request was answered or refused | `action: "replied"` or `"rejected"`, `requestId`, `sessionId`, and on a refusal `resolution` (`user_skipped`, `window_elapsed`, `ticket_canceled`, `session_lost`, `daemon_restart`) plus `rejectFailed` when OpenCode could not be told |
 
 `timer` uses the shape shown under [OpenCode Question Routes](#opencode-question-routes). `requests` lists every request still outstanding on that countdown, each with its `sessionId`, `requestId`, `memberId`, `questions`, `questionCount`, and `timerKey`. Both are additive; the fields the browser already read are unchanged.
 
