@@ -431,6 +431,12 @@ Operational notes:
 
 `execution_log_projection_cursors` stores the last indexed byte offset for each `(ticket_id, channel)`. A truncated/replaced file resets only that channel. Cold catch-up reads the remaining suffix cooperatively in bounded batches, and concurrent readers share one catch-up promise per ticket. Both tables cascade with ticket deletion and can be reconstructed from the filesystem logs.
 
+Phase debug events redact recognized credentials before formatting, shortening,
+broadcasting, or saving to JSONL. This applies to every workflow phase and retains
+model, session, process, timing, and numeric token-count metadata. Existing
+persistence and mirroring choices remain unchanged; the projection reads those
+already-redacted rows, and existing source files are not rewritten.
+
 > [!NOTE]
 > **Current behavior.** Native OpenCode history is indexed separately from
 > the bounded diagnostic reader. Complete DEBUG/history actions can scan the

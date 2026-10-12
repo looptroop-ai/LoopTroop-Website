@@ -56,6 +56,7 @@ authentication failures retain their Retry behavior.
 ### 1.3 Outcomes and failure behavior
 
 - LoopTroop persists a sanitized `preflight_report` artifact containing every pass, warning, and failure.
+- Probe stream event copies redact recognized credentials before other log views are derived from them. Debug events also use the shared protection across all workflow phases before formatting, shortening, broadcasting, or saving. Model, session, process, timing, and numeric token-count metadata remain available, with existing persistence and mirroring choices preserved. Protection applies while the probe runs, before the completed report exists.
 - Each check is also emitted into the **SYS** log so the UI shows the same detail without opening raw artifacts.
 - Any `fail` result routes the ticket to `BLOCKED_ERROR`. The error names every failed doctor check and its reason, so a capability-probe failure is distinguishable from workspace, GitHub access, or bead-graph failures. Each failure line keeps its step, error-type prefix, and HTTP status in regular text; only the actionable cause is bold. Detailed check evidence remains in the recorded error and debug records.
 - `warning` results are preserved but do **not** block execution.

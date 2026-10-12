@@ -573,6 +573,18 @@ Before persistence, `normalizeBlockedErrorDiagnostics()` sanitizes string fields
 - Query strings are stripped from error text so token-like values in URLs are not persisted.
 - The redacted payload still keeps enough structure to debug the issue: status codes, provider/model identity, finish reason, and token counts survive when present.
 
+Debug events from every workflow phase redact recognized credentials before
+formatting, shortening, live broadcasts, or saved log writes. This covers coding,
+council work, and readiness probes while they are running. Redaction uses a log
+copy, preserving model, session, process, timing, and numeric token-count metadata
+and the existing broadcast, persistence, and mirroring choices. Readiness probe
+event copies are also sanitized before other log views are derived from them.
+The completed doctor report remains sanitized before check logs and artifact storage.
+Debug-classified diagnostic rows use the same protection even when emitted
+through the normal phase logger. Debug copies also remove URL credentials, query
+strings, and fragments under the existing diagnostic rules. Ordinary AI, normal,
+and command transcripts keep their existing logging behavior.
+
 ### 3.4 Persisted Fields
 
 The normalized blocked-error payload may include:
@@ -612,7 +624,8 @@ easy to find. The log supplies the last five matching debug records. Evidence
 entries requested by occurrence or time window are redacted before leaving the
 backend; ordinary log pages and exports retain their existing content and opaque
 cursors. Native records' added `rawLine` field is sanitized in the common reader
-for every consumer. The source files stay unchanged. Doctor reports are sanitized
+for every consumer. Existing source files are not rewritten. New phase debug
+events are sanitized before broadcast or log storage. Doctor reports are sanitized
 before they become debug records or report artifacts. Nested diagnostic data
 stops at 100 levels with an explicit omission marker. Debug evidence has no
 preview-length limit.

@@ -456,6 +456,14 @@ When `AI` or an individual model tab is selected, **AI details** or **Model deta
 
 Completed tool rows include elapsed time when OpenCode reports start/end timestamps, attachment filename/MIME summaries, and output-compaction timestamps. Inline attachment bytes and data URLs never enter the LoopTroop log. Provider recovery actions are recorded as error rows with provider, reason, message, and suggested action; the same row appears in `ERROR` and its AI/model view, and only HTTP(S) recovery links are interactive.
 
+Debug events from every workflow phase reach live log views and saved history
+with recognized credentials already redacted, including coding, council, and
+readiness events. Redaction happens before formatting or shortening; model,
+session, process, timing, and numeric token-count metadata remain available.
+Existing persistence and mirroring choices are preserved. Readiness probe event
+copies are also sanitized before other log views are derived from them, while
+the probe is still running.
+
 The `DEBUG` tab provides a complete view of every log line for the ticket. It loads `channel=all` on demand, which merges all three LoopTroop log files (`execution-log.jsonl`, `execution-log.debug.jsonl`, `execution-log.ai.jsonl`) plus OpenCode native server log lines filtered by the ticket's session IDs. Complete DEBUG history uses the full available native file set; diagnostic collection remains bounded to its separate defaults of 10 files and 5 MiB per file. All OpenCode SDK stream event types, including `part_removed`, are logged to the debug channel. OpenCode native logs are always written at `--log-level DEBUG` (the managed server is always started with this flag), so they are always available for the DEBUG tab without any extra configuration. Use `npm run dev --opencode-logs=all` to also print them to the terminal. Other tabs (`ALL`, `SYS`, `AI`, `ERROR`) are unaffected; they classify entries from structured `source`, `audience`, and `kind` fields regardless of which channel loaded them.
 
 Native cursors retain four recent snapshots for append and rotation stability.

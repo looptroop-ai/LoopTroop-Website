@@ -115,7 +115,13 @@ formatting while removing actual cookie secrets.
 That added field is sanitized in the common reader for every consumer. Additional
 diagnostic redaction applies to failure-evidence requests; ordinary history and
 exports keep their existing content. The separate phase log retains the full
-history, and source log files remain unchanged.
+history, and existing source log files are not rewritten. Debug events from every
+workflow phase redact recognized credentials before formatting, shortening,
+live broadcasts, or durable storage. Redaction uses a log copy and retains model,
+session, process, timing, and numeric token-count metadata, along with existing
+persistence and mirroring choices. Readiness probe event copies are also sanitized
+before other log views are derived from them.
+The completed doctor report is sanitized separately before check logs and artifact storage.
 
 LoopTroop creates sessions with a session-scoped allow-all permission rule, then refreshes the complete policy before every prompt so reused sessions cannot retain a previous phase's restrictions. If the connected OpenCode server is too old to support session-scoped permissions, session creation or policy application fails with an explicit upgrade message instead of silently degrading behavior.
 

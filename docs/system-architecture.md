@@ -117,6 +117,12 @@ LoopTroop deliberately splits state across several storage layers. Each layer ow
 | `.ticket/manual-qa/**` | Versioned checklists/results/coverage, evidence binaries, generation/operation receipts, clean baselines, and workspace-drift decisions | Outside CLEANING_ENV's selected transient roots and excluded from bead commits, candidate diffs, and PRs; explicit Delete Worktrees removes the containing worktree; evidence index locking uses a persistent SQLite database |
 | `phase_artifacts` table | Structured snapshots, receipts, and UI read models used by the API and UI | Holds artifact content, phase, attempt number, timestamps, approval receipts, edit receipts, cleanup/integration reports, and content hashes. Lightweight manifest/content endpoints are available for targeted consumers; the historical phase review keeps its established curated artifact-card presentation. |
 
+The shared phase debug logger redacts recognized credentials on a log copy before
+formatting, shortening, broadcasting, or saving. The same boundary protects every
+workflow phase, including coding, council work, and readiness, while retaining
+model, session, process, timing, and numeric token-count metadata. Existing
+persistence and mirroring choices remain in force; stored files are not rewritten.
+
 The log projection also indexes native OpenCode files in incremental ranges.
 Complete DEBUG/history actions can read older native files beyond the bounded
 diagnostic defaults, while the initial view remains paginated. Four recent

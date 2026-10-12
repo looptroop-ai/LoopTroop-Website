@@ -1229,7 +1229,13 @@ Occurrence- or time-window-filtered entries are sanitized before the response
 leaves the backend. Their export sanitizes each evidence entry separately.
 Cursor and boundary metadata are preserved. Ordinary log pages and exports keep
 their existing content; the added native OpenCode `rawLine` field is sanitized in
-the common reader for every consumer. Source log files remain unchanged.
+the common reader for every consumer. Existing source log files are not rewritten.
+New debug events from every workflow phase redact recognized credentials before
+formatting, shortening, live broadcasts, and durable writes. History and exports
+receive those already-redacted records. Model, session, process, timing, and numeric
+token-count metadata remain. Existing persistence and mirroring choices are preserved.
+This includes debug-classified diagnostic rows emitted through the phase logger;
+ordinary AI, normal, and command transcripts keep their existing logging behavior.
 Exceptionally deep nested diagnostic data has an explicit omission marker.
 
 Ticket error-occurrence diagnostics also expose available `errorName`, sanitized
@@ -1505,6 +1511,13 @@ The stream endpoint emits two categories of events:
 | `needs_input` | A pending question or interview batch needs the user | `ticketId`, `type`, plus a shape that varies by source (interview batch: `batch`; OpenCode question: `requestId`, `questions`, `answers`, `tool`, …) |
 | `artifact_change` | A phase artifact is created or updated | `ticketId`, `phase`, `artifactType`, `artifact` |
 | `ai_metrics` | Completed assistant-turn metrics were recorded | `ticketId`, `phase`, `phaseAttempt`, `modelId`, `updatedAt` |
+
+Phase debug log events redact recognized credentials before formatting,
+shortening, broadcasting, or saving, including coding, council, and readiness
+events. Their model, session, process, timing, and numeric token-count metadata
+remain available; event names, payload keys, and existing persistence and
+mirroring choices are unchanged. Readiness probe event copies are also sanitized
+before other log views are derived from them.
 
 `needs_input` carries three OpenCode question shapes, told apart by `type`:
 
