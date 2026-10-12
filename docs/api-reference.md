@@ -838,7 +838,7 @@ An invalid body returns `400`, and an unknown ticket returns `404`. A refused st
 | `MEMBER_FINISHED` | Stop was sent for a model that already finished its turn |
 | `MEMBER_BUSY` | A stop or retry for that model is already under way |
 
-If OpenCode does not confirm that the model's session stopped, the route returns `500` with `code: "STOP_UNCONFIRMED"` and `details`. The step then fails into `BLOCKED_ERROR` once the other models finish, because two copies of the model could otherwise end up running at once. Until then, another stop or retry of that model returns the same code. A model that times out follows the same rule.
+If OpenCode does not confirm that the model's session stopped, the route returns `500` with `code: "STOP_UNCONFIRMED"`, and `error` says why. The step then fails into `BLOCKED_ERROR` once the other models finish, because two copies of the model could otherwise end up running at once. Until then, another stop or retry of that model returns the same code. A model that times out follows the same rule, and so does a retry whose restart could not be recorded.
 
 ### Interview And Planning Editing
 
