@@ -683,7 +683,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 - Follow the recovery guidance for the actions currently available on the live error.
 - Click **Retry** to follow the failed phase's normal retry path: archive and rerun a non-coding phase attempt, or reset the failed bead during Implementing.
 - Click **Retry with extra note...** to append guidance to User Retry Notes during Implementing, or send a prompt to the preserved setup session during Preparing Workspace Runtime.
-- Click **Continue** to resume an addressable preserved OpenCode session after transient provider, network, or rate-limit interruptions, or after repairing a known OpenCode-server login or access rejection, without archiving phase attempts. Failed session creation without an existing session stays Retry-only; provider-login failures remain ineligible for Continue.
+- Click **Continue** to resume an addressable preserved OpenCode session after transient provider, network, or rate-limit interruptions, or after repairing a known OpenCode-server login or permission rejection, without archiving phase attempts. Billing, quota, invalid-request, and policy denials do not qualify for that server-login exception. Failed session creation without an existing session stays Retry-only; provider-login failures remain ineligible for Continue.
 - Click **Edit setup plan...** (when setup failed) to rewind to setup approval
 - Click **Cancel** to move the ticket to Canceled.
 

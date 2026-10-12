@@ -391,6 +391,9 @@ fails, the cleanup error keeps the original failure as its underlying cause.
 The five debug records appear newest first, and each record starts collapsed.
 Expand a record to inspect its complete multiline message and structured data
 after credential redaction. Each original JSONL line counts as one record.
+Repeated session errors stay separate even when their display identifiers match.
+Cookie secrets are redacted without dropping unambiguous neighboring diagnostic
+fields or breaking expanded JSON formatting.
 Recorded occurrences use the failed phase's time window, so later retries do not
 appear as evidence even when they reused the same OpenCode session. Reconstructed
 errors label their phase/time match and apply those bounds on the server before
@@ -414,8 +417,8 @@ from a test or setup command keeps that phase's recovery explanation.
 
 ### The Continue Path (`CONTINUE`)
 - Resumes an in-progress session without resetting or creating new attempts.
-- Used for continuable errors (HTTP 402, rate/usage limits, overload capacity, provider timeouts, and known OpenCode-server login or access rejections) where the same owned remote session is still active and addressable.
-- After a known OpenCode-server HTTP `401` or `403` login or access rejection, repair server login or access before continuing; the usual exact-session ownership and availability checks still apply. Failed session creation without an existing session stays Retry-only. Model-provider authentication failures remain ineligible for Continue.
+- Used for continuable errors (HTTP 402, rate/usage limits, overload capacity, provider timeouts, and known OpenCode-server login or permission rejections) where the same owned remote session is still active and addressable.
+- After a known OpenCode-server HTTP `401` or `403` login or permission rejection, repair server login or permissions before continuing; the usual exact-session ownership and availability checks still apply. Billing, quota, invalid-request, and policy denials do not qualify for this exception. Failed session creation without an existing session stays Retry-only. Model-provider authentication failures remain ineligible for Continue.
 - User-facing Continue across workflow phases is separate from the automatic bead-response continuation loop inside each bead iteration, so it does not consume `maxIterations`. That automatic path is bounded by finite `maxIterations`; `0` leaves its cap unlimited. A local cancellation request is not treated as a confirmed remote stop.
 - LoopTroop locks onto the preserved session and sends exactly:
   ```text

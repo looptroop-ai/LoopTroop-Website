@@ -346,19 +346,29 @@ Workspace initialization failures retain the actual error and available nested
 cause stacks, with the operation `initializing the ticket workspace`, runtime/system
 diagnostics, and their `INIT_*` codes. A Git authentication failure stays a
 workspace initialization failure; AI-provider login advice requires evidence of
-an AI-provider authentication failure.
+an AI-provider authentication failure. Initialization error messages are sanitized
+before entering ticket events, logs, stored error text, or API responses.
 
-Known OpenCode-server operations and transport failures keep server attribution,
-including a refused prompt dispatch. Provider-login guidance requires actual
-provider diagnostic evidence or a provider-auth code. An expired token reported
+Known OpenCode-server failures keep server attribution. A model-provider rejection
+received while dispatching a prompt keeps its provider identity, HTTP status,
+error type, and response preview; arriving through OpenCode does not make it a
+server-login failure. Provider-login guidance requires actual provider diagnostic
+evidence or a provider-auth code. An expired token reported
 by a test, setup command, or another service keeps that phase's explanation.
 When several readiness checks fail, the summary identifies the combined readiness
 failure and the original error keeps each named reason. It does not add a second
 failed-check checklist.
 
-After a known OpenCode-server login or access rejection (HTTP `401` or `403`),
-an existing preserved session can offer **Continue** once server login or access
-is repaired and the usual exact-session ownership and availability checks pass.
+If a prompt error reports only `Unauthorized` or `Forbidden` and provides no
+evidence identifying the server or provider, the error keeps the captured status,
+cause, and other metadata with neutral guidance and **Retry**. It does not infer
+a provider identity, suggest refreshing a particular login, or offer **Continue**.
+
+After a known OpenCode-server login or permission rejection (HTTP `401` or `403`),
+an existing preserved session can offer **Continue** once server login or
+permissions are repaired and the usual exact-session ownership and availability
+checks pass. Billing, quota, invalid-request, and policy denials do not qualify
+for this server-login exception.
 Failed session creation without an existing session stays **Retry**-only.
 Model-provider authentication failures keep their existing Retry behavior.
 
@@ -368,10 +378,22 @@ counts, including cache reads and writes. The provider response preview removes
 terminal control sequences before redacting recognized credential fields and
 common credential formats, then applies the OpenCode extractor's 280-character
 limit. The shared persistence normalizer has an outer ceiling of 1,000 characters.
+OpenCode's structured model errors retain their reported type, status, message,
+and response body, so recovery decisions use those fields even when the sentence
+alone does not identify authentication or a temporary provider failure.
+If a provider `401` includes explicit billing or payment-method evidence, the
+guidance addresses that cause without suggesting a login refresh. The reported
+type, status, and response preview remain available, and recovery stays Retry-only.
+The existing provider `402` Continue rule is unchanged.
+Long whitespace or escape sequences in malformed errors no longer cause repeated
+scanning during URL redaction or headline formatting, keeping error processing responsive.
 Redaction covers recognized credential keys, including camelCase assignments,
 secret and signing keys, SSH keys, passphrases, JWTs, and bearer values. It handles assignments
 split across lines in formatted JSON, labeled authorization values, Basic and
-Bearer credentials, and complete cookie header values.
+Bearer credentials, and cookie header secrets. Cookie redaction preserves
+unambiguous neighboring log fields, such as session, model, status, and message,
+and keeps expanded JSON valid. A real cookie header remains fully redacted when
+its contents cannot be safely separated from other fields.
 Common failure prose, structured formatting, and repeated lines remain readable,
 and the preview supports keyboard scrolling. Background refreshes of the same
 failure preserve the open section
@@ -384,7 +406,8 @@ the original failure as its cause.
 The five debug records appear newest first, and each record starts collapsed.
 Expand a record to inspect its complete multiline message and structured data
 after credential redaction. Each original JSONL line counts as one record,
-even when its displayed data spans many lines. LoopTroop matches the selected
+even when its displayed data spans many lines. Repeated session errors remain
+separate records even if they share the same display identifier. LoopTroop matches the selected
 error occurrence's failed phase and time window, so later retries cannot replace
 the evidence, including retries that reused the same OpenCode session. If only a
 reconstructed error is available, the view says that it matched records by phase

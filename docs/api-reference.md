@@ -745,14 +745,17 @@ Most action routes in this section respond with the latest machine snapshot so c
 
 The Continue endpoint is available only from `BLOCKED_ERROR`. It requires a known `previousStatus`, an unresolved active error occurrence with a diagnostic `sessionId`, a matching active `opencode_sessions` row for that ticket and previous phase, and an OpenCode session that is still addressable by that exact id. It returns `409` and leaves the ticket blocked when those checks fail. On success it dispatches `CONTINUE`, records the pending session continuation, and the next owned prompt sends exactly `continue please` without creating a fresh phase attempt.
 
-A known OpenCode-server login or access rejection (HTTP `401` or `403`) can
-use Continue after server login or access is repaired, provided the same existing session
+A known OpenCode-server login or permission rejection (HTTP `401` or `403`) can
+use Continue after server login or permissions are repaired, provided the same existing session
 passes these ownership and availability checks. A failed session creation with no
 session stays Retry-only. Model-provider authentication failures remain ineligible
 for Continue.
 The server-side exception requires diagnostic `kind: "opencode_session"`,
 `source: "opencode"`, and HTTP `statusCode` `401` or `403`; an explicit provider-auth
 code still excludes Continue.
+Billing, quota, invalid-request, and policy denials do not qualify for this
+server-login exception. Model-provider prompt rejections retain provider
+diagnostics and follow their existing recovery rules.
 
 The Retry endpoint accepts an empty body for ordinary recovery. It also accepts the following body when the ticket is currently in `BLOCKED_ERROR` with `previousStatus: "CODING"` or `previousStatus: "PREPARING_EXECUTION_ENV"`:
 
@@ -1208,7 +1211,10 @@ scope returns `409` with `code: "LOG_CURSOR_EXPIRED"`.
 Technical details requests the last five Debug-view records from this window,
 shows them newest first, and starts each record collapsed.
 Each record retains its complete structured data after credential redaction;
-occurrence- or time-window-filtered entries are sanitized before the response
+separate persisted error records remain distinct even when their display
+identifiers match. Native cookie secrets are redacted while preserving
+unambiguous neighboring log fields and valid structured formatting.
+Occurrence- or time-window-filtered entries are sanitized before the response
 leaves the backend. Their export sanitizes each evidence entry separately.
 Cursor and boundary metadata are preserved. Ordinary log pages and exports keep
 their existing content; the added native OpenCode `rawLine` field is sanitized in

@@ -43,11 +43,14 @@ debug records and the pre-flight report. The doctor report is sanitized before
 being logged or saved as an artifact. If several checks fail, the summary names
 the combined readiness failure while the original error keeps every reason.
 
-Authentication failures during known OpenCode-server operations, such as health checks, model listing, probe session creation, or prompt dispatch, concern the OpenCode server connection. The error preserves that operation and its reported cause without suggesting a model-provider login refresh.
+Authentication failures during known OpenCode-server operations, such as health checks, model listing, or probe session creation, concern the OpenCode server connection. The error preserves that operation and its reported cause without suggesting a model-provider login refresh. A provider rejection of the probe prompt retains its provider identity, status, error type, and response preview, including OpenCode's structured model-step error fields.
 
 A failed probe session creation has no session to continue, so recovery uses
 **Retry** after repairing the server login. For workflow work with an existing
-preserved session, a known server-login or access rejection may offer **Continue** after server login or access is repaired and exact-session safety checks pass. Model-provider
+preserved session, a known server-login or permission rejection may offer
+**Continue** after server login or permissions are repaired and exact-session
+safety checks pass. Billing, quota, invalid-request, and policy denials do not
+qualify for that exception. Model-provider
 authentication failures retain their Retry behavior.
 
 ### 1.3 Outcomes and failure behavior

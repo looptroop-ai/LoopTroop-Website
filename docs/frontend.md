@@ -193,7 +193,9 @@ closes the section again.
 The five debug records appear newest first, and each record starts collapsed.
 Expand a record to inspect its complete multiline message and structured data
 after credential redaction. Each original JSONL line counts as one record,
-even when its displayed data spans several lines. The server matches a recorded
+even when its displayed data spans several lines. Repeated session errors stay
+separate records even when they reuse a display identifier. Cookie redaction
+preserves unambiguous neighboring fields and valid expanded JSON. The server matches a recorded
 occurrence's failed-phase time window, so later retries stay out of historical
 evidence even if they reused the same OpenCode session. A reconstructed error
 labels its phase/time match and sends its bounds to the server before the
@@ -212,10 +214,17 @@ code; an expired token reported by a test or setup command retains that phase's
 explanation. Explicit OpenCode-server authentication failures retain server advice.
 If several readiness checks fail, the summary identifies the combined failure
 while the original error retains each named reason, without a duplicate checklist.
-After a known OpenCode-server login or access rejection, the server can advertise **Continue**
-for an existing preserved session once server login or access is repaired and the usual safety
-checks pass. Failed session creation without an existing session stays Retry-only;
+After a known OpenCode-server login or permission rejection, the server can advertise **Continue**
+for an existing preserved session once server login or permissions are repaired
+and the usual safety checks pass. Billing, quota, invalid-request, and policy
+denials do not qualify for that server-login exception. Failed session creation without an existing session stays Retry-only;
 model-provider authentication failures remain ineligible for Continue.
+Provider rejections of a prompt retain their provider identity, status, error
+type, and response preview, including structured OpenCode model-step failures.
+If a prompt error says only `Unauthorized` or `Forbidden` without identifying the
+server or provider, the page shows captured status, cause, and other metadata with
+neutral guidance and Retry. It does not assume a provider identity, recommend a
+particular login refresh, or offer Continue.
 
 ### Manual QA workspace
 

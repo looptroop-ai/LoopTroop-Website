@@ -555,10 +555,12 @@ During `CODING`, LoopTroop can preserve the active session for interruptions suc
 - retry-budget exhaustion on matching OpenCode retry states
 - selected provider/session timeouts
 - transport or session failures that remain safely resumable
-- a known OpenCode-server login or access rejection (HTTP `401` or `403`), after repairing server login or access and passing the same exact-session safety checks
+- a known OpenCode-server login or permission rejection (HTTP `401` or `403`), after repairing server login or permissions and passing the same exact-session safety checks
 
 Failed session creation without an existing session stays Retry-only.
 Model-provider authentication failures remain ineligible for Continue.
+Billing, quota, invalid-request, and policy denials do not qualify for the
+server-login exception.
 
 When Continue is available, returning from `BLOCKED_ERROR` sends exactly:
 
