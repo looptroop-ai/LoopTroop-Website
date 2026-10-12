@@ -157,9 +157,9 @@ Retry restarts just that model with a full AI response timeout of its own, so th
 
 In Council Drafting Specs each model has two chips, one for Part 1 (Full Answers) and one for Part 2 (the PRD draft). Retry from the Part 1 chip redoes both parts. Retry from the Part 2 chip keeps Part 1 answers that passed validation and redoes only the PRD draft; without them, or after a stop, it redoes both parts. Stop from either chip stops the model and throws away both parts.
 
-In Council Drafting Specs and Council Drafting Blueprint a model can be waiting on an AI question you had not answered. Stop and Retry close that question together with the model's session, and the skip trail records it as refused by you, because you stopped or restarted the model. The other council steps never ask AI questions.
+In Council Drafting Specs and Council Drafting Blueprint a model can be waiting on an AI question you had not answered. Stop and Retry close that question as soon as you confirm, even if OpenCode then cannot confirm the stop, and the skip trail records it as refused by you, because you stopped or restarted the model. The other council steps never ask AI questions.
 
-If OpenCode cannot confirm that the model's session stopped, the step fails into `BLOCKED_ERROR`, because two copies of the model could otherwise end up running at once. A model that times out follows the same rule.
+If OpenCode cannot confirm that the model's session stopped, the step fails into `BLOCKED_ERROR`, because two copies of the model could otherwise end up running at once. A model that times out follows the same rule. **Retry** there first stops the step's leftover sessions, and stays unavailable until OpenCode confirms that stop.
 
 ## 9. Why LoopTroop Uses Council Instead Of Debate Chat
 

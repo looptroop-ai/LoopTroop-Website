@@ -766,6 +766,8 @@ The Retry endpoint accepts an empty body for ordinary recovery. It also accepts 
 
 For execution setup, the request requires the preserved `PREPARING_EXECUTION_ENV` OpenCode session. LoopTroop sends only the user's text as the next prompt in that session and allows exactly one manual setup attempt beyond the configured automatic retry budget. The current runtime phase attempt is not archived, and the text is not appended to `execution_setup_notes` or reused as future setup context. If the session cannot be resumed or the manual attempt cannot start, the ticket remains blocked. Note-bearing requests for historical errors, other phases, blank notes, or oversized notes are rejected. Omitting `note` preserves ordinary Retry behavior.
 
+After a council drafting or voting step, or `PREPARING_EXECUTION_ENV`, Retry first stops the ticket's leftover OpenCode sessions. Until OpenCode confirms that stop, it returns `409` with `Retry is not available until the previous OpenCode session stop is confirmed`, so a retried council round cannot reconnect to a model whose stop never went through.
+
 The ticket's advertised `availableActions` are authoritative for recovery UI.
 Setup approval does not imply `edit_execution_setup_plan` or a note-bearing
 retry; those actions are available only for the live blocked runtime setup when
@@ -816,7 +818,7 @@ Stop closes the model's OpenCode session, marks it `stopped`, discards whatever 
 
 Retry restarts one model with a full AI response timeout of its own. While the step is still running, it accepts a model that is still working, one that ended without a usable result, and one that finished, whose draft or vote is then discarded for good. An optional `part` is read only in `DRAFTING_PRD`: `full_answers` redoes Full Answers and the PRD draft, while `prd_draft`, the default, keeps Full Answers that passed validation and redoes only the PRD draft; without them, or after a stop, it redoes both parts. Naming a `part` for any other step returns `400`. Retry returns `{ "success": true, "phase": "...", "memberId": "..." }` once the old run has stopped and the new one has started.
 
-If the model was waiting on an AI question nobody had answered (only Council Drafting Specs and Council Drafting Blueprint can ask), that question closes together with the model's session. Its skip receipt records `skippedBy: user` with the expiry reason `member_stopped` or `member_restarted`.
+If the model was waiting on an AI question nobody had answered (only Council Drafting Specs and Council Drafting Blueprint can ask), that question closes as soon as the stop or retry is accepted, even if OpenCode then cannot confirm the stop. Its skip receipt records `skippedBy: user` with the expiry reason `member_stopped` or `member_restarted`.
 
 An invalid body returns `400`, and an unknown ticket returns `404`. A refused stop or retry returns `409` with `{ "error": "...", "code": "..." }`. The `error` text is written for people, so match on `code`:
 
@@ -1162,7 +1164,7 @@ There is deliberately no `skippedBy` field. A client claiming `timeout` would fo
 
 `POST /api/tickets/:id/opencode/question-timer/stop` takes an empty object and returns `{ "success": true, "timers": [...], "timer": ... }`. Every way of engaging goes through it: switching model tabs, moving between questions, focusing an answer field, and pressing **Stop timer**. It is idempotent, and a second call returns the same state rather than an error. There is no matching resume; the ways out of a stopped countdown are answering and skipping.
 
-Reply, reject, and expiry all race for the same request. Whichever arrives first claims it; a loser gets `409` with `That question was already resolved` while the claim is still in flight, and `404` once the request has been cleared. Neither sends a second verdict for a question that already has one. A reply or reject that fails to reach OpenCode hands its claim back, so the request stays answerable.
+Reply, reject, and expiry all race for the same request. Whichever arrives first claims it; a loser gets `409` with `That question was already resolved` while the claim is still in flight, and `404` once the request has been cleared. Neither sends a second verdict for a question that already has one. A reply or reject that fails to reach OpenCode hands its claim back, so the request stays answerable. One whose question was closed while OpenCode took it, because its session ended or its council model was stopped, returns `409` with `That question was closed before your answer was recorded` (or `skip`); the record that close wrote is the only one kept.
 
 See [Configuration → AI Questions](configuration.md#ai-questions) for the settings that decide whether a model may ask and how long it waits.
 
