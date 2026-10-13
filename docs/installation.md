@@ -671,6 +671,8 @@ For non-mutating startup, forced maintenance, and manual maintenance commands, s
 
 ## Download statistics
 
+The GitHub README's total-downloads badge uses the same counter shown here: npm registry downloads, Docker Hub pulls, and GitHub release bundles, standalone executables, and npm tarballs. Installer-script fetches are excluded. These are download events, not unique users or confirmed installations; the badge can lag this page because of caching.
+
 ```project-stats
 ```
 
