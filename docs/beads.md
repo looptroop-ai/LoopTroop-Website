@@ -308,7 +308,7 @@ Approved beads do not go straight into `CODING`. They first pass through a deter
 | `RUNNING_FINAL_TEST` | Whole-change validation after all beads are done |
 | `INTEGRATING_CHANGES` | Prepare the final integrated change set |
 | `CREATING_PULL_REQUEST` | Draft and publish the delivery PR |
-| `WAITING_PR_REVIEW` | Wait for merge or close-unmerged outcome |
+| `WAITING_PR_REVIEW` | Wait for a merge or finish-without-merge outcome |
 | `CLEANING_ENV` | Remove temporary execution artifacts |
 
 `BLOCKED_ERROR` can interrupt any of the execution-band phases above.

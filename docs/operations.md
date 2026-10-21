@@ -220,6 +220,13 @@ daemon startup handoff retains its configured daemon environment. Filtering
 credential propagation is not a process sandbox; commands still run with the
 same user's filesystem access.
 
+Managed OpenCode workflow sessions also have a permission guard for direct
+GitHub writes, remote Git writes, and destructive changes to managed worktree,
+Git, and ticket state. A refusal reports why and leaves the session available
+for local work. Scripts and helper sessions with independent permissions can
+still use credentials available to their process. See [OpenCode Integration](opencode-integration.md#_4-1-tool-policy-layer)
+for the guard's scope.
+
 When launching Windows PowerShell, LoopTroop removes inherited `PSModulePath`
 case-insensitively so that shell rebuilds its standard module search. This
 keeps hash verification, archive extraction and CIM process checks available

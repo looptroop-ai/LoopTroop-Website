@@ -58,6 +58,13 @@ boundary removes only LoopTroop's two daemon credential names and retains
 intentional provider and Git credentials. The trusted CLI-to-daemon handoff is
 kept intact. This is credential propagation control, not a process sandbox.
 
+Each managed workflow prompt also receives a shared delivery instruction, and
+its OpenCode permission guard refuses direct GitHub writes, remote Git writes,
+and destructive changes to managed ticket worktrees, Git metadata, or ticket
+state. Helper sessions can have independent permissions, and arbitrary scripts
+can still use credentials available to their process. The guard does not
+provide host-level isolation; see [OpenCode Integration](opencode-integration.md#_4-1-tool-policy-layer).
+
 Filesystem safety is enforced at runtime by contained, no-follow, managed-root,
 and ticket-root helpers. Static checks reinforce those contracts with known
 syntax forms and exact filename-plus-operation boundaries, including a
@@ -153,7 +160,7 @@ For the per-table breakdown of which database owns what, see the [Database Schem
 8. The user approves the beads artifact; LoopTroop drafts the pre-implementation execution setup plan in an active status, then publishes a separate copy for human review.
 9. Implementation runs bead by bead in an isolated ticket worktree, with bounded retry per bead.
 10. Post-implementation final testing routes either directly to integration or through the start-locked optional `GENERATING_QA_CHECKLIST → WAITING_MANUAL_QA` loop. QA failures become fix beads and return to coding/fresh tests; pass, waiver, or skip continues.
-11. Integration, PR creation, review follow-up, and cleanup drive the ticket to `COMPLETED`, `CANCELED`, or `BLOCKED_ERROR`. A verified merge or closed-unmerged decision is durable for the same PR and can resume after an interrupted dispatch; an initial remote refresh failure records a recovery receipt and leaves the ticket waiting without a decision.
+11. Integration, PR creation, review follow-up, and cleanup drive the ticket to `COMPLETED`, `CANCELED`, or `BLOCKED_ERROR`. Before a candidate is pushed, LoopTroop checks matching merged PRs and verifies their landed commit and tree. A matching candidate completes from the original PR; additional candidate changes are carried onto the current verified base and return through final tests, optional Manual QA, integration, and a new PR. Missing proof or a patch conflict preserves the work for manual recovery. Merge and finish-without-merge decisions are durable for the same PR and resume after an interrupted dispatch.
 
 The full phase map lives in [Ticket Flow & State Machine](ticket-flow.md).
 
@@ -227,9 +234,10 @@ Recovery is a first-class architectural concern.
 | Bead execution deadline | Append a Failed Iteration Note, abandon the session, and attempt a safe reset before retrying in fresh context. A conflicting valid OpenCode step-cap marker can refuse the destructive reset and preserve the edited config and sidecar. |
 | Interrupted OpenCode step-cap restore | Preserve the edited root config and valid sidecar, refuse a destructive reset that would overwrite it, and let a later bead continue without a fresh cap when no reset is needed. A missing sidecar after restart supplies no ownership evidence. |
 | Interrupted protected Git-hook validation | Reuse the identity-bound marker. Invalid or escaped markers fail before recovery writes; unknown untracked additions remain intact and reentry is refused until attribution is resolved. |
+| Matching PR already merged before candidate push or during review | Verify the PR's landed commit on the current remote base, fetch its exact head, and compare its tree with the candidate. Equal trees complete using the original PR and store both identities in `early_merge_recovery`; a candidate delta is applied to a recovery worktree based on the verified base and returns to `RUNNING_FINAL_TEST`. Missing proof or patch conflict records manual-recovery details while preserving the original candidate and any recovery worktree. |
 | OpenCode reconnect gap | Validate the exact project-local owned session against the remote session and the ticket-contained pending-session marker; preserve all centrally classified blocked-error continuations and all temporarily unverifiable records, and abandon only confirmed-missing or stale ownership. If both SQLite and marker storage are unavailable, only the current process guard remains, so restart recovery is not promised |
-| Initial pull-request refresh failure | Record a typed durable recovery receipt with `step: refresh_pull_request`, the PR number, error, and null remote state/URL; keep the ticket in `WAITING_PR_REVIEW` without recording Merge or Close Without Merge success |
-| Interrupted pull-request completion | Resume the persisted decision for the same PR after revalidation. A recorded merge or closed-unmerged result fences conflicting Merge, Close Without Merge, and Cancel actions; an observed merged state remains visible even when candidate-head validation refuses completion |
+| Initial pull-request refresh failure | Record a typed durable recovery receipt with `step: refresh_pull_request`, the PR number, error, and null remote state/URL; keep the ticket in `WAITING_PR_REVIEW` without recording a Merge or Finish Without Merge decision |
+| Interrupted pull-request completion | Resume the persisted merge or finish-without-merge decision for the same PR after revalidation. A recorded result fences conflicting Merge, Finish Without Merge, and Cancel actions. Early-merge recovery stores the PR head, candidate/tree proofs, landed commit and recovery worktree details so a corrected candidate can resume through final tests. |
 | Backend process restart | Reconcile persisted XState snapshots, hydrate ticket actors from durable ticket state, and immediately process restored active snapshots. Drafting setup plans consume a durable regeneration request exactly once rather than duplicating or losing a generation. An interrupted coding attempt without a preserved continuation or current finalization checkpoint consumes a Failed Iteration Note, resets safely, advances its iteration, and receives a fresh configured deadline |
 | User edits approved interview or PRD | Archive the active approved generation and downstream attempts, cancel downstream sessions intentionally, clear stale downstream artifacts/UI state, persist a `user_edit_receipt:*`, and restart from the next drafting phase |
 | User edits or regenerates setup plan during runtime setup | Stop active runtime setup, archive the relevant setup-plan/runtime attempts, preserve the tool cache when safe, and clear stale outputs. Editing returns directly to `WAITING_EXECUTION_SETUP_APPROVAL`; regeneration persists the baseline/commentary and enters `GENERATING_EXECUTION_SETUP_PLAN` before fresh approval |
@@ -476,7 +484,7 @@ flowchart LR
 
     subgraph Delivery["Delivery"]
         Git[git worktree / reset / commit]
-        GitHub[GitHub PR lifecycle<br/>create / merge / close-unmerged]
+        GitHub[GitHub PR lifecycle<br/>create / merge]
     end
 
     User --> SPA

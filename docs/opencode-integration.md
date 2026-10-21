@@ -252,7 +252,7 @@ files cannot be recovered.
 
 For trusted local LoopTroop sessions, the managed OpenCode server is permissive by default: `scripts/dev-opencode.ts` sets `OPENCODE_PERMISSION='"allow"'` when it starts `opencode serve`, unless `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` is set. LoopTroop also applies a complete ordered SDK permission policy to each session immediately before prompting. The unrestricted baseline explicitly allows all actions, `external_directory`, and `doom_loop`, including absolute-path patterns needed by system inspection and temporary tool provisioning; prompt-specific restrictions are appended afterward so read-only, tool-disabled, and web-access policies remain authoritative.
 
-Unexpected permission requests are treated as a headless-runtime compatibility fallback rather than user input. LoopTroop answers each new permission request once, but not every answer is `always`: if the resolved session policy denies that permission, LoopTroop replies with `reject`; otherwise it uses `always` so the unattended prompt can continue. If OpenCode rejects or fails that reply, LoopTroop aborts the session immediately and returns an actionable prompt failure so the workflow's existing retry or blocked-error path can take over instead of appearing idle. These controls remove approval stalls from trusted unattended automation, but they do not bypass normal OS privileges or make passworded `sudo` a dependency of setup.
+Unexpected permission requests are treated as a headless-runtime compatibility fallback rather than user input. LoopTroop replies `reject` when the session policy or managed workflow guard blocks an operation, and includes the reason when available. Other requests receive a one-time `once` approval; LoopTroop no longer grants an unexpected request `always` approval. If OpenCode rejects or fails the reply, LoopTroop aborts the session immediately and returns an actionable prompt failure so the workflow's retry or blocked-error path can take over instead of appearing idle. These controls remove approval stalls from trusted unattended automation, but they do not bypass normal OS privileges or make passworded `sudo` a dependency of setup.
 
 ### 4.1 Tool Policy Layer
 
@@ -266,6 +266,12 @@ Prompt templates choose from four OpenCode tool policies:
 | `execution_setup_online` | Re-enables `webfetch` and `websearch` for setup prompts that may need official installer or launcher lookup |
 
 That policy layer is resolved into a complete ordered session permission ruleset and applied at the `runOpenCodePrompt()` / `runOpenCodeSessionPrompt()` boundary before each prompt. Explicit restrictions follow the permissive baseline and therefore win for read-only and tool-disabled phases. For the prompt-to-policy mapping, see [Prompt Inventory](prompts.md).
+
+#### Managed workflow guard
+
+LoopTroop attaches project, worktree, and ticket paths to each workflow session it owns. When OpenCode requests a command or file mutation, the guard checks the direct command or paths against those roots. It refuses GitHub writes and remote Git writes, and blocks destructive changes to the managed worktree, its `.git`, `.ticket`, and `.looptroop` state. It also blocks removing `.ticket/runtime` or changing its execution logs and approved setup profile. Writes to runtime setup and tool-cache paths remain available, along with ordinary local edits and deletions and local scratch repositories.
+
+A refusal includes its reason and leaves the current workflow session open so the model can try to continue local work. OpenCode helper or subagent sessions may use independent permissions, and the guard does not cover arbitrary scripts, custom executables, or network clients. It is not a process sandbox. LoopTroop's own GitHub and Git operations run outside this model-session guard. See [Prompt Inventory](prompts.md) for the shared delivery instruction added to workflow prompts.
 
 The `question` tool is the one exception to the table above: none of the four policies decides it any more. It is set from the ticket's AI-questions setting, except under `disabled`, which never asks whatever the setting says. See [Who May Ask](#_9-1-who-may-ask).
 

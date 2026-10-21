@@ -1,8 +1,8 @@
 # Post-Implementation
 
-Post-implementation is LoopTroop's delivery pipeline. After `CODING` finishes, LoopTroop does **not** immediately push or merge the result. It first validates the whole ticket, turns bead-level history into one candidate commit, audits the final diff again before any remote side effects, pauses for human PR review, and only then removes temporary runtime state.
+Post-implementation is LoopTroop's delivery pipeline. After `CODING` finishes, LoopTroop does **not** immediately push or merge the result. It first validates the whole ticket, turns bead-level history into one candidate commit, audits the final diff, checks for a matching PR that may already be merged before pushing, pauses for human PR review when needed, and only then removes temporary runtime state.
 
-This stage is intentionally conservative: final testing can still fail delivery, explicit intent and tracked or staged changes are preserved, PR creation can still rewrite the candidate to exclude unrelated byproducts, and cleanup preserves the audit trail rather than deleting evidence. Untracked generated, cache, and setup-local outputs remain usable in the worktree but do not inflate implementation totals or enter checkpoints and delivery.
+Final testing can still fail delivery, explicit intent and tracked or staged changes are preserved, PR creation can still rewrite the candidate to exclude unrelated byproducts, and cleanup preserves the audit trail. Untracked generated, cache, and setup-local outputs remain usable in the worktree but do not inflate implementation totals or enter checkpoints and delivery. If a matching PR already merged, LoopTroop verifies what landed and either completes from that PR or sends the remaining candidate changes through final tests and normal delivery again.
 
 | Status | Purpose | Main outputs |
 | --- | --- | --- |
@@ -10,8 +10,8 @@ This stage is intentionally conservative: final testing can still fail delivery,
 | `GENERATING_QA_CHECKLIST` | Prepare a clean checkpoint and human checklist with live milestones when Manual QA is locked on. | structured/Raw `manual_qa_checklist`, four-state coverage, reservation, workspace baseline |
 | `WAITING_MANUAL_QA` | Wait for user-run verification, evidence, configurable Improvements, AI-planned QA fixes, submit/skip, and drift decisions. | draft/results/summary, evidence refs, `fix-beads.yaml`, normal QA beads, improvement tickets |
 | `INTEGRATING_CHANGES` | Apply the approved Git-hook policy and turn bead-level commits into one local candidate commit. | `integration_report` with hook-validation outcomes |
-| `CREATING_PULL_REQUEST` | Audit the final candidate files, push the candidate SHA, and create or update the draft PR. | `candidate_file_audit`, `candidate_diff`, `pull_request_report`, optional `git_recovery_receipt` on failure |
-| `WAITING_PR_REVIEW` | Pause automation for the final human review and merge/finish decision. | `merge_report` |
+| `CREATING_PULL_REQUEST` | Audit candidate files and detect a matching merged PR before pushing or creating a new draft. | `candidate_file_audit`, `candidate_diff`, `pull_request_report`, `early_merge_recovery` |
+| `WAITING_PR_REVIEW` | Pause for human review and resolve a merge made in GitHub or through LoopTroop. | `merge_report`, optional `early_merge_recovery` |
 | `CLEANING_ENV` | Remove temporary runtime state while preserving audit history. | `cleanup_report` |
 
 ---
@@ -195,11 +195,17 @@ Only after the candidate audit is settled does LoopTroop ask the locked main imp
 - diff name/status
 - diff patch
 
-The response must match a strict YAML schema. Structured retries happen before any remote git or GitHub side effects. If parsing still fails, LoopTroop records diagnostics and falls back to a deterministic PR title/body instead of blocking the ticket on prose formatting.
+The response must match a strict YAML schema. Structured retries finish before LoopTroop pushes the remote candidate or creates or updates a PR. If parsing still fails, LoopTroop records diagnostics and falls back to a deterministic PR title/body instead of blocking the ticket on prose formatting.
 
 ### 4.3 Push and PR upsert
 
-After the candidate audit and PR draft are ready, LoopTroop:
+Before pushing, LoopTroop checks for a merged PR matching the ticket branch and base branch. It verifies GitHub's recorded landed commit on the current `origin/<base>` and fetches the exact PR head. It compares the PR head tree with the audited candidate tree.
+
+- **Matching trees:** LoopTroop records the original PR and both commit/tree proofs in `early_merge_recovery` and `merge_report`, leaves the remote ticket branch alone, and completes the ticket through cleanup. It does not create a duplicate PR.
+- **Different trees:** LoopTroop applies only the difference between the merged PR head and the candidate to a recovery worktree based on the verified remote base. It preserves the original candidate by Git ref; a clean correction may reset the managed ticket worktree. LoopTroop then returns the ticket to `RUNNING_FINAL_TEST`. The configured Manual QA step, integration, final candidate audit, and creation of a new PR run again. The already-merged PR remains in history and is never updated.
+- **Missing proof or patch conflict:** LoopTroop preserves the original ticket candidate and any recovery worktree, records a `manual_recovery_required` result and Git recovery receipt, and moves the ticket to `BLOCKED_ERROR` with the recovery path and conflict paths when available. It leaves resolution to you; no AI session is asked to choose a conflict resolution.
+
+When no matching merged PR needs reconciliation, or after a corrected candidate has completed its checks, LoopTroop:
 
 1. force-pushes the candidate SHA to the remote ticket branch using `--force-with-lease`
 2. creates a new draft PR, or updates the existing PR for that branch
@@ -234,17 +240,16 @@ Once the draft PR exists, automation pauses. The UI surfaces the reviewer-facing
 
 ### 5.1 Merge path
 
-If the user chooses merge, LoopTroop marks the PR ready when needed, merges it
-on GitHub, verifies the merge on the remote base branch, and then records a
-`merge_report`. Verification requires the PR head to match the approved
+If the user chooses Merge while the PR is open, LoopTroop marks it ready when
+needed, merges it on GitHub, verifies the merge on the remote base branch, and
+then records a `merge_report`. It requires the PR head to match the approved
 candidate and the remote base to contain GitHub's recorded landed commit. The
-local checkout is left untouched. Remote branch deletion after a successful
+user's original project checkout stays untouched. Remote branch deletion after a successful
 merge is best-effort and any warning is preserved in the report.
 
 The Merge button uses GitHub merge commits, so the repository must allow that
-method. For squash-only or rebase-only repositories, merge in GitHub; LoopTroop
-detects those landed merges as described below without accepting unapproved head
-changes.
+method. For squash-only or rebase-only repositories, merge on GitHub; LoopTroop
+verifies those landed merges and checks for candidate changes as described below.
 
 ### 5.2 Finish-without-merge path
 
@@ -256,12 +261,17 @@ If the user chooses the non-merge finish path (`close_unmerged` in the workflow 
 ### 5.3 External merge detection
 
 If the PR is merged manually on GitHub while `WAITING_PR_REVIEW` is open,
-LoopTroop detects that state, skips a duplicate merge call, verifies the remote
-base branch, and continues automatically. The daemon keeps polling even without
-an open UI and resumes that check after restart. Failed checks leave the ticket
-waiting and retry automatically. Once a merge is verified, Cancel and Finish
-Without Merge cannot replace that recorded outcome. Repeating Merge during
-cleanup or after completion returns the recorded success.
+LoopTroop detects that state, skips a duplicate merge call, and verifies the
+landed commit on the remote base. It compares the merged PR head with the
+current candidate. Matching trees complete from the original PR. If the
+candidate has additional changes, LoopTroop applies only that corrective delta
+to the verified base and returns the ticket to `RUNNING_FINAL_TEST`; a conflict
+or missing proof keeps the candidate and recovery worktree for manual recovery.
+The daemon keeps polling without an open UI and resumes checks after restart.
+Failed remote checks leave the ticket waiting and retry automatically. Once a
+merge is verified, Cancel and Finish Without Merge cannot replace that recorded
+outcome. Repeating Merge during cleanup or after completion returns the
+recorded success.
 
 ---
 
@@ -320,6 +330,7 @@ instead of reopening review or re-running merge work.
 | `candidate_file_audit` | `CREATING_PULL_REQUEST` | Include/exclude/review decisions for the final diff before push |
 | `candidate_diff` | `CREATING_PULL_REQUEST` | Net diff for the final candidate after any audit rewrite |
 | `pull_request_report` | `CREATING_PULL_REQUEST` | Stored PR metadata and generated title/body |
+| `early_merge_recovery` | `CREATING_PULL_REQUEST` or `WAITING_PR_REVIEW` | Proof for an already-merged PR, the original and corrected candidate SHAs, and manual-recovery details when reconciliation cannot be proved safely |
 | `merge_report` | `WAITING_PR_REVIEW` | Completion outcome for merged vs finished-without-merge, including `closeReason` when the user finished without merging |
 | `skip_receipt:<surface>` | any phase with a skip | Append-only record of one user action that skipped something: surface, item, phase and attempt, timestamp, and the reason as it read at that moment |
 | `cleanup_report` | `CLEANING_ENV` | Removed/preserved runtime resources plus warning state |

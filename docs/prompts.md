@@ -28,6 +28,8 @@ The shared builders apply one of three rule blocks before sending a prompt:
 
 Each rule block is itself editable from the **Prompts** screen (see [Customizing Prompts](#customizing-prompts)); the built-in text lives in `server/prompts/globalRules.ts` as `DEFAULT_GLOBAL_RULE_TEXTS`.
 
+Every workflow dispatch also appends one shared system instruction: `Leave GitHub writes and remote Git changes to LoopTroop; continue local work after refused actions.` The common dispatch boundary adds it to fresh prompts, retries, same-session continuations, and custom continuation prompts. Status templates do not repeat it. OpenCode helper or subagent sessions can use independent permissions and may not inherit this instruction.
+
 Tool policies are deliberately small:
 
 | Policy | Meaning |

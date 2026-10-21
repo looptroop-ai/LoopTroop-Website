@@ -185,6 +185,8 @@ LoopTroop treats isolation as a correctness boundary, not just a convenience. It
 
 At the host layer, unattended AI execution is safer in a disposable VM, container, cloud dev machine, or similarly sandboxed environment. Worktrees protect the repo boundary; they do not replace process isolation, filesystem policy, or host-level blast-radius reduction. If an agent can run commands for hours, the safer default is to give it a safe host to operate in.
 
+LoopTroop also checks direct GitHub writes, remote Git writes, and destructive changes to managed ticket worktrees, Git metadata, and LoopTroop-owned state in its workflow sessions. OpenCode helper sessions can use independent permissions, and scripts or network clients may still act with the host's available credentials. This guard does not replace the host isolation described above. See [OpenCode Integration](opencode-integration.md#_4-1-tool-policy-layer) for its scope.
+
 **Read more:** [Authoritative Data Ownership](system-architecture.md#_3-authoritative-data-ownership) and [Execution Isolation](context-engineering.md#_11-execution-isolation), plus Git's official [`git worktree`](https://git-scm.com/docs/git-worktree.html) documentation.
 
 ## 13. Slow Planning To Avoid AI Slop

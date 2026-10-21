@@ -681,8 +681,8 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 | `POST` | `/api/tickets/:id/approve-execution-setup-plan` | Approve execution setup plan |
 | `POST` | `/api/tickets/:id/edit-execution-setup-plan` | After UI confirmation, rewind a blocked workspace runtime setup to setup-plan approval |
 | `POST` | `/api/tickets/:id/coverage/fix-gaps` | Run one approval-screen extra fix for unresolved PRD or beads coverage gaps |
-| `POST` | `/api/tickets/:id/merge` | Merge delivered PR |
-| `POST` | `/api/tickets/:id/close-unmerged` | Close without merge: accepts an optional `{ "reason": "..." }` body, stored as `closeReason` on the `merge_report` artifact. Unknown fields return `400`, so a retry note cannot be sent here by mistake |
+| `POST` | `/api/tickets/:id/merge` | Merge the delivered PR or reconcile an already-merged PR against the current candidate |
+| `POST` | `/api/tickets/:id/close-unmerged` | Finish without merging; leaves the remote PR and branch untouched. Accepts an optional `{ "reason": "..." }` body, stored as `closeReason` on `merge_report`. Unknown fields return `400` |
 | `POST` | `/api/tickets/:id/verify` | Alias for the merge handler: both routes call the same handler |
 | `POST` | `/api/tickets/:id/retry` | Retry a blocked ticket or failed phase; an optional `{ "note": "..." }` body adds CODING bead guidance or sends one direct message to a preserved execution setup session |
 | `POST` | `/api/tickets/:id/continue` | Continue a blocked ticket only when eligible OpenCode/provider diagnostics, including `HTTP 402 Payment Required`, have a matching active preserved OpenCode session |
@@ -690,15 +690,22 @@ Ticket projections expose `visitedStatuses`, monotonic `workflowRevision`, and `
 | `POST` | `/api/tickets/:id/council/members/retry` | Restart one model of a running council drafting or voting step with a full AI response timeout of its own (see below) |
 | `POST` | `/api/tickets/:id/dev-event` | Disabled by default; requires `LOOPTROOP_ENABLE_DEV_EVENT=1`, `LOOPTROOP_DEV_EVENT_TOKEN`, and `X-LoopTroop-Dev-Event-Token` |
 
-Merge and Close Without Merge read the live pull request before making a
+Merge and Finish Without Merge read the live pull request before making a
 decision, then revalidate the same PR under the ticket lock. An initial remote
 read failure writes a typed recovery receipt with `step: "refresh_pull_request"`,
 the PR number, the error, and null remote state/URL, then leaves the ticket in
-`WAITING_PR_REVIEW` without recording success. A verified merge or
-closed-unmerged decision resumes after an interrupted dispatch and fences
-conflicting actions for that PR; observed merged state remains visible even if
-approved-candidate validation rejects completion. Close Without Merge never
-merges the PR, and remote uncertainty is not recorded as success.
+`WAITING_PR_REVIEW` without recording success. When GitHub reports that a PR is
+already merged, LoopTroop verifies its landed commit on the current remote base,
+fetches the exact PR head, and compares that tree with the approved candidate.
+Matching trees finish from the original PR and store the candidate and PR tree
+proofs in `merge_report`. A different candidate is reconciled as a corrective
+delta and returns to `RUNNING_FINAL_TEST`; missing proof or patch conflicts
+preserve the candidate and any recovery worktree for manual resolution. The
+same check runs before a candidate push, so no already-merged PR is updated.
+Verified merge or finish-without-merge decisions resume after an interrupted
+dispatch and fence conflicting actions for that PR. Finish Without Merge
+records a local workflow decision without closing or merging the remote PR,
+and remote uncertainty is not recorded as success.
 
 All approval routes, including the generic `/approve` route, require the hash of the content currently shown to the user:
 
