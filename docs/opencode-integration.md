@@ -269,7 +269,7 @@ That policy layer is resolved into a complete ordered session permission ruleset
 
 #### Managed workflow guard
 
-LoopTroop attaches project, worktree, and ticket paths to each workflow session it owns. When OpenCode requests a command or file mutation, the guard checks the direct command or paths against those roots. It refuses GitHub writes and remote Git writes, and blocks destructive changes to the managed worktree, its `.git`, `.ticket`, and `.looptroop` state. It also blocks removing `.ticket/runtime` or changing its execution logs and approved setup profile. Writes to runtime setup and tool-cache paths remain available, along with ordinary local edits and deletions and local scratch repositories.
+The guard applies to every workflow prompt, including retries and continuations. When managed project, worktree, and ticket paths are available, it checks requests against those roots. It also checks the underlying command when a session uses RTK or its proxy wrapper. The guard refuses GitHub writes and remote Git writes, and blocks destructive changes to the managed worktree, its `.git`, `.ticket`, and `.looptroop` state. It also blocks removing `.ticket/runtime` or changing its execution logs and approved setup profile. Writes to runtime setup and tool-cache paths remain available, along with ordinary local edits and deletions and local scratch repositories.
 
 A refusal includes its reason and leaves the current workflow session open so the model can try to continue local work. OpenCode helper or subagent sessions may use independent permissions, and the guard does not cover arbitrary scripts, custom executables, or network clients. It is not a process sandbox. LoopTroop's own GitHub and Git operations run outside this model-session guard. See [Prompt Inventory](prompts.md) for the shared delivery instruction added to workflow prompts.
 
@@ -509,7 +509,7 @@ Three denials are structural and beat the setting:
 - the interview generates its own questions, and is excluded by workflow group rather than by a hand-written list of statuses;
 - the `disabled` tool policy means the step only reformats text it was handed, so it has nothing to investigate.
 
-`default`, `read_only`, and `execution_setup_online` all follow the setting. Before this, `read_only` and `disabled` both carried a hard `question: false`, which is why only five prompts could ever ask regardless of configuration. The resolved rule sets are cached per `(policy, allowed)` pair, and the four "asking is off" variants are exported as `SILENT_*_PERMISSIONS` so tests assert against what is actually sent rather than against the policy tables.
+`default`, `read_only`, and `execution_setup_online` all follow the setting. The resolved rules are cached by policy, question setting, and whether the workflow guard applies. Tests check guarded workflow requests as well as the exported `SILENT_*_PERMISSIONS` baselines.
 
 See [Configuration → AI Questions](configuration.md#ai-questions) for the profile/project/ticket cascade and the ticket-start lock.
 
