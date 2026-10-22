@@ -205,6 +205,12 @@ Before pushing, LoopTroop checks for a merged PR matching the ticket branch and 
 - **Different trees:** LoopTroop applies only the difference between the merged PR head and the candidate to a recovery worktree based on the verified remote base. It preserves the original candidate by Git ref; a clean correction may reset the managed ticket worktree. LoopTroop then returns the ticket to `RUNNING_FINAL_TEST`. The configured Manual QA step, integration, final candidate audit, and creation of a new PR run again. The already-merged PR remains in history and is never updated.
 - **Missing proof or patch conflict:** LoopTroop preserves the original ticket candidate and any recovery worktree, records a `manual_recovery_required` result and Git recovery receipt, and moves the ticket to `BLOCKED_ERROR` with the recovery path and conflict paths when available. It leaves resolution to you; no AI session is asked to choose a conflict resolution.
 
+If the candidate delta already exists on the verified base, LoopTroop records an `already_landed` proof and completes without an empty corrective PR. A verified merge is sufficient even if conflict resolution omitted changes or later commits edited or reverted them; LoopTroop does not restore those changes automatically.
+
+Temporary fetch or transport failures can be retried. A missing-proof report is checked again on retry. A retained conflicting or manually edited recovery checkout is preserved for manual recovery and is never adopted automatically. If local files prevent installing a clean correction, the diagnostic identifies the original ticket checkout that needs attention rather than reporting a patch conflict. Corrective commits and their Git refs are retained so a retry can reuse a verified correction. If the base advances before that retry, LoopTroop reapplies the original remaining changes to the latest verified base and reruns validation. The earlier correction and any retained checkout stay preserved; a new patch conflict requires manual recovery.
+
+LoopTroop checks all matching PR pages, ignores newer PRs closed without merging, and gives a newer open PR precedence over an older merged one. It checks again after pushing before updating the PR record.
+
 When no matching merged PR needs reconciliation, or after a corrected candidate has completed its checks, LoopTroop:
 
 1. force-pushes the candidate SHA to the remote ticket branch using `--force-with-lease`

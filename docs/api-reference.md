@@ -702,6 +702,15 @@ proofs in `merge_report`. A different candidate is reconciled as a corrective
 delta and returns to `RUNNING_FINAL_TEST`; missing proof or patch conflicts
 preserve the candidate and any recovery worktree for manual resolution. The
 same check runs before a candidate push, so no already-merged PR is updated.
+An exact candidate delta already present on the verified base finishes with an
+`already_landed` proof. Manual recovery uses `EARLY_MERGE_RECOVERY_MANUAL` in
+both the merge route and background detection, with a reason, recovery path,
+and conflict paths when available. Local work preventing a clean reset is
+reported as `local_work_preserved`, not as a patch conflict. Temporary remote
+failures remain retryable. Retrying a saved correction after the base advances
+refreshes it on the latest verified base and reruns validation; the earlier
+correction is preserved, and a new conflict requires manual recovery. Verified merge history is sufficient even after
+later edits or reverts; current content is not an additional completion gate.
 Verified merge or finish-without-merge decisions resume after an interrupted
 dispatch and fence conflicting actions for that PR. Finish Without Merge
 records a local workflow decision without closing or merging the remote PR,
