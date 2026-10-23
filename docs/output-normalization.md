@@ -287,20 +287,26 @@ Two sub-cases:
 
 #### 18. Reserved indicator scalar repair
 
-**Trigger:** Plain scalars starting with `` ` `` (backtick) or `@`. YAML reserves these characters and rejects plain scalars that begin with them.
+**Trigger:** A plain scalar starts with a backtick, `@`, `,`, `]`, or `}`. `js-yaml` 5.5.0 also rejects block-style plain scalars beginning with `,`, `]`, or `}`.
 
 **Example:**
 ```yaml
 # Bad
 question: `repo_git_mutex` behavior?
 - @trace/span-id
+summary: ,value
+closing_bracket: ]value
+closing_brace: }value
 
 # Fixed
 question: "`repo_git_mutex` behavior?"
 - "@trace/span-id"
+summary: ",value"
+closing_bracket: "]value"
+closing_brace: "}value"
 ```
 
-**Warning:** *Quoted plain YAML scalars that began with reserved indicator characters (`` ` `` or `@`) before reparsing.*
+**Warning:** *Quoted plain YAML scalars that began with reserved indicator characters (backtick, at sign, comma, closing bracket, or closing brace) before reparsing.*
 
 #### 19. Sequence entry indent drift repair
 
