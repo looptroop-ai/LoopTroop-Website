@@ -61,10 +61,15 @@ kept intact. This is credential propagation control, not a process sandbox.
 Each managed workflow prompt also receives a shared delivery instruction, and
 its OpenCode permission guard refuses direct GitHub writes, remote Git writes,
 and destructive changes to managed ticket worktrees, Git metadata, or ticket
-state. It also checks `sed -f` scripts, Git pager commands, protected trace
-destinations, configured fetch refspecs, and Git's effective URL rewrite
+state. It checks Git indexes, executable-path and loader overrides, `sed -f`
+scripts, Git pagers, non-`cat` GitHub pager settings from inherited or
+command-level configuration, terminal-creating wrappers, forced GitHub
+terminal output, all browser-opening requests, protected trace destinations,
+and the selected
+remote's effective fetch refspecs. It checks Git's effective URL rewrite
 configuration before allowing a push to a local path. Helper sessions can have
-independent permissions, and other uninspected scripts can still use credentials
+independent permissions, and uninspected scripts or interpreter code such as
+`python -c` can still use credentials
 available to their process. The guard does not
 provide host-level isolation; see [OpenCode Integration](opencode-integration.md#_4-1-tool-policy-layer).
 
