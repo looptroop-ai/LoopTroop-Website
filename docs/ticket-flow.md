@@ -39,7 +39,7 @@ WAITING_PR_REVIEW -> merge or finish-without-merge -> CLEANING_ENV
 WAITING_MANUAL_QA -> failed submission -> CODING -> fresh RUNNING_FINAL_TEST -> next QA version
 ```
 
-Before pushing a candidate, LoopTroop checks whether a matching ticket PR has already merged. If its verified tree matches the candidate, the existing PR completes the ticket. If the candidate contains additional changes, LoopTroop carries only that delta onto the verified base and runs final tests, the configured Manual QA step, integration, and a new PR review. Missing proof or a patch conflict preserves the candidate and any recovery worktree for manual resolution.
+Before pushing a candidate, LoopTroop checks whether a matching ticket PR has already merged. If its verified tree matches the candidate, the existing PR completes the ticket. If the candidate contains additional changes, LoopTroop carries only that delta onto the verified base and runs final tests, the configured Manual QA step, integration, and a new PR review. If that corrective PR also merges before review, LoopTroop verifies it and repeats recovery for any remaining changes. Missing proof or a patch conflict preserves the candidate and any recovery worktree for manual resolution.
 
 Useful mental model:
 

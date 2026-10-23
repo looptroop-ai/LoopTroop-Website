@@ -717,6 +717,10 @@ refreshes it on the latest verified base and reruns validation; the earlier
 correction is preserved, and a new conflict requires manual recovery. Verified merge history is sufficient even after
 later edits or reverts; current content is not an additional completion gate.
 Uncommitted or dirty recovery checkouts remain preserved and are not adopted.
+If a corrective PR also merges before review, LoopTroop verifies that PR and
+repeats recovery for any remaining candidate changes.
+If a manual resolution leaves no changes to deliver, the verified merge
+completes the ticket without an empty corrective PR.
 Verified merge or finish-without-merge decisions resume after an interrupted
 dispatch and fence conflicting actions for that PR. Finish Without Merge
 records a local workflow decision without closing or merging the remote PR,

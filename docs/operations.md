@@ -223,7 +223,7 @@ same user's filesystem access.
 Managed OpenCode workflow sessions also have a permission guard for direct
 GitHub writes, remote Git writes, and destructive changes to managed worktree,
 Git, and ticket state. A refusal reports why and leaves the session available
-for local work. Ordinary wrappers and inline shells are checked too; uninspectable shell structures are refused so the model can use separate literal commands. A refusal that clears other pending requests does not abort the prompt. Scripts and helper sessions with independent permissions can
+for local work. Ordinary wrappers and inline shells are checked too; uninspectable shell structures are refused so the model can use separate literal commands. Git pager commands, trace destinations, and configured fetch refspecs are checked for protected changes while safe pagers and fetches remain available. A refusal that clears other pending requests does not abort the prompt. Uninspected scripts and helper sessions with independent permissions can
 still use credentials available to their process. See [OpenCode Integration](opencode-integration.md#_4-1-tool-policy-layer)
 for the guard's scope.
 
