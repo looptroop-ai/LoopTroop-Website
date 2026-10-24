@@ -131,7 +131,7 @@ All built-in prompts in this section are exported from `server/prompts/index.ts`
 | `PROM53` | `RUNNING_FINAL_TEST` retry-note sub-step | Fresh / `disabled` | `ticket_details`, `error_context` | Summarizes a failed final-test attempt for the next retry. | [Full content here](#full-prompt-prom53) |
 | `PROM54` | `BLOCKED_ERROR` continuation into preserved session | Same session / `default` | none | Sends the bare continuation text `continue please` into an eligible preserved OpenCode session. | [Full content here](#full-prompt-prom54) |
 
-The setup-specific **Retry with extra note...** action does not build a new setup prompt and does not call `PROM_EXECUTION_SETUP_NOTE`. It sends only the text entered by the user to the preserved `PREPARING_EXECUTION_ENV` OpenCode session. That text is used for one manual setup attempt beyond the automatic retry budget and is not added to later setup context. During an automatic attempt, short progress-only replies receive up to two direct same-session continuation prompts without consuming that attempt or the structured-output retry budget. Completed but malformed results continue through the separate structured correction path.
+**Retry with extra note...** adds the user's unchanged text to a fresh attempt for supported failed AI steps, including workspace setup. It does not call `PROM_EXECUTION_SETUP_NOTE` to rewrite the user's guidance. Continue alone sends `continue please` into an eligible preserved session. During an automatic setup attempt, short progress-only replies still receive up to two direct same-session continuation prompts without consuming that attempt or the structured-output retry budget. Completed but malformed results continue through the separate structured correction path.
 
 ### Pull Request And Repair
 
@@ -1435,7 +1435,7 @@ Take the latest validated Beads blueprint and expand each bead into the final ex
 8. ID Contract: Generate a unique, stable, readable bead `id` for each bead. Hierarchical IDs are allowed when useful, but keep them concise and execution-friendly.
 9. Dependency Contract: `dependencies.blocked_by` may reference only earlier beads in the existing list order. No self-dependencies. No forward references. Keep the graph acyclic.
 10. Labels: Provide concise, useful labels grounded in the PRD and the refined blueprint. Include epic/story/ticket/domain labels when they are well supported by the provided context.
-11. Target Files: Use `relevant_files` first as hints for likely `targetFiles`. Prefer those hints when they are already sufficient. Use repository-inspection tools only when the hints are insufficient or need confirmation. Return only minimal project-relative file paths that the bead is most likely to touch.
+11. Target Files: Use `relevant_files` first as hints for likely `targetFiles`. Prefer those hints when they are already sufficient. Use repository-inspection tools only when the hints are insufficient or need confirmation. Return only minimal file paths that the bead is most likely to touch.
 12. Tool Policy: Repository-inspection tools are allowed. You may read files and inspect the tree. Do not edit files, run mutating commands, or change the repository.
 13. Output Discipline: output JSONL only. No surrounding array. No markdown fences. No prose before or after the JSONL.
 14. Expansion Self-Check: Before responding, verify that every preserved Part 1 field is byte-for-byte identical to the matching bead in `### beads_draft`; only the five AI-owned fields may differ.

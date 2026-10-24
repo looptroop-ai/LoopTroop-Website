@@ -74,7 +74,7 @@ A bead is the smallest unit LoopTroop will schedule for coding. It carries enoug
 | `externalRef` | `string` | Parent ticket reference |
 | `labels` | `string[]` | Planning labels |
 | `dependencies` | `{ blocked_by: string[]; blocks: string[] }` | Dependency graph edges |
-| `targetFiles` | `string[]` | Expected file touch set |
+| `targetFiles` | `string[]` | Expected repository or external file targets; explicitly empty when no files are targeted |
 | `failedIterationNotes` | `BeadNoteEntry[]` | Append-only notes produced when an implementation iteration fails |
 | `userRetryNotes` | `BeadNoteEntry[]` | Append-only user guidance supplied through Retry with extra note... |
 | `finalizationFailureNotes` | `BeadNoteEntry[]` | Append-only local commit/finalization diagnostics |
@@ -85,6 +85,12 @@ A bead is the smallest unit LoopTroop will schedule for coding. It carries enoug
 | `qaOrigin` | `ManualQaBeadOrigin \| null` | Typed Manual QA provenance for QA-fix beads; absent or `null` for ordinary planned beads |
 | `startedAt` | `string` | First-start timestamp, preserved across retries |
 | `beadStartCommit` | `string \| null` | Git snapshot used for reset/retry |
+
+### External and empty file targets
+
+A bead can target files in any folder the operating system permits, including files outside the repository. During approval and execution, a bead with absolute paths or paths that escape the repository shows an **External files** warning and those paths. The warning follows the written paths: an absolute path inside the repository can also trigger it, and relative symbolic links are not resolved for this display. Approving the bead includes those targets; there is no folder allowlist, separate permission step, or read-only external mode. The agent may read, create, modify, or delete ordinary external files. Existing protections for the original checkout, managed LoopTroop state, and Git delivery still apply.
+
+External changes are not included in repository Git recovery. Retry, cancellation, or failure may leave them in place; LoopTroop does not create automatic external backups. An explicit `targetFiles: []` is valid for work that targets no files. Missing or malformed target lists are rejected rather than silently treated as an intentional empty list.
 
 ### Why These Fields Matter At Runtime
 
@@ -535,7 +541,7 @@ From the live blocked view, the normal **Retry** action resets and schedules the
 }
 ```
 
-Failed iterations, user retry guidance, and local finalization failures are kept in independently append-only `failedIterationNotes`, `userRetryNotes`, and `finalizationFailureNotes` histories. New entries never replace, merge, or deduplicate earlier entries. Machine-generated content is stripped of ANSI terminal control sequences before persistence, while user text remains unchanged and raw command output stays available in execution logs. A user note is appended only after LoopTroop identifies the same recoverable bead and successfully resets it to `beadStartCommit`; if either check fails, the ticket remains blocked and every history is unchanged. Whitespace-only or oversized notes are rejected. This action is available only for the current `BLOCKED_ERROR` that came from `CODING`, not for historical error views or failures from other phases.
+Failed iterations, user retry guidance, and local finalization failures are kept in independently append-only `failedIterationNotes`, `userRetryNotes`, and `finalizationFailureNotes` histories. New entries never replace, merge, or deduplicate earlier entries. Machine-generated content is stripped of ANSI terminal control sequences before persistence, while user text remains unchanged and raw command output stays available in execution logs. A user note is appended only after LoopTroop identifies the same recoverable bead and successfully resets it to `beadStartCommit`; if either check fails, the ticket remains blocked and every history is unchanged. Whitespace-only or oversized notes are rejected. This bead-scoped note history applies to coding recovery. Other supported failed AI steps also offer Retry with extra note with phase-scoped history. Historical error views do not offer recovery actions.
 
 ---
 
@@ -687,7 +693,7 @@ That combination is what makes the system durable at repository scale rather tha
 
 ### Manual QA fix beads
 
-When an enabled Manual QA round is submitted with any explicit Fail, one locked-main-implementer prompt plans every user-selected failure merge group. It receives focused ticket, approved PRD, existing-bead, final-test, checklist/result, evidence-reference, and diff metadata and must successfully use at least one read-only repository inspection tool. This lets it discover newly relevant target files rather than copying only the original bead paths. The strict `<MANUAL_QA_FIX_BEADS>` response must provide one candidate per application-owned stable group key with a title, description, PRD refs, implementation context, acceptance criteria, tests, appropriate planned command guidance, labels, dependency inputs, and safe project-relative targets. A candidate may instead use an empty command list with a visible `testCommandReason`.
+When an enabled Manual QA round is submitted with any explicit Fail, one locked-main-implementer prompt plans every user-selected failure merge group. It receives focused ticket, approved PRD, existing-bead, final-test, checklist/result, evidence-reference, and diff metadata and must successfully use at least one read-only repository inspection tool. This lets it discover newly relevant target files rather than copying only the original bead paths. The strict `<MANUAL_QA_FIX_BEADS>` response must provide one candidate per application-owned stable group key with a title, description, PRD refs, implementation context, acceptance criteria, tests, appropriate planned command guidance, labels, dependency inputs, and explicit repository or external target lists. A candidate may instead use an empty command list with a visible `testCommandReason`.
 
 LoopTroop validates exact group coverage and the full candidate set, then persists canonical `fix-beads.yaml` before creating any child record. The application assigns deterministic IDs, priority/order, pending status, `qa-fix` issue type, external reference, reverse `blocks` links, timestamps, and QA provenance through the normal bead writer. If model generation, required tool activity, or parsing fails, no Improvement ticket or bead is created; the workflow enters recoverable `BLOCKED_ERROR` and Retry resumes the stored submission action. If no checks failed, this model call is skipped.
 

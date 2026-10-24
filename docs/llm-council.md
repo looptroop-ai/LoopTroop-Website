@@ -69,7 +69,7 @@ Only drafts that actually received scores can win. When scored drafts tie, the
 main implementer wins the tie outright; otherwise LoopTroop falls back to the
 configured council order as the deterministic tie-breaker.
 
-**One exception to "the drafts are identical in kind."** If a member stopped to ask you something and you answered, that member drafted against instructions the others never saw, and the voters have not seen them either. Left unmarked, the draft that actually followed your steering reads as the one that disagrees with everybody else, so the most informed draft is the one most likely to lose. Such a draft carries a note saying its author was given an answer during drafting and that it should not be marked down merely for differing. The note names no model, so anonymity holds.
+A member can receive operator guidance through an answered AI question or a member-specific retry note. Its draft then carries an anonymous notice telling voters that the author received additional guidance and should not be marked down merely for differing from the other drafts. PRD guidance received while producing Full Answers carries into the derived draft, including when validated Full Answers are kept for a Part 2 retry. The notice names no model.
 
 ## 5. Step 3: Refinement
 
@@ -141,7 +141,7 @@ If too few valid drafts or votes arrive to satisfy quorum, the pipeline does not
 
 ### Stopping Or Retrying One Model
 
-While a council drafting or voting step runs, you can stop one model or start it over without touching the others. This works in Council Drafting Questions, Voting on Questions, Council Drafting Specs, Voting on Specs, Council Drafting Blueprint, and Voting on Blueprint. Statuses where one model works alone, such as refining, coverage checks, and coding, have no Stop or Retry.
+While a council drafting or voting step runs, you can stop one model or start it over without touching the others. This works in Council Drafting Questions, Voting on Questions, Council Drafting Specs, Voting on Specs, Council Drafting Blueprint, and Voting on Blueprint. These live per-model controls are specific to council rounds. A single-model phase that blocks uses the error view's Retry, Retry with extra note, or eligible Continue controls.
 
 During drafting, open the model's chip: **Stop** and **Retry** are small buttons in the top-right corner of its window. During voting, open **Voting Details**, where each voter's badge in the **Voter Status** row carries small Stop and Retry icons. Both actions ask for confirmation every time, and each one is written to the phase log.
 
@@ -154,6 +154,8 @@ Retry restarts just that model with a full AI response timeout of its own, so th
 - a model that is still working, whose unfinished work is thrown away before it starts over;
 - a model that ended without a usable result: failed, invalid output, timed out, or stopped;
 - a model that finished fine. Its draft or vote is thrown away for good, and if the new run fails, the model counts as failed.
+
+**Retry with extra note...** also restarts only the selected model in a fresh session. The confirmation accepts a non-blank note of at most 20,000 characters and passes it unchanged to that model's retried work. The note is recorded in that member's retry log and captured prompt input and applies to that restart only; a later ordinary Retry does not inherit it. Other models keep working and retain their results. The usual Part 1/Part 2 retry boundaries still apply.
 
 In Council Drafting Specs each model has two chips, one for Part 1 (Full Answers) and one for Part 2 (the PRD draft). Retry from the Part 1 chip redoes both parts. Retry from the Part 2 chip keeps Part 1 answers that passed validation and redoes only the PRD draft; without them, or after a stop, it redoes both parts. Stop from either chip stops the model and throws away both parts.
 

@@ -514,7 +514,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 - Watch validation of the runtime wrapper and workspace probes
 - Review the Error (reason) screen when setup finishes blocked or fails validation.
 
-    * Click **Retry with extra note...** from live blocked view to send a prompt directly to the preserved setup session for a manual attempt
+    * Click **Retry with extra note...** from the live blocked view to restart setup in a fresh session with your unchanged guidance
 
     * Click **Edit setup plan...** from live blocked view to rewind to setup approval
 
@@ -682,7 +682,7 @@ There is no new screenshot for this status yet; this guide intentionally documen
 - Read the actual failure and any distinct underlying cause above the recovery controls. Each failure line keeps its failed-step and error-type prefixes and HTTP status in regular text, with only the actionable cause bold. Expand **Technical details** to inspect the ticket and occurrence identity, failed phase, exact timestamp, complete sanitized error, and available model, session, and other diagnostics. The last five matching debug records appear newest first, each collapsed by default; expand a record for its complete structured data. Technical details also starts collapsed, and missing evidence is stated explicitly. Use the separate phase log's **Debug** view for the full history.
 - Follow the recovery guidance for the actions currently available on the live error.
 - Click **Retry** to follow the failed phase's normal retry path: archive and rerun a non-coding phase attempt, or reset the failed bead during Implementing.
-- Click **Retry with extra note...** to append guidance to User Retry Notes during Implementing, or send a prompt to the preserved setup session during Preparing Workspace Runtime.
+- Click **Retry with extra note...** for supported failed AI work to restart in a fresh session with your unchanged guidance. Coding also retains that guidance in User Retry Notes.
 - Click **Continue** to resume an addressable preserved OpenCode session after transient provider, network, or rate-limit interruptions, or after repairing a known OpenCode-server login or permission rejection, without archiving phase attempts. Billing, quota, invalid-request, and policy denials do not qualify for that server-login exception. Failed session creation without an existing session stays Retry-only; provider-login failures remain ineligible for Continue.
 - Click **Edit setup plan...** (when setup failed) to rewind to setup approval
 - Click **Cancel** to move the ticket to Canceled.

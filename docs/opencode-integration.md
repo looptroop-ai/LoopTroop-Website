@@ -252,6 +252,9 @@ files cannot be recovered.
 
 For trusted local LoopTroop sessions, the managed OpenCode server is permissive by default: `scripts/dev-opencode.ts` sets `OPENCODE_PERMISSION='"allow"'` when it starts `opencode serve`, unless `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` is set. LoopTroop also applies a complete ordered SDK permission policy to each session immediately before prompting. The unrestricted baseline explicitly allows all actions, `external_directory`, and `doom_loop`, including absolute-path patterns needed by system inspection and temporary tool provisioning; prompt-specific restrictions are appended afterward so read-only, tool-disabled, and web-access policies remain authoritative.
 
+External folders require no allowlist or separate approval. A bead may target ordinary external files available to the host account. Approval and execution flag absolute or repository-escaping target paths with an External files warning; this display does not resolve relative symbolic links. Execution allows external reads and writes; read-only planning phases still prohibit edits. Existing original-checkout, managed-state, and Git-delivery protections remain in force. Git recovery covers repository work, not external changes.
+
+
 Unexpected permission requests are treated as a headless-runtime compatibility fallback rather than user input. LoopTroop replies `reject` when the session policy or managed workflow guard blocks an operation, and includes the reason when available. Other requests receive a one-time `once` approval; LoopTroop no longer grants an unexpected request `always` approval. If OpenCode clears other pending requests after a successful refusal, their not-found replies do not interrupt the prompt. Other reply failures abort the session immediately and returns an actionable prompt failure so the workflow's retry or blocked-error path can take over instead of appearing idle. These controls remove approval stalls from trusted unattended automation, but they do not bypass normal OS privileges or make passworded `sudo` a dependency of setup.
 
 ### 4.1 Tool Policy Layer
@@ -428,7 +431,9 @@ local session record.
 
 When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please`. It does not rebuild context or create a new attempt version.
 
-Blocked execution setup also has a same-session action called **Retry with extra note...**. It uses the same exact session ownership checks, but sends only the user's entered text instead of `continue please`. The action keeps the current runtime phase attempt and allows one manual setup attempt beyond the automatic retry budget. It does not add the text to future setup context. Coding uses its existing fresh-bead recovery path for the button with the same label.
+Continuing pull-request drafting also requires its saved candidate-file audit to match the same base and candidate. Continue reuses that audit instead of rerunning it or replacing its contents. If the audit is missing or the candidate changed, use Retry to start fresh.
+
+**Retry with extra note...** uses the same fresh-session restart as ordinary Retry for supported failed AI steps, including workspace setup. LoopTroop first confirms that the old session stopped, then adds the user's note unchanged to the saved inputs for the new attempt. The note remains attached to that work's history. Continue alone preserves the session and sends `continue please`; a note-bearing Retry does not resume the old conversation.
 
 ## 8. Streaming
 

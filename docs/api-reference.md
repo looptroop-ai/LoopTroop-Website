@@ -789,7 +789,7 @@ origin, and the original read cause when available. An unreadable `404` does not
 prove an existing session is gone, so its ownership remains preserved for later
 verification. An unidentified prompt rejection keeps neutral guidance and Retry.
 
-The Retry endpoint accepts an empty body for ordinary recovery. It also accepts the following body when the ticket is currently in `BLOCKED_ERROR` with `previousStatus: "CODING"` or `previousStatus: "PREPARING_EXECUTION_ENV"`:
+The Retry endpoint accepts an empty body for ordinary recovery. For a live `BLOCKED_ERROR` whose failed AI step advertises `retry_with_note`, it also accepts:
 
 ```json
 {
@@ -799,14 +799,14 @@ The Retry endpoint accepts an empty body for ordinary recovery. It also accepts 
 
 `note` must contain at least one non-whitespace character and must not exceed 20,000 characters. For coding, LoopTroop first proves it can reset the same failed or paused bead, then appends a structured `userRetryNotes` entry containing the ISO timestamp, iteration, and the user's text unchanged. This keeps the existing fresh-bead recovery behavior.
 
-For execution setup, the request requires the preserved `PREPARING_EXECUTION_ENV` OpenCode session. LoopTroop sends only the user's text as the next prompt in that session and allows exactly one manual setup attempt beyond the configured automatic retry budget. The current runtime phase attempt is not archived, and the text is not appended to `execution_setup_notes` or reused as future setup context. If the session cannot be resumed or the manual attempt cannot start, the ticket remains blocked. Note-bearing requests for historical errors, other phases, blank notes, or oversized notes are rejected. Omitting `note` preserves ordinary Retry behavior.
+For workspace setup and other supported AI steps, Retry stops the old session and starts a fresh attempt from saved inputs with the note unchanged. A tracked phase receives a fresh phase attempt, and the note remains visible in the affected work's history. It does not edit approved documents or become context for unrelated phases. Historical errors, unsupported non-AI operations, blank notes, and oversized notes are rejected. Omitting `note` uses ordinary Retry behavior.
 
-After a council drafting or voting step, or `PREPARING_EXECUTION_ENV`, Retry first stops the ticket's leftover OpenCode sessions. Until OpenCode confirms that stop, it returns `409` with `Retry is not available until the previous OpenCode session stop is confirmed`, so a retried council round cannot reconnect to a model whose stop never went through.
+Before restarting failed AI work, Retry first stops the old OpenCode sessions. Until OpenCode confirms that stop, it returns `409` with `Retry is not available until the previous OpenCode session stop is confirmed`, preventing a new attempt from reconnecting to a stuck conversation or overlapping old work.
 
 The ticket's advertised `availableActions` are authoritative for recovery UI.
-Setup approval does not imply `edit_execution_setup_plan` or a note-bearing
-retry; those actions are available only for the live blocked runtime setup when
-the server includes them. Unknown workflow statuses advertise no actions.
+Setup approval does not imply runtime setup editing. Note-bearing Retry is
+available only for supported failed AI work. Unknown workflow statuses advertise
+no actions.
 
 `POST /api/tickets/:id/edit-execution-setup-plan` is available only for the live `BLOCKED_ERROR` whose `previousStatus` is `PREPARING_EXECUTION_ENV`. The UI opens a confirmation dialog before calling it. Once confirmed, the route archives the failed runtime attempt, preserves it in phase history, and returns the ticket to `WAITING_EXECUTION_SETUP_APPROVAL` with the current plan available for editing or regeneration. Other phases and historical error occurrences return `409`.
 
@@ -852,6 +852,8 @@ the ticket remains unchanged.
 Stop closes the model's OpenCode session, marks it `stopped`, discards whatever it had written, and lets the step continue with the other models. It returns `{ "success": true, "phase": "...", "memberId": "...", "outcome": "stopped" }`. `outcome` is usually `stopped`; when the model finished in the moment before the stop landed, it is that model's own outcome instead. A stopped model does not count toward Min Council Quorum, so a step that ends below quorum fails into `BLOCKED_ERROR` as usual. If the stopped model was the last one still working, the step ends right away.
 
 Retry restarts one model with a full AI response timeout of its own. While the step is still running, it accepts a model that is still working, one that ended without a usable result, and one that finished, whose draft or vote is then discarded for good. An optional `part` is read only in `DRAFTING_PRD`: `full_answers` redoes Full Answers and the PRD draft, while `prd_draft`, the default, keeps Full Answers that passed validation and redoes only the PRD draft; without them, or after a stop, it redoes both parts. Naming a `part` for any other step returns `400`. Retry returns `{ "success": true, "phase": "...", "memberId": "..." }` once the old run has stopped and the new one has started.
+
+The member Retry body also accepts an optional `note` for **Retry with extra note...**. It must contain at least one non-whitespace character and be at most 20,000 characters. The selected model starts in a fresh session with its saved inputs and the note unchanged; other models and their completed results are unaffected. The existing `part` boundaries still apply. The note is recorded in the selected member's retry log and captured prompt input and applies to that restart only. A later Retry without `note` does not inherit it. The Stop body does not accept a retry note.
 
 If the model was waiting on an AI question nobody had answered (only Council Drafting Specs and Council Drafting Blueprint can ask), that question closes as soon as the stop or retry is accepted, even if OpenCode then cannot confirm the stop. Its skip receipt records `skippedBy: user` with the expiry reason `member_stopped` or `member_restarted`.
 

@@ -662,6 +662,8 @@ The Part 2 expanded bead list (`normalizeBeadsJsonlOutput`) is stricter than the
 
 Unlike the council blueprint normalizer, duplicate bead IDs or unknown/self dependencies fail validation here instead of being silently reshaped.
 
+`targetFiles` (or its `target_files` alias) must be explicitly supplied. An array of non-blank path strings is valid, including an explicit empty array when no files are targeted. A single supplied path string is safely wrapped in a one-item list and reported as a parser repair; it is not split into guessed paths. Targets may name repository files or external files, and their text is not rewritten into a different location. Missing, null, or malformed target values fail validation. External targets and explicit empty lists are valid inputs, not parser repairs.
+
 ---
 
 ### Bead Completion Marker Artifact
@@ -804,7 +806,7 @@ Application-owned checklist/results YAML is loaded directly with `js-yaml` and v
 
 ### Manual QA Fix-Bead Candidate
 
-Failed submissions require exactly one complete `<MANUAL_QA_FIX_BEADS>…</MANUAL_QA_FIX_BEADS>` envelope. Its candidate keys must exactly match the application-provided merge-group keys, with one complete bead definition per key. Validation requires meaningful title/description/context, PRD refs, acceptance criteria, tests, test commands, labels, dependencies, and safe project-relative target files. At least one successful focused read-only repository inspection tool call is part of the generation contract.
+Failed submissions require exactly one complete `<MANUAL_QA_FIX_BEADS>…</MANUAL_QA_FIX_BEADS>` envelope. Its candidate keys must exactly match the application-provided merge-group keys, with one complete bead definition per key. Validation requires meaningful title/description/context, PRD refs, acceptance criteria, tests, test commands, labels, dependencies, and explicit repository or external target files. At least one successful focused read-only repository inspection tool call is part of the generation contract.
 
 LoopTroop assigns bead IDs, priority/order, pending lifecycle state, `qa-fix` issue type, external references, reverse dependency links, timestamps, and `qaOrigin`; the model may not override these fields. The complete validated batch is written to `fix-beads.yaml` before any Improvement ticket or bead is created. There is no lower-quality repair/fallback bead: exhausted model/tool/parser validation routes the submission to recoverable `BLOCKED_ERROR` with zero child records.
 

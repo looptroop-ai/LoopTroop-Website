@@ -210,6 +210,8 @@ preflight:
 
 Some statuses append small task-specific sections outside this reusable allowlist. For example, interview resume appends the current question/session state, PRD and beads voting append a rubric, coverage revision appends the concrete gaps for that pass, execution setup regeneration appends the current plan and user note, and pull-request creation appends narrow reports or diffs.
 
+A manual Retry with extra note adds the entered text unchanged to the fresh attempt's normal inputs. The `user_retry_note` artifact scopes non-coding notes to the affected phase attempt; coding keeps its bead-scoped note history. Member-specific council notes apply only to that member's requested restart. Neither kind edits the approved planning documents or grants instructions to unrelated work.
+
 ## 7. Status Context Matrix
 
 The table below describes what the model receives during each status. "No model prompt" means the status is deterministic or waiting for a user action; the UI may still show artifacts for review.
@@ -247,7 +249,7 @@ The table below describes what the model receives during each status. "No model 
 | `CLEANING_ENV` | No model prompt. Cleanup is deterministic runtime-state cleanup with preserved artifacts. |
 | `COMPLETED` | No model prompt. The ticket is terminal and artifacts remain available for review. |
 | `CANCELED` | No model prompt. The ticket is terminal; partial artifacts may remain available. |
-| `BLOCKED_ERROR` | No model prompt while blocked. `retry` re-enters the saved `previousStatus` and uses that status's normal context contract, including `GENERATING_EXECUTION_SETUP_PLAN` after an operational drafting failure. For a live CODING block, **Retry with extra note...** appends the user's guidance to `userRetryNotes` before starting the fresh bead attempt. For a live `PREPARING_EXECUTION_ENV` block, the same label opens a dialog, sends only the entered note to the preserved setup session, and allows one manual attempt beyond the automatic budget. The setup note is not appended to `execution_setup_notes` or any future setup context. **Edit setup plan...** asks for confirmation before it rewinds directly to approval; a subsequent Regenerate action enters setup-plan drafting with the cleaned failure context. Finalization failures append only to `finalizationFailureNotes` and remain manual Retry/Cancel blocks; they do not invoke Ralph recovery. Eligible `continue` sends exactly `continue please` into the preserved OpenCode session instead of rebuilding or appending a new broad prompt. CODING context-wipe prompts use only `bead_data` and `error_context`. |
+| `BLOCKED_ERROR` | No model prompt runs while blocked. Retry stops failed AI sessions and re-enters the saved `previousStatus` in fresh sessions with that step's saved inputs. Retry with extra note adds the user's unchanged guidance to the retried AI work and retains it in that work's history; coding uses bead-scoped `userRetryNotes`. Workspace setup follows the same fresh-session behavior. Earlier planning and saved interview answers remain available. Edit setup plan asks for confirmation before rewinding to approval. Finalization failures retain `finalizationFailureNotes` and can retry finalization without repeating completed coding. Eligible Continue sends exactly `continue please` into the preserved session instead of rebuilding the input prompt. CODING context-wipe prompts use only `bead_data` and `error_context`. |
 
 ## 8. Retry Behavior
 
