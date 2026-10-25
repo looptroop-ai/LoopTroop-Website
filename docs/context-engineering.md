@@ -210,7 +210,7 @@ preflight:
 
 Some statuses append small task-specific sections outside this reusable allowlist. For example, interview resume appends the current question/session state, PRD and beads voting append a rubric, coverage revision appends the concrete gaps for that pass, execution setup regeneration appends the current plan and user note, and pull-request creation appends narrow reports or diffs.
 
-A manual Retry with extra note adds the entered text unchanged to the fresh attempt's normal inputs. The `user_retry_note` artifact scopes non-coding notes to the affected phase attempt; coding keeps its bead-scoped note history. Member-specific council notes apply only to that member's requested restart. Neither kind edits the approved planning documents or grants instructions to unrelated work.
+A manual Retry with extra note adds the entered text unchanged to the fresh attempt's normal inputs. The `user_retry_note` artifact scopes non-coding notes to the affected phase attempt and expires their instruction after the recovered work succeeds; coding keeps its bead-scoped note history. Member-specific council notes apply only to that member's requested restart. Neither kind edits the approved planning documents or grants instructions to unrelated work.
 
 ## 7. Status Context Matrix
 

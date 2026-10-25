@@ -252,7 +252,7 @@ files cannot be recovered.
 
 For trusted local LoopTroop sessions, the managed OpenCode server is permissive by default: `scripts/dev-opencode.ts` sets `OPENCODE_PERMISSION='"allow"'` when it starts `opencode serve`, unless `LOOPTROOP_OPENCODE_PERMISSION_MODE=inherit` is set. LoopTroop also applies a complete ordered SDK permission policy to each session immediately before prompting. The unrestricted baseline explicitly allows all actions, `external_directory`, and `doom_loop`, including absolute-path patterns needed by system inspection and temporary tool provisioning; prompt-specific restrictions are appended afterward so read-only, tool-disabled, and web-access policies remain authoritative.
 
-External folders require no allowlist or separate approval. A bead may target ordinary external files available to the host account. Approval and execution flag absolute or repository-escaping target paths with an External files warning; this display does not resolve relative symbolic links. Execution allows external reads and writes; read-only planning phases still prohibit edits. Existing original-checkout, managed-state, and Git-delivery protections remain in force. Git recovery covers repository work, not external changes.
+External folders require no allowlist or separate approval. A bead may target ordinary external files available to the host account. Approval and execution flag absolute or repository-escaping target paths with an External files warning. Server checks also flag relative targets whose existing file or nearest existing parent resolves through a symbolic link outside the ticket worktree. Unresolvable targets warn conservatively; the marker does not restrict access or guarantee the filesystem will stay unchanged. Planning sessions may read any external folder available to the host account, even before bead approval; read-only policies still prohibit edits. Execution permits external reads and writes. Existing original-checkout, managed-state, and Git-delivery protections remain in force. Git recovery covers repository work, not external changes.
 
 
 Unexpected permission requests are treated as a headless-runtime compatibility fallback rather than user input. LoopTroop replies `reject` when the session policy or managed workflow guard blocks an operation, and includes the reason when available. Other requests receive a one-time `once` approval; LoopTroop no longer grants an unexpected request `always` approval. If OpenCode clears other pending requests after a successful refusal, their not-found replies do not interrupt the prompt. Other reply failures abort the session immediately and returns an actionable prompt failure so the workflow's retry or blocked-error path can take over instead of appearing idle. These controls remove approval stalls from trusted unattended automation, but they do not bypass normal OS privileges or make passworded `sudo` a dependency of setup.
@@ -406,7 +406,7 @@ past.
 
 If OpenCode cannot verify an exact session because the server is down or restarting, validation fails closed without abandoning the database record. This applies both to active phases and to every resumable `BLOCKED_ERROR` condition accepted by the central continuation classifier, including eligible limits, payment blocks, overloads, timeouts, and transport failures. The prompt runner then either creates a new owned session when OpenCode is reachable or lets the phase fail into the normal retry/block path. Owned same-session reuse is also revalidated immediately before prompting, so a stale session cannot be prompted after the ticket has moved phases.
 
-For Continue, the route performs one extra live check: if the OpenCode server can no longer read the preserved session by exact id, the request returns `409` and leaves the ticket in `BLOCKED_ERROR`.
+For Continue, the route verifies the preserved session by exact ID and confirms that its interrupted turn stopped before sending another prompt. A missing session or an unconfirmed stop returns `409`; a failed live lookup reports its error. In each case, the ticket stays in `BLOCKED_ERROR`. Keeping the conversation does not leave its failed turn running.
 
 ### 7.1 Session Continuation
 
@@ -431,9 +431,11 @@ local session record.
 
 When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please`. It does not rebuild context or create a new attempt version.
 
+PRD Part 2 continuation reuses the saved, validated Full Answers checkpoint only when the original inputs and phase attempt match. A missing, damaged, or mismatched checkpoint requires a fresh Retry.
+
 Continuing pull-request drafting also requires its saved candidate-file audit to match the same base and candidate. Continue reuses that audit instead of rerunning it or replacing its contents. If the audit is missing or the candidate changed, use Retry to start fresh.
 
-**Retry with extra note...** uses the same fresh-session restart as ordinary Retry for supported failed AI steps, including workspace setup. LoopTroop first confirms that the old session stopped, then adds the user's note unchanged to the saved inputs for the new attempt. The note remains attached to that work's history. Continue alone preserves the session and sends `continue please`; a note-bearing Retry does not resume the old conversation.
+**Retry with extra note...** uses the same fresh-session restart as ordinary Retry for supported failed AI steps, including workspace setup. LoopTroop first confirms that the old session stopped, then adds the user's note unchanged to the saved inputs for the new attempt. The note remains attached to that work's history, but stops being an instruction after the recovered work succeeds. A later run of the same phase does not inherit it. Continue alone preserves the session and sends `continue please`; a note-bearing Retry does not resume the old conversation.
 
 ## 8. Streaming
 

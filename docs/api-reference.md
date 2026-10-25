@@ -564,6 +564,8 @@ Before Start, ticket responses expose the stored Manual QA choice and its effect
 
 All ticket route params shown as `:id` or `:ticketId` use the composite public ticket ref, such as `1:AUTH-12`. The browser URL uses only the external ticket id (`/ticket/AUTH-12`), but API callers should send the composite ref returned by ticket list/detail payloads and URL-encode it when constructing request paths or query strings.
 
+An integration report with `status: "passed"` and `noRepositoryChanges: true` means the audited ticket has no repository changes to deliver. It proceeds directly from integration to cleanup and completion without a candidate commit, push, or PR.
+
 Ticket list/detail payloads also include `isDisplayOnlyMock`, a boolean UI hint for board-only mock/demo tickets. These tickets keep their raw `externalId` for routing and storage, but clients can use the flag to add display-only markers without parsing reserved branch names. Display-only mock/demo tickets that are not terminal expose only the `cancel` action; runnable workflow actions remain hidden and rejected.
 
 Example ticket size response:
@@ -769,7 +771,7 @@ Most action routes in this section respond with the latest machine snapshot so c
 }
 ```
 
-The Continue endpoint is available only from `BLOCKED_ERROR`. It requires a known `previousStatus`, an unresolved active error occurrence with a diagnostic `sessionId`, a matching active `opencode_sessions` row for that ticket and previous phase, and an OpenCode session that is still addressable by that exact id. It returns `409` and leaves the ticket blocked when those checks fail. On success it dispatches `CONTINUE`, records the pending session continuation, and the next owned prompt sends exactly `continue please` without creating a fresh phase attempt.
+The Continue endpoint is available only from `BLOCKED_ERROR`. It requires a known `previousStatus`, an unresolved active error occurrence with a diagnostic `sessionId`, a matching active `opencode_sessions` row for that ticket and previous phase, and an OpenCode session that is still addressable by that exact id with its interrupted turn confirmed stopped. It returns `409` and leaves the ticket blocked when those checks fail. On success it dispatches `CONTINUE`, records the pending session continuation, and the next owned prompt sends exactly `continue please` without creating a fresh phase attempt.
 
 A known OpenCode-server login or permission rejection (HTTP `401` or `403`) can
 use Continue after server login or permissions are repaired, provided the same existing session
@@ -810,7 +812,7 @@ no actions.
 
 `POST /api/tickets/:id/edit-execution-setup-plan` is available only for the live `BLOCKED_ERROR` whose `previousStatus` is `PREPARING_EXECUTION_ENV`. The UI opens a confirmation dialog before calling it. Once confirmed, the route archives the failed runtime attempt, preserves it in phase history, and returns the ticket to `WAITING_EXECUTION_SETUP_APPROVAL` with the current plan available for editing or regeneration. Other phases and historical error occurrences return `409`.
 
-Bead API/read-model payloads expose three independent append-only arrays: `failedIterationNotes`, `userRetryNotes`, and `finalizationFailureNotes`. Each entry contains `timestamp`, `iteration`, `content`, and optional `errorCode`. Runtime bead overlays also expose `startedAt`, `updatedAt`, `completedAt`, and typed nullable `qaOrigin` on Manual-QA-created fix beads. `updatedAt` is the live countdown anchor. LoopTroop strips ANSI terminal sequences from machine-generated failed-iteration and finalization content; user retry content is preserved exactly.
+Bead API/read-model payloads expose three independent append-only arrays: `failedIterationNotes`, `userRetryNotes`, and `finalizationFailureNotes`. Each entry contains `timestamp`, `iteration`, `content`, and optional `errorCode`. Runtime bead overlays also expose `targetFiles`, derived `externalTargetFiles`, `startedAt`, `updatedAt`, `completedAt`, and typed nullable `qaOrigin` on Manual-QA-created fix beads. `updatedAt` is the live countdown anchor. LoopTroop strips ANSI terminal sequences from machine-generated failed-iteration and finalization content; user retry content is preserved exactly.
 
 Final-test file effects no longer expose include/discard recovery endpoints. The audit preserves explicit candidate intent and tracked or staged changes, keeps recognized untracked generated/cache/setup-local outputs on disk as local-only, and retries classification once for unknown untracked files. The same known generated exclusions apply at merge; arbitrary untracked-file exemptions are not supported. Unresolved tracked changes remain candidates for the later PR audit.
 
@@ -1462,6 +1464,8 @@ There is no generic filesystem browser or arbitrary file read route under `/api/
 | `GET` | `/api/tickets/:id/beads/:beadId/diff` | Read diff artifact for a bead |
 
 The `flow` value must be a safe relative branch/flow name. Absolute paths, backslashes, `.` segments, and `..` traversal segments are rejected. When `flow` is omitted, the route falls back to the ticket's base branch.
+
+Both read routes add `externalTargetFiles` to a parsed bead when any target is external or cannot be resolved safely. This read-only metadata combines conservative written-path checks with server resolution of existing targets or their nearest existing parent, including symbolic links. It does not alter stored JSONL or its hash, and structured approval saves remove the derived field.
 
 Both read routes expose the canonical on-disk plan hash through `X-Content-Sha256`, even when the tracker is empty or damaged. `GET /api/tickets/:id/beads` returns every row that parsed successfully, not an all-or-nothing failure, and can therefore succeed even when other JSONL lines are malformed or cannot be represented as editable bead objects. The route reports those file-line diagnostics through:
 

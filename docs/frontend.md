@@ -148,7 +148,7 @@ Current `CodingView` composes:
 - `VerificationSummaryPanel`
 - `CollapsiblePhaseLogSection`
 
-It also merges persisted bead artifacts with runtime bead overlays from the live ticket payload so the UI can show in-progress status and notes without waiting for a full artifact refresh. Bead details render append-only **Failed Iteration Notes**, **User Retry Notes**, and **Finalization Failure Notes** sections independently, preserving their timestamp, iteration, content, and optional error code.
+It also merges persisted bead artifacts with runtime bead overlays from the live ticket payload so the UI can show in-progress status and notes without waiting for a full artifact refresh. Runtime beads carry `targetFiles` and server-derived `externalTargetFiles`, keeping the External files warning visible before the full tracker fetch and on newly added QA-fix beads. Approval and Coding combine server-resolved symbolic-link checks with conservative written-path checks; editing a target updates the written-path warning immediately. Bead details render append-only **Failed Iteration Notes**, **User Retry Notes**, and **Finalization Failure Notes** sections independently, preserving their timestamp, iteration, content, and optional error code.
 
 When the runtime projection finds damaged or unrepresentable bead rows, the
 ticket payload exposes `runtime.beadsDiagnostics`. Ticket cards and the

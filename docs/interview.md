@@ -87,7 +87,7 @@ During answering, LoopTroop persists:
 
 This is what lets the UI show answered/skipped history, restore in-progress state, and continue the same interview across batches.
 
-If AI batch generation fails after you submit answers, Retry keeps the saved answers and restarts the failed AI work in a fresh session. Retry with extra note adds your unchanged guidance to that attempt. Continue resumes an eligible preserved session instead. You do not need to re-enter answers already saved in the submitted snapshot.
+If AI batch generation fails or times out after you submit answers, Retry keeps the saved answers and restarts the failed AI work in a fresh session. Retry with extra note adds your unchanged guidance to that attempt. Continue confirms that the interrupted turn stopped, then resumes the eligible preserved session at the failed step, including when the daemon is still running. You do not need to re-enter answers already saved in the submitted snapshot.
 
 Questions are presented in adaptive batches of **1 to 3**:
 

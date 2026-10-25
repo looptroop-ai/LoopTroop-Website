@@ -84,6 +84,8 @@ Rejected model output remains diagnostic-only in Raw attempt views and logs.
 
 ## 4. Part 2: Drafting, Voting, And Refining
 
+When a blocked Part 2 session is eligible for Continue, LoopTroop reuses its saved, validated Full Answers instead of running Part 1 again. The checkpoint must match the original inputs and phase attempt. A missing, damaged, or mismatched checkpoint requires Retry so a new input cannot be silently replaced by `continue please` in the old conversation.
+
 After Full Answers are ready, the PRD council runs the normal draft -> vote -> refine pattern:
 
 | Step | What happens |
