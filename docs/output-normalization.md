@@ -662,7 +662,7 @@ The Part 2 expanded bead list (`normalizeBeadsJsonlOutput`) is stricter than the
 
 Unlike the council blueprint normalizer, duplicate bead IDs or unknown/self dependencies fail validation here instead of being silently reshaped.
 
-`targetFiles` (or its `target_files` alias) must be explicitly supplied. An array of non-blank path strings is valid, including an explicit empty array when no files are targeted. A single supplied path string is safely wrapped in a one-item list and reported as a parser repair; it is not split into guessed paths. Targets may name repository files or external files, and their text is not rewritten into a different location. Missing, null, or malformed target values fail validation. External targets and explicit empty lists are valid inputs, not parser repairs.
+`targetFiles` (or its `target_files` alias) must be explicitly supplied. An array of non-blank path strings is valid, including an explicit empty array when no files are targeted. A single supplied path string is safely wrapped in a one-item list. Its processing notice identifies the affected bead and shows the before/after correction; the path is not split into guessed paths. Targets may name repository files or external files, and their text is not rewritten into a different location. Missing, null, or malformed target values fail validation. External targets and explicit empty lists are valid inputs, not parser repairs.
 
 ---
 
