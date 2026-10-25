@@ -657,7 +657,7 @@ not guaranteed to arrive.
 | `PUT` | `/api/tickets/:id/manual-qa/versions/:version/evidence?itemId=...` | Stream one evidence file; filename/media metadata use headers/query fields; 250 MiB per-file limit |
 | `GET` | `/api/tickets/:id/manual-qa/versions/:version/evidence/:itemId/:evidenceId` | Secure read/download; `?inline=true` works only for safe raster media types |
 | `DELETE` | `/api/tickets/:id/manual-qa/versions/:version/evidence/:itemId/:evidenceId` | Remove one evidence file and metadata record while waiting |
-| `POST` | `/api/tickets/:id/manual-qa/submit` | Validate the round; for failures require read-only repository inspection and persist a complete `fix-beads.yaml` candidate before idempotently creating configured improvements and normal QA-fix beads |
+| `POST` | `/api/tickets/:id/manual-qa/submit` | Validate the round; for failures require focused read-only inspection and persist a complete `fix-beads.yaml` candidate before idempotently creating configured improvements and normal QA-fix beads |
 | `POST` | `/api/tickets/:id/manual-qa/skip` | Bypass ordinary result/observation/group completeness validation, preserve all entered data plus an optional reason as an immutable draft, create no drafted work, then integrate |
 | `POST` | `/api/tickets/:id/manual-qa/workspace-drift/include` | Commit only the selected audited drift files into the QA checkpoint |
 | `POST` | `/api/tickets/:id/manual-qa/workspace-drift/discard` | Discard only the selected audited drift files |
@@ -770,6 +770,8 @@ Most action routes in this section respond with the latest machine snapshot so c
   }
 }
 ```
+
+For multi-step coverage and PR drafting failures, `retry_with_note` is advertised only when the exact failed session identifies its step; LoopTroop does not apply guessed guidance to a different step.
 
 The Continue endpoint is available only from `BLOCKED_ERROR`. It requires a known `previousStatus`, an unresolved active error occurrence with a diagnostic `sessionId`, a matching active `opencode_sessions` row for that ticket and previous phase, and an OpenCode session that is still addressable by that exact id with its interrupted turn confirmed stopped. It returns `409` and leaves the ticket blocked when those checks fail. On success it dispatches `CONTINUE`, records the pending session continuation, and the next owned prompt sends exactly `continue please` without creating a fresh phase attempt.
 
@@ -1465,7 +1467,7 @@ There is no generic filesystem browser or arbitrary file read route under `/api/
 
 The `flow` value must be a safe relative branch/flow name. Absolute paths, backslashes, `.` segments, and `..` traversal segments are rejected. When `flow` is omitted, the route falls back to the ticket's base branch.
 
-Both read routes add `externalTargetFiles` to a parsed bead when any target is external or cannot be resolved safely. This read-only metadata combines conservative written-path checks with server resolution of existing targets or their nearest existing parent, including symbolic links. It does not alter stored JSONL or its hash, and structured approval saves remove the derived field.
+The read routes and successful PUT responses add `externalTargetFiles` to a parsed bead when any target is external or cannot be resolved safely. This read-only metadata combines conservative written-path checks with server resolution of existing targets or their nearest existing parent, including symbolic links. A missing worktree falls back to written-path checks. The metadata does not alter stored JSONL or its hash, and structured approval saves remove the derived field. PUT requires an explicit `targetFiles` array, accepts `[]`, and rejects blank paths and control characters before saving.
 
 Both read routes expose the canonical on-disk plan hash through `X-Content-Sha256`, even when the tracker is empty or damaged. `GET /api/tickets/:id/beads` returns every row that parsed successfully, not an all-or-nothing failure, and can therefore succeed even when other JSONL lines are malformed or cannot be represented as editable bead objects. The route reports those file-line diagnostics through:
 

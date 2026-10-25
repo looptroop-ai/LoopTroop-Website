@@ -69,7 +69,7 @@ Only drafts that actually received scores can win. When scored drafts tie, the
 main implementer wins the tie outright; otherwise LoopTroop falls back to the
 configured council order as the deterministic tie-breaker.
 
-A member can receive operator guidance through an answered AI question or a member-specific retry note. Its draft then carries an anonymous notice telling voters that the author received additional guidance and should not be marked down merely for differing from the other drafts. PRD guidance received while producing Full Answers carries into the derived draft, including when validated Full Answers are kept for a Part 2 retry. The notice names no model.
+A member can receive operator guidance through an answered AI question, a member-specific retry note, or a phase retry note actually sent with its prompt. Its draft then carries an anonymous notice telling voters that the author received additional guidance and should not be marked down merely for differing from the other drafts. PRD guidance received while producing Full Answers carries into the derived draft, including when validated Full Answers are kept for a Part 2 retry or Continue. Continue reuses other members’ valid Full Answers from the same attempt when their inputs still match. The notice names no model.
 
 ## 5. Step 3: Refinement
 

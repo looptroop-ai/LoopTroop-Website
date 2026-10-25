@@ -106,7 +106,7 @@ Checklist items receive app-assigned version IDs and stable cross-round `lineage
 
 For a `qa-fix` bead, typed `qaOrigin` is part of the narrow active-bead contract and stays separate from the three bead note histories. It contains the QA version/source items, observations, expected behavior, evidence references, locked model ID/image-capability result, and Manual-QA creation timestamp. If the locked model advertises image input, every detected image evidence file is added as an OpenCode SDK file part with no extra prompt-size cap; non-images remain references. Capability false/unavailable records `references_only`, while provider/context overflow follows normal bead error recovery and never silently drops images.
 
-QA-fix planning uses its own focused builder during Manual QA Submit. It supplies all failed merge groups plus ticket details, approved PRD, existing beads, current final-test report, checklist/results, evidence references, and targeted diff metadata. At least one successful read-only repository inspection tool call is mandatory so the model can discover files outside the original bead targets. The model returns complete candidate bead content; LoopTroop owns identifiers and lifecycle fields and persists the validated batch before any child creation.
+QA-fix planning uses its own focused builder during Manual QA Submit. It supplies all failed merge groups plus ticket details, approved PRD, existing beads, current final-test report, checklist/results, evidence references, and targeted diff metadata. At least one successful focused read-only inspection tool call is mandatory. It may inspect relevant files from any accessible folder, including outside the worktree, without a path allowlist. The model returns complete candidate bead content; LoopTroop owns identifiers and lifecycle fields and persists the validated batch before any child creation.
 
 ## 6. Current Phase Allowlists
 
@@ -210,7 +210,7 @@ preflight:
 
 Some statuses append small task-specific sections outside this reusable allowlist. For example, interview resume appends the current question/session state, PRD and beads voting append a rubric, coverage revision appends the concrete gaps for that pass, execution setup regeneration appends the current plan and user note, and pull-request creation appends narrow reports or diffs.
 
-A manual Retry with extra note adds the entered text unchanged to the fresh attempt's normal inputs. The `user_retry_note` artifact scopes non-coding notes to the affected phase attempt and expires their instruction after the recovered work succeeds; coding keeps its bead-scoped note history. Member-specific council notes apply only to that member's requested restart. Neither kind edits the approved planning documents or grants instructions to unrelated work.
+A manual Retry with extra note adds the entered text unchanged to the fresh attempt's normal inputs. The `user_retry_note` artifact keeps non-coding guidance attached only to the work being recovered until it succeeds. Later work in the same phase, such as another interview batch or coverage pass, does not inherit it. Coding keeps its bead-scoped note history. Member-specific council notes apply only to that member's requested restart. Neither kind edits approved planning documents or instructs unrelated work.
 
 ## 7. Status Context Matrix
 

@@ -806,7 +806,7 @@ Application-owned checklist/results YAML is loaded directly with `js-yaml` and v
 
 ### Manual QA Fix-Bead Candidate
 
-Failed submissions require exactly one complete `<MANUAL_QA_FIX_BEADS>…</MANUAL_QA_FIX_BEADS>` envelope. Its candidate keys must exactly match the application-provided merge-group keys, with one complete bead definition per key. Validation requires meaningful title/description/context, PRD refs, acceptance criteria, tests, test commands, labels, dependencies, and explicit repository or external target files. At least one successful focused read-only repository inspection tool call is part of the generation contract.
+Failed submissions require exactly one complete `<MANUAL_QA_FIX_BEADS>…</MANUAL_QA_FIX_BEADS>` envelope. Its candidate keys must exactly match the application-provided merge-group keys, with one complete bead definition per key. Validation requires meaningful title/description/context, PRD refs, acceptance criteria, tests, test commands, labels, dependencies, and explicit repository or external target files. At least one successful focused read-only inspection tool call is part of the generation contract; relevant files in any accessible folder may be inspected without a path allowlist.
 
 LoopTroop assigns bead IDs, priority/order, pending lifecycle state, `qa-fix` issue type, external references, reverse dependency links, timestamps, and `qaOrigin`; the model may not override these fields. The complete validated batch is written to `fix-beads.yaml` before any Improvement ticket or bead is created. There is no lower-quality repair/fallback bead: exhausted model/tool/parser validation routes the submission to recoverable `BLOCKED_ERROR` with zero child records.
 
