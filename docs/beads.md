@@ -531,7 +531,7 @@ phases is a separate path and does not consume this cap. This is separate from
 the OpenCode provider retry limit and grace window, and a workflow-owned
 iteration timeout still follows the fresh-session reset path.
 
-From the live blocked view, the normal **Retry** action resets and schedules the same failed or paused bead with its accumulated note histories. **Retry with extra note...** opens a multiline dialog for 1 to 20,000 characters of user guidance, then performs the same safe recovery and appends a structured entry to `userRetryNotes`.
+From the live blocked view, the normal **Retry** action resets and schedules the same failed or paused bead with its accumulated note histories. It rechecks the same failure and recovery ownership before reset, cleanup, and saving bead changes, stopping later steps if another action has changed them. **Retry with extra note...** opens a multiline dialog for 1 to 20,000 characters of user guidance, then performs the same safe recovery and appends a structured entry to `userRetryNotes`.
 
 ```text
 {

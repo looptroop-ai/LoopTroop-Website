@@ -46,7 +46,7 @@ Full Answers, PRD and beads drafting, refinement, coverage, and bead expansion c
 
 If a member's Full Answers artifact is invalid after the configured structured retries, that member's PRD draft is not started. LoopTroop records a concise skipped/invalid PRD draft diagnostic instead of copying the Full Answers malformed text into the PRD draft artifact. A member you stop during Part 1 does not start its PRD draft either. One you stop during Part 2 loses its Part 1 answers as well, so nothing it wrote reaches the vote or the refinement, and retrying it redoes both parts (see [Stopping Or Retrying One Model](#stopping-or-retrying-one-model)).
 
-Rejected model responses are diagnostic data, not draft bodies. Accepted drafts persist normalized artifact content; invalid, failed, or timed-out outputs show only outcome, model, validation/retry diagnostics, and short excerpts in the structured artifact view. The full malformed responses remain available through Raw attempt views and execution logs. A member you stopped shows as Stopped, and nothing it wrote becomes a draft.
+Rejected model responses are diagnostic data, not draft bodies. Accepted drafts persist normalized artifact content; invalid, failed, or timed-out outputs show only outcome, model, validation/retry diagnostics, and short excerpts in the structured artifact view. The full malformed responses remain available through Raw attempt views and execution logs. Formatting failures retain the failed model and part in diagnostics so a fresh retry can receive guidance for that part. A member you stopped shows as Stopped, and nothing it wrote becomes a draft.
 
 ## 4. Step 2: Structured Voting
 
@@ -69,7 +69,7 @@ Only drafts that actually received scores can win. When scored drafts tie, the
 main implementer wins the tie outright; otherwise LoopTroop falls back to the
 configured council order as the deterministic tie-breaker.
 
-A member can receive operator guidance through an answered AI question, a member-specific retry note, or a phase retry note actually sent with its prompt. Its draft then carries an anonymous notice telling voters that the author received additional guidance and should not be marked down merely for differing from the other drafts. PRD guidance received while producing Full Answers carries into the derived draft, including when validated Full Answers are kept for a Part 2 retry or Continue. Continue reuses other members’ valid Full Answers from the same attempt when their inputs still match. The notice names no model.
+A member can receive operator guidance through an answered AI question, a member-specific retry note, or a phase retry note actually sent with its prompt. Its draft then carries an anonymous notice telling voters that the author received additional guidance and should not be marked down merely for differing from the other drafts. PRD guidance received while producing Full Answers carries into the derived draft, including when validated Full Answers are kept for a Part 2 retry or Continue. Continue reuses other members’ valid Full Answers from the same attempt when their inputs still match. The notice names no model. It follows the same session through Continue and remains attached to a guided winning draft after refinement. Stopping a model or restarting Full Answers invalidates its durable answers checkpoint, so later continuation cannot restore discarded work.
 
 ## 5. Step 3: Refinement
 
