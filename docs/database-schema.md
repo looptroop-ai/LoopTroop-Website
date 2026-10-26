@@ -48,7 +48,7 @@ The app database is the global control-plane store.
 | Table | Purpose | Notes |
 | --- | --- | --- |
 | `profiles` | Baseline workflow/profile settings | Treated as a singleton row by the API |
-| `app_meta` | Small app-level key/value metadata | Used for lightweight UI/runtime flags |
+| `app_meta` | App-level key/value metadata, including assistant session indexes | Used for lightweight runtime metadata |
 | `attached_projects` | Registry of attached project roots | Provides the public project id |
 
 ### `profiles`
@@ -58,6 +58,7 @@ This row is the default configuration source. Its Advanced values seed concrete 
 Important columns:
 
 - model selection: `main_implementer`, `main_implementer_variant`, `council_members`, `council_member_variants`
+- assistant settings: `chat_model` and `chat_model_variant` (nullable text), `save_chat_sessions` (non-null boolean, default `true`)
 - workflow budgets and limits: `min_council_quorum`, `interview_questions`, `max_iterations`, `structured_retry_count`
 - timeout settings in milliseconds: `per_iteration_timeout`, `execution_setup_timeout`, `council_response_timeout`
 - coverage controls: `coverage_follow_up_budget_percent`, `max_coverage_passes`, `max_prd_coverage_passes`, `max_beads_coverage_passes`
@@ -84,7 +85,7 @@ Operational notes:
 
 `app_meta` is intentionally small and generic: `key`, `value`, and `updated_at`.
 
-Today it is used for startup/UI metadata such as `startup.restore_notice.dismissed_at` in `server/startupState.ts`, and it is the right place for tiny app-wide flags that do not justify a dedicated table.
+It stores startup/UI metadata such as `startup.restore_notice.dismissed_at` and assistant session indexes under `assistant.session.<uuid>`. An assistant index records its mode, optional ticket scope, title, saved/archive state, timestamps, and linked OpenCode session ID. The message transcript stays in OpenCode and is not copied into LoopTroop's SQLite database. A saved history entry can resume only while OpenCode still has that session.
 
 ### `attached_projects`
 

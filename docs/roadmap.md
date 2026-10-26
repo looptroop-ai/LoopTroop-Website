@@ -1953,39 +1953,6 @@ search: false
     *   On reconnect/restart, restore pending steering messages and show applied vs skipped outcomes in the ticket dashboard.
     *   *Context wipe intervention:* while triggering context wipe, optionally open a countdown pause window (default OFF). Messages submitted in this window are stored as `user_steering_note` and attached to the next iteration context.
     *   Add explicit `BLOCKED_ERROR` steering UX: before retrying a blocked bead, show `Provide Steering` input and append accepted steering into bead notes (`source=steering`) for the next iteration.
-*   **Ticket Chat & Action Assistant (unified conversational interface):** A single AI-powered chat surface that spans ticket logs, execution progress, and dashboard overview, powered by a separate fast/cheap model.
-    *   **Read-only Q&A (conversational analysis):**
-        *   **Log-scoped chat (ticket view):** A lightweight chat widget in the ticket view's log panel that lets users ask natural-language questions about execution logs.
-            *   **Button placement:** A small chat icon button in the `PhaseLogPanel` toolbar area, alongside the existing entries count, color legend, and copy-button group.
-            *   **Chat panel:** Opens a slide-in drawer or expandable panel with a streaming message interface (markdown-rendered AI responses).
-            *   **Log scope selector:** A dropdown in the chat panel header to choose between `Current tab` (active filter tab) or `All ticket logs` (full execution history across all phases).
-            *   **Context construction:** Selected log entries are collected, formatted with metadata (timestamp, source, phase, bead, audience), and sent as system context along with the user's question to the chat model.
-            *   **Example queries:**
-                *   "What's happening right now in this phase?"
-                *   "Why did bead 7 take so long?"
-                *   "Why was model X the winner of the council vote? What was its score?"
-                *   "Show me all the errors in this ticket."
-                *   "Summarize what happened during the PRD drafting phase."
-        *   **Execution-scoped chat:** During execution, the chat model answers questions about what has been done and what is still needed, so the user does not need to read all logs. Context includes active bead progress, recent commits, verification results, and open blockers.
-        *   **Dashboard-scoped chat (cross-ticket):** The chat model answers questions about what tickets are doing, projects, statuses, etc., across the entire workspace, so the user does not need to read all logs. Context includes ticket summaries, statuses, recent activity, and project-level metrics.
-    *   **Chat model:** Uses a separate configurable model (not the main implementer or council members), intended to be a fast/cheap model like GPT-4o-mini, Claude 3 Haiku, Gemini 2.0 Flash, or similar.
-    *   **Backend:** A new lightweight SSE streaming endpoint `/api/chat` that accepts `{ ticketId?, logEntries[], userMessage, scope }`, constructs the prompt, and streams the chat model's response. The `scope` field selects the context source (`log_tab`, `all_ticket_logs`, `execution`, `dashboard`).
-    *   **Ephemeral sessions:** Chat history is volatile and does not persist across page reloads or sessions. This keeps the feature lightweight and stateless.
-    *   **Configuration:** A new **Chat & Analysis** section in the Configuration UI with a model picker for the chat model (and its effort/variant selector where applicable). Stored separately from job-critical model settings.
-    *   **AI-Assisted Retry Note Generation:** When the user opens the "Retry with extra note..." dialog (on a live Blocked Error for supported failed AI work), an optional "Generate with AI" action lets the configured chat model draft the retry note.
-        *   **Prompt input:** A small editable prompt field pre-filled with a sensible default (e.g., "This ticket/workspace keeps blocking. Can you add an extra note that will help an LLM model fix this issue?"). The user can rewrite the prompt before triggering generation.
-        *   **Context assembly:** The chat model receives the user's prompt plus relevant ticket context: error diagnostics, ticket details, current bead info (for implementation blocks) or setup report (for workspace setup blocks), prior retry notes, and recent phase logs.
-        *   **Output handling:** The generated text is inserted into the existing "Extra note" textarea for the user to review, edit, or discard. Nothing is submitted automatically. The user always confirms the final note before retrying.
-        *   **Model:** Reuses the same configurable chat model defined in the "Chat model" bullet above; no separate model picker is needed.
-        *   **Availability:** Shown only when the "Retry with extra note..." button is visible for supported failed AI work. Hidden for historical errors and unsupported operations.
-    *   **Key files (implementation scope):**
-        *   `server/routes/chat.ts`: new SSE streaming endpoint for read-only responses
-        *   `server/db/schema.ts`, `server/db/defaults.ts`, `shared/appConfig.ts`: chat model config fields
-        *   `src/components/workspace/LogChatPanel.tsx`: new chat panel component
-        *   `src/components/workspace/PhaseLogPanel.tsx`: add chat button in toolbar
-        *   `src/components/dashboard/DashboardChatPanel.tsx`: dashboard-scoped chat surface
-        *   `src/components/config/ProfileSetup.tsx`: add Chat & Analysis section
-        *   `docs/configuration.md`: document the new settings
 *   **Different implementer per bead/component:** Manually or automatically assign an implementer per bead or group of beads (e.g., all UI components should be done by Gemini 3 Pro).
 *   **Ticket-Scoped Commands & Instructions (testing + workspace setup):** Allow users to attach executable commands and free-form instructions directly to a ticket at creation time, which are then consumed during execution by the appropriate workflow phases.
     *   **Testing commands/instructions:** Users can specify test commands or testing instructions in the ticket description at creation. These are persisted, validated, and injected into the execution loop so the implementing agent can use them when writing and running tests.

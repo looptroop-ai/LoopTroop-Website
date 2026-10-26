@@ -315,10 +315,11 @@ Those phase timeouts exist to catch a stuck model, and a model blocked on a ques
 
 | Area | Modules |
 | --- | --- |
-| App entry and route mounting | `server/index.ts` |
+| App entry and route mounting | `server/index.ts`, `server/app.ts` |
 | Middleware and request guards | `server/middleware/apiAuth.ts`, `rateLimit.ts`, `validation.ts` |
 | Ticket routes and modular ticket handlers | `server/routes/tickets.ts`, `server/routes/ticketHandlers/*` |
 | Files, beads, streaming | `server/routes/files.ts`, `beads.ts`, `stream.ts` |
+| Read-only assistant conversations and evidence | `server/routes/chat.ts`, `server/assistant/sessions.ts`, `server/assistant/evidence.ts` |
 | Profile, projects, health, models, workflow meta | `server/routes/profiles.ts`, `projects.ts`, `health.ts`, `models.ts`, `workflow.ts` |
 
 ### Ticket Orchestration

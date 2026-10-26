@@ -34,6 +34,7 @@ Most modal routes and workspace views are also lazy-loaded through `lazyWithChun
 | Area | Purpose | Primary files |
 | --- | --- | --- |
 | App shell | App bootstrap, startup overlays, lazy modal routes, global header chrome | `src/App.tsx`, `src/components/layout/AppShell.tsx` |
+| Assistant chat | App-wide Help and ticket question window with mode- and ticket-scoped sessions | `src/components/assistant/AssistantWidget.tsx`, `src/hooks/useAssistant.ts` |
 | Ticket dashboard | Selected-ticket orchestration, live status bridging, navigator/workspace wiring, loading/reconnect banners | `src/components/ticket/TicketDashboard.tsx` |
 | Active workspace | Chooses the live view for the selected phase | `src/components/ticket/ActiveWorkspace.tsx` |
 | Navigator | Timeline, approval navigation, context tree, errors, full log entry point | `src/components/ticket/NavigatorPanel.tsx` |
@@ -50,6 +51,7 @@ Most modal routes and workspace views are also lazy-loaded through `lazyWithChun
 - deep-link ticket selection from `/ticket/:externalId`
 - header controls for dashboard search, New Ticket, Projects, Configuration, Docs, Refresh, and theme switching; on desktop the ticket search sits beside **New Ticket**, while mobile uses a search popover to preserve header space
 - the About overlay, which has no route of its own: it sits above the routed modals and is closed by browser Back or Forward, and by closing the Configuration screen it was opened from
+- the fixed bottom-right assistant launcher and window, available from the dashboard and ticket views
 - a clickable version beside the LoopTroop title that opens About; when `/api/health/update` reports a newer published release, the badge gains a deliberately quiet monochrome update icon without changing color
 - display-only mock/demo ticket IDs render with a superscript `(M)` marker in board cards and selected-ticket dashboard surfaces while keeping the raw external ID for routing, file paths, and artifacts; the dashboard exposes Cancel for non-terminal mock/demo tickets while keeping runnable workflow controls hidden
 
@@ -79,6 +81,14 @@ when the desktop layout appears; hidden controls are skipped when focus wraps.
 `App.tsx` renders this subtree as `<TicketDashboard key={selectedTicketId}>`. That `key` is the ticket-switch remount boundary: when the selected ticket changes, React unmounts the whole dashboard and rebuilds every draft buffer, timer, ref, and ticket-local `useState` value from scratch. This prevents one ticket's local UI state from leaking into another ticket's save/edit surfaces.
 
 The navigator width is the deliberate exception because it is browser chrome, not ticket content. `TicketDashboard.tsx` restores it from the browser-local `localStorage` key `looptroop-ticket-nav-width`, clamps it to a minimum of 200 px and a maximum of 50% of the current viewport width, defaults to 280 px, and writes it back only when a drag ends.
+
+### Assistant Chat
+
+`AssistantWidget` is mounted once at app level and keeps the same window in dashboard and ticket views. **Help** answers from LoopTroop's current published docs and the installed release's source on official GitHub. **Tickets** covers every project regardless of board filters when no ticket is open; with a ticket open, it uses that ticket's description, metadata, planning documents, logs, and project source. The assistant is read-only and cannot edit files, approve artifacts, or trigger ticket workflow actions.
+
+The server prepares a bounded, sanitized evidence snapshot instead of attaching every log and source file to each prompt. Help mode fetches a fixed set of 25 pages from the current website docs, with a 256 KiB limit per page, then selects up to 28 installed source files for each question, with 128 KiB per file and 3 MiB total. Ticket mode collects ticket metadata, planning artifacts, paged logs, and one source snapshot per attached project or authorized worktree. Each project snapshot has its own limits of 1,200 files, 12 MiB total, 50,000 walked entries, and 512 KiB per file. It excludes symlinks, binaries, environment and credential paths, `.git`, `.looptroop`, and dependency or build directories. The manifest reports unavailable or omitted evidence and actual source totals. The assistant cites available source links and reports gaps when they limit an answer.
+
+Open chat tabs stay scoped to their mode and ticket context. History combines open and archived Help, dashboard-wide Tickets, and ticket-specific conversations, with search by title and scope label. Selecting another ticket's conversation opens that ticket before restoring the chat; if the ticket is unavailable, the conversation cannot be opened. Selecting a dashboard-wide Tickets conversation returns to the board, while Help leaves the current view unchanged. The launcher stays visible, and the window supports multiple open chats and a **New chat** control. Closing the window hides it and preserves its tabs and active answers. Closing a saved tab archives its conversation; closing an unsaved tab deletes it. A missing assistant model shows a link to Configuration. See [Assistant Chat configuration](configuration.md#assistant-chat) and [assistant chat routes](api-reference.md#assistant-chat-routes).
 
 ## 2. Active Workspace Routing
 
@@ -265,6 +275,7 @@ The timeline is visit-aware rather than solely status-index based. Ticket payloa
 | `useTicket(id)` | Individual ticket query with 5-second auto-refresh while active, seeded from cached ticket lists when possible |
 | `useProjects()` | Attached project metadata for the dashboard, kanban cards, ticket forms, and project management modal |
 | `useProfile()` | Singleton profile query against `/api/profile` |
+| `useAssistant()` | Owns assistant conversation lists, details, and streamed replies for the current mode and ticket context |
 | `useStartupStatus()` | Startup storage/runtime state for restore notices and WSL warnings |
 | `useOpenCodeModels()` / `useAllOpenCodeModels()` | Connected-model list versus full provider catalog |
 | `useBackendHealth()` | Global backend-reachability banner with confirmation probes to avoid startup false positives |

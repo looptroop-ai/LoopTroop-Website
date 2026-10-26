@@ -252,6 +252,9 @@ Example profile update payload:
   "mainImplementerVariant": "high",
   "councilMembers": "[\"openai/gpt-5.4\",\"anthropic/claude-sonnet-4\"]",
   "councilMemberVariants": "{\"openai/gpt-5.4\": \"high\"}",
+  "chatModel": null,
+  "chatModelVariant": null,
+  "saveChatSessions": true,
   "manualQaEnabled": true,
   "aiQuestionsEnabled": true,
   "aiQuestionWindow": 300000,
@@ -304,8 +307,39 @@ Selected validation ranges that are easy to miss when calling the API directly:
 | `aiQuestionWindow` | `60000` to `3600000` ms, in multiples of `60000` | How long an AI question waits before the run carries on; defaults to `300000` |
 | `gitHookPolicy` | `observe_only`, `validate_advisory`, `validate_required`, `use_native_hooks` | Future-project default for LoopTroop-owned Git operations; `validate_advisory` is the built-in default |
 | `ignoreMode` | `repo`, `local`, `skip` | Future-project folder-ignore default; `local` is the built-in default |
+| `chatModel` | any available model or `null` | Separate model for assistant Help and Tickets conversations |
+| `chatModelVariant` | variant string or `null` | Optional effort variant for the assistant model |
+| `saveChatSessions` | boolean; default `true` | Whether newly created assistant conversations are kept when closed |
 | `toolInputMaxChars`, `toolErrorMaxChars` | `500` to `50000` | Applied to OpenCode tool transcript truncation |
 | `toolOutputMaxChars` | `1000` to `100000` | Higher lower bound because tool output is usually larger |
+
+## Assistant Chat Routes
+
+Assistant conversations use the configured `chatModel` and `chatModelVariant`. Creating a conversation without a configured model returns `409`. Errors encountered after a message stream opens arrive in an `error` frame. The assistant is read-only.
+
+Help conversations use `mode=help` and draw on LoopTroop's current published documentation and the installed release's source on official GitHub. Tickets conversations use `mode=tickets`; without `ticketId` they cover every ticket across attached projects, regardless of dashboard filters. With a ticket's existing public reference as `ticketId`, they cover that exact ticket. Help mode does not accept `ticketId`. Create, detail, close, and message requests require the matching mode and ticket scope. The unfiltered history list spans all modes and ticket contexts.
+
+| Method | Route | Notes |
+| --- | --- | --- |
+| `GET` | `/api/chat/sessions[?mode=<mode>[&ticketId=<id>]]` | Lists all conversations across scopes without a query; a mode and optional ticket ID filter the list |
+| `POST` | `/api/chat/sessions` | Creates a conversation; body is `{ "mode": "help" }`, `{ "mode": "tickets" }` for dashboard scope, or `{ "mode": "tickets", "ticketId": "<id>" }` |
+| `GET` | `/api/chat/sessions/:id?mode=<mode>[&ticketId=<id>]` | Returns one conversation and its available messages in the same scope |
+| `POST` | `/api/chat/sessions/:id/messages` | Sends a message and streams the assistant reply as SSE |
+| `POST` | `/api/chat/sessions/:id/close` | Closes a conversation; saved sessions are archived, unsaved sessions are deleted |
+
+For a filtered list request and every detail request, `mode` is required and must be `help` or `tickets`. A global list includes saved conversations from every scope and active temporary conversations owned by the current daemon process. The close request body contains the same mode and optional ticket scope. The message request body contains `mode`, optional `ticketId`, and `message`; the trimmed message must contain 1 to 20,000 characters. Session IDs must belong to the supplied mode and ticket context; a mismatch returns `404`.
+
+Create and detail responses return an `AssistantSession`: `id`, `mode`, nullable `ticketId`, `title`, `archived`, `createdAt`, `updatedAt`, `messages`, `canResume`, and `saved`. Each message has `id`, `role` (`user` or `assistant`), `content`, and `createdAt`. The list route returns the summary fields without messages or resume state.
+
+Each message-stream `data:` frame contains one JSON event with one of these shapes:
+
+| Type | Payload fields |
+| --- | --- |
+| `delta` | `text` contains the next response fragment |
+| `done` | `session` contains the completed `AssistantSession` |
+| `error` | `error` contains a message the UI can display |
+
+The server sends a heartbeat comment every 10 seconds while a response is open. Invalid scope or message data returns `400`, and a missing or mismatched session returns `404` before streaming begins. Model, busy-session, and generation failures after streaming begins use an `error` frame. A conversation can have only one active answer; the server also limits active answers to three. Closing a saved conversation archives it. The transcript remains in OpenCode and can be resumed while that session exists; LoopTroop stores session metadata, not a second transcript copy. If OpenCode has removed the session, `canResume` is false and its messages are unavailable. The `saveChatSessions` preference is captured when a conversation is created, so changing it affects new conversations only.
 
 ## Authentication And Daemon Control
 

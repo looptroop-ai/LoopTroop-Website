@@ -53,11 +53,14 @@ The `OpenCodeAdapter` interface currently exposes:
 | `replyQuestion()` | Answer a pending request |
 | `rejectQuestion()` | Reject a pending request |
 | `abortSession()` | Abort a remote session |
+| `deleteSession()` | Delete a remote session; optional for custom adapters, implemented by both live transports and the mock adapter |
 | `assembleBeadContext()` | Build bead-context prompt parts |
 | `assembleCouncilContext()` | Build council prompt parts |
 | `checkHealth()` | Health and availability check |
 
 `getOpenCodeAdapter()` returns a singleton. In live mode it detects OpenCode v1 or v2 from the authenticated server API. v2 uses LoopTroop's HTTP transport; v1 uses the retained `@opencode-ai/sdk` transport. Mock mode returns `MockOpenCodeAdapter`, which also supplies a mock health result and provider catalog for the rest of the app.
+
+Assistant conversations use dedicated sessions outside ticket-phase ownership. Their permissions allow only reading and searching prepared evidence, with external-directory access denied. Closing a temporary conversation confirms that its answer stopped, deletes its OpenCode session, and removes its local metadata. Confirmed missing sessions count as already deleted; other deletion failures retain the metadata for retry. Saved conversations keep their OpenCode transcripts. See [Assistant Chat routes](api-reference.md#assistant-chat-routes).
 
 Requests use Basic auth when a nonblank password is configured. v2 fixes the username to `opencode`; it uses `OPENCODE_PASSWORD` when that variable is nonblank, otherwise `OPENCODE_SERVER_PASSWORD`, preserving the supplied v2 password exactly. v1 uses `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`, with `opencode` as the default username. Prompt dispatch passes OpenCode options such as `model`, `agent`, and `variant`. Tool access is controlled by LoopTroop's ordered session permission policy immediately before dispatch.
 

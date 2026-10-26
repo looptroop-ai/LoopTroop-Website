@@ -388,6 +388,8 @@ See [Customizing Prompts](prompts.md#_6-customizing-prompts) for the storage lay
 | --- | --- | --- | --- | --- |
 | [Main Implementer Model](#main-implementer-model) | _(required)_ | any available model | AI Models | ticket start lock |
 | [Council Members](#council-members) | _(required, 1 to 9 additional)_ | any available models | AI Models | ticket start lock |
+| [Assistant Model](#assistant-chat) | not configured | any available model | AI Models | next assistant message |
+| [Save chat sessions](#assistant-chat) | Enabled | Enabled / Disabled | AI Models | conversations created after change |
 | [OpenCode Retry Limit](#opencode-retry-limit) | 10 | 0 to 50 | OpenCode Provider Recovery | next OpenCode prompt/session |
 | [OpenCode Retry Grace Window](#opencode-retry-grace-window) | 60 s | 0 to 3600 s | OpenCode Provider Recovery | next OpenCode prompt/session |
 | [OpenCode Max Steps](#opencode-max-steps) | 0 (no limit) | 0 to 500 | OpenCode Provider Recovery | next coding/final-test session |
@@ -526,6 +528,25 @@ Up to 9 council slots are available in addition to the main implementer, for a m
 :::
 
 **See also:** [LLM Council → Council Members](/llm-council#council-members)
+
+---
+
+### Assistant Chat
+
+**Assistant Model**
+
+- **Type:** optional model selector
+- **Default:** not configured
+- **Profile fields:** `chatModel`, `chatModelVariant`
+
+This app-wide setting supplies the model for the assistant's **Help** and **Tickets** modes. It is separate from the main implementer and council settings, though you can choose the same model. It uses the same model picker, OpenRouter routing choices, and conditional effort variant controls as the other model slots. Until you select a model, the assistant directs you to Configuration before starting a conversation.
+
+**Save chat sessions**
+
+- **Type:** Enabled / Disabled
+- **Default:** Enabled (`saveChatSessions: true`)
+
+The setting below the assistant model controls conversations created after each change. Enabled conversations are archived when you close them. Disabled conversations are discarded when closed and do not survive a daemon restart. History spans open and archived Help, dashboard-wide Tickets, and ticket-specific conversations; search matches titles and scope labels. Selecting another ticket's conversation opens that ticket before restoring the chat. A conversation can resume while OpenCode still has its session.
 
 ---
 
