@@ -85,7 +85,9 @@ Operational notes:
 
 `app_meta` is intentionally small and generic: `key`, `value`, and `updated_at`.
 
-It stores startup/UI metadata such as `startup.restore_notice.dismissed_at` and assistant session indexes under `assistant.session.<uuid>`. An assistant index records its mode, optional ticket scope, title, saved/archive state, timestamps, and linked OpenCode session ID. The message transcript stays in OpenCode and is not copied into LoopTroop's SQLite database. A saved history entry can resume only while OpenCode still has that session.
+It stores startup/UI metadata such as `startup.restore_notice.dismissed_at` and assistant session indexes under `assistant.session.<uuid>`. An assistant index records its mode, optional ticket scope and project ID, title, saved/archive state, timestamps, runtime owner, and linked OpenCode session ID. Malformed rows are isolated so they cannot block other conversations. The message transcript stays in OpenCode and is not copied into LoopTroop's SQLite database. A saved history entry can resume only while OpenCode still has that session.
+
+Deleting a ticket, deleting its project, or clearing/replacing project state moves matching dedicated conversation records to `assistant.cleanup.<uuid>` receipts and removes them from history. Each receipt contains the local conversation UUID and OpenCode session ID. Background cleanup stops active work, deletes the remote session and local evidence, and removes the receipt only after success. Startup and later assistant requests retry outstanding receipts and expired temporary sessions. Failed network cleanup preserves its receipt without restoring the deleted history entry.
 
 ### `attached_projects`
 

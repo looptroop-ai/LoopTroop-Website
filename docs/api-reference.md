@@ -315,7 +315,7 @@ Selected validation ranges that are easy to miss when calling the API directly:
 
 ## Assistant Chat Routes
 
-Assistant conversations use the configured `chatModel` and `chatModelVariant`. Creating a conversation without a configured model returns `409`. Errors encountered after a message stream opens arrive in an `error` frame. The assistant is read-only.
+Assistant conversations use the configured `chatModel` and `chatModelVariant`. Creating a conversation without a configured model returns `409`. Errors encountered after a message stream opens arrive in an `error` frame. The assistant is read-only. Responses use `Cache-Control: private, no-store`, including SSE replies.
 
 Help conversations use `mode=help` and draw on LoopTroop's current published documentation and the installed release's source on official GitHub. Tickets conversations use `mode=tickets`; without `ticketId` they cover every ticket across attached projects, regardless of dashboard filters. With a ticket's existing public reference as `ticketId`, they cover that exact ticket. Help mode does not accept `ticketId`. Create, detail, close, and message requests require the matching mode and ticket scope. The unfiltered history list spans all modes and ticket contexts.
 
@@ -339,7 +339,9 @@ Each message-stream `data:` frame contains one JSON event with one of these shap
 | `done` | `session` contains the completed `AssistantSession` |
 | `error` | `error` contains a message the UI can display |
 
-The server sends a heartbeat comment every 10 seconds while a response is open. Invalid scope or message data returns `400`, and a missing or mismatched session returns `404` before streaming begins. Model, busy-session, and generation failures after streaming begins use an `error` frame. A conversation can have only one active answer; the server also limits active answers to three. Closing a saved conversation archives it. The transcript remains in OpenCode and can be resumed while that session exists; LoopTroop stores session metadata, not a second transcript copy. If OpenCode has removed the session, `canResume` is false and its messages are unavailable. The `saveChatSessions` preference is captured when a conversation is created, so changing it affects new conversations only.
+The server sends a heartbeat comment every 10 seconds while a response is open. Invalid scope or message data returns `400`, and a missing, expired temporary, or mismatched session returns `404` before streaming begins. Model, busy-session, and generation failures after streaming begins use an `error` frame. A conversation can have only one active answer; the server also limits active answers to three. Evidence preparation and answering each have a separate three-minute deadline. A completed answer's final transcript read is not canceled by the answer deadline.
+
+Closing a saved conversation archives it locally; idle saved conversations can be archived while OpenCode is offline. Closing an active conversation requires stop confirmation, with a 15-second wait before reporting `503` if confirmation is unavailable. The transcript remains in OpenCode and can be resumed while that session exists; LoopTroop stores session metadata, not a second transcript copy. If opening a conversation confirms that OpenCode has removed it, `canResume` is false, its messages are unavailable, and its local history entry is retired. Network or authentication failures preserve the entry. Deleting a ticket or deleting/resetting its project removes dedicated ticket conversations and queues remote deletion for retry. The `saveChatSessions` preference is captured when a conversation is created, so changing it affects new conversations only.
 
 ## Authentication And Daemon Control
 

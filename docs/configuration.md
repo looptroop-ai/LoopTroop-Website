@@ -546,7 +546,9 @@ This app-wide setting supplies the model for the assistant's **Help** and **Tick
 - **Type:** Enabled / Disabled
 - **Default:** Enabled (`saveChatSessions: true`)
 
-The setting below the assistant model controls conversations created after each change. Enabled conversations are archived when you close them. Disabled conversations are discarded when closed and do not survive a daemon restart. History spans open and archived Help, dashboard-wide Tickets, and ticket-specific conversations; search matches titles and scope labels. Selecting another ticket's conversation opens that ticket before restoring the chat. A conversation can resume while OpenCode still has its session.
+The setting below the assistant model controls conversations created after each change. Enabled conversations are archived when you close them. Disabled conversations are deleted when closed and cannot be resumed after a daemon restart. If OpenCode is unavailable, deletion is retried when it becomes reachable. History spans open and archived Help, dashboard-wide Tickets, and ticket-specific conversations; search matches titles and scope labels. Selecting another ticket's conversation opens that ticket before restoring the chat. A conversation can resume while OpenCode still has its session.
+
+Switching modes or tickets preserves open tabs, each conversation's draft, and answers running in the background. Deleting a ticket, deleting its project, or resetting the project's tickets removes dedicated conversations for those tickets. Help and dashboard conversations keep their history. Saved conversations have no automatic age limit; when opening one confirms that OpenCode has removed it, LoopTroop removes its history entry too.
 
 ---
 
