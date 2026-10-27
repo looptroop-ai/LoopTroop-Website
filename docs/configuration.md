@@ -539,7 +539,7 @@ Up to 9 council slots are available in addition to the main implementer, for a m
 - **Default:** not configured
 - **Profile fields:** `chatModel`, `chatModelVariant`
 
-This app-wide setting supplies the model for the assistant's **Help** and **Tickets** modes. It is separate from the main implementer and council settings, though you can choose the same model. It uses the same model picker, OpenRouter routing choices, and conditional effort variant controls as the other model slots. Until you select a model, the assistant directs you to Configuration before starting a conversation.
+This app-wide setting supplies the model for the assistant's **Help** and **Tickets** modes. It is separate from the main implementer and council settings, though you can choose the same model. It uses the same model picker, OpenRouter routing choices, and conditional effort variant controls as the other model slots. Changing or clearing the model clears its previous effort variant unless you select a valid variant for the new model. Until you select a model, the assistant directs you to Configuration before starting a conversation.
 
 **Save chat sessions**
 
@@ -548,7 +548,7 @@ This app-wide setting supplies the model for the assistant's **Help** and **Tick
 
 The setting below the assistant model controls conversations created after each change. Enabled conversations are archived when you close them. Disabled conversations are deleted when closed and cannot be resumed after a daemon restart. If OpenCode is unavailable, deletion is retried when it becomes reachable. History spans open and archived Help, dashboard-wide Tickets, and ticket-specific conversations; search matches titles and scope labels. Selecting another ticket's conversation opens that ticket before restoring the chat. A conversation can resume while OpenCode still has its session.
 
-Switching modes or tickets preserves open tabs, each conversation's draft, and answers running in the background. Deleting a ticket, deleting its project, or resetting the project's tickets removes dedicated conversations for those tickets. Help and dashboard conversations keep their history. Saved conversations have no automatic age limit; when opening one confirms that OpenCode has removed it, LoopTroop removes its history entry too.
+Switching modes or tickets preserves open tabs, each conversation's draft, and answers running in the background. Deleting a ticket, deleting its project, or resetting the project's tickets removes dedicated conversations for those tickets and dashboard conversations that could contain their information. Help conversations keep their history. Saved conversations have no automatic age limit; when opening one confirms that OpenCode has removed it, LoopTroop removes its history entry too.
 
 ---
 
