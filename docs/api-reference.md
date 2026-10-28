@@ -337,7 +337,8 @@ Each message-stream `data:` frame contains one JSON event with one of these shap
 | Type | Payload fields |
 | --- | --- |
 | `delta` | `text` contains the next response fragment |
-| `reasoning` | Provides a sanitized snapshot of reasoning so far in `text`, with `streaming: true` and optional `modelId` and `variant`. Replace the previous snapshot when a new frame arrives. The completed `done.session` contains the final reasoning. No event is sent when the model supplies no reasoning. |
+| `status` | `phase` is `preparing` while evidence is gathered or `responding` once the assistant is responding. Optional `modelId` and `variant` identify the configured model and effort. The UI labels these phases **Preparing context** and **Thinking**. |
+| `reasoning` | Provides a sanitized snapshot of provider-exposed reasoning so far in `text`, with `streaming: true` and optional `modelId` and `variant`. Replace the previous snapshot when a new frame arrives. The completed `done.session` contains the final reasoning. No event is sent when the model supplies no reasoning. |
 | `done` | `session` contains the completed `AssistantSession` |
 | `error` | `error` contains a message the UI can display |
 
