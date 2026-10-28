@@ -324,18 +324,20 @@ Every conversation draws on LoopTroop's current published documentation and the 
 | `GET` | `/api/chat/sessions` | Lists all conversation history; use `?scope=dashboard` for dashboard conversations or `?ticketId=<id>` for one ticket |
 | `POST` | `/api/chat/sessions` | Creates a dashboard conversation with `{}` or a ticket conversation with `{ "ticketId": "<id>" }` |
 | `GET` | `/api/chat/sessions/:id[?ticketId=<id>]` | Returns one conversation and its available messages in the matching scope |
+| `PATCH` | `/api/chat/sessions/:id/title` | Renames a conversation with `{ "title": "..." }` for dashboard scope or `{ "ticketId": "<id>", "title": "..." }` for ticket scope |
 | `POST` | `/api/chat/sessions/:id/messages` | Sends `{ "message": "..." }` for dashboard scope or `{ "ticketId": "<id>", "message": "..." }` for ticket scope, then streams the reply as SSE |
 | `POST` | `/api/chat/sessions/:id/close` | Closes a conversation with `{}` for dashboard scope or `{ "ticketId": "<id>" }` for ticket scope; saved sessions are archived, unsaved sessions are deleted |
 
-Omit `ticketId` for dashboard create, detail, close, and message requests. For the list route, no query returns all scopes, `scope=dashboard` filters to dashboard conversations, and `ticketId` filters to one ticket. A global list includes saved conversations from every scope and active temporary conversations owned by the current daemon process. The trimmed message must contain 1 to 20,000 characters. Session IDs must belong to the supplied ticket scope; a mismatch returns `404`.
+Omit `ticketId` for dashboard create, detail, title, close, and message requests. For the list route, no query returns all scopes, `scope=dashboard` filters to dashboard conversations, and `ticketId` filters to one ticket. A global list includes saved conversations from every scope and active temporary conversations owned by the current daemon process. Titles must contain 1 to 100 characters after trimming. The trimmed message must contain 1 to 20,000 characters. Session IDs must belong to the supplied ticket scope; a mismatch returns `404`.
 
-Create and detail responses return an `AssistantSession`: `id`, nullable `ticketId` (`null` for dashboard scope), `title`, `archived`, `createdAt`, `updatedAt`, `messages`, `canResume`, and `saved`. The public response has no `mode` field. Each message has `id`, `role` (`user` or `assistant`), `content`, and `createdAt`. The list route returns `id`, `ticketId`, `title`, `archived`, `createdAt`, and `updatedAt` without messages or resume state.
+Create and detail responses return an `AssistantSession`: `id`, nullable `ticketId` (`null` for dashboard scope), `title`, `archived`, `createdAt`, `updatedAt`, `messages`, `canResume`, and `saved`. The public response has no `mode` field. Each message has `id`, `role` (`user` or `assistant`), `content`, and `createdAt`. Assistant messages may also include `reasoning`, `modelId`, and `variant` when OpenCode reports them. `modelId` is OpenCode's provider/model ID when available, with the model ID alone as a fallback; `variant` is the reported effort variant. `reasoning` is sanitized before it is returned and omitted when OpenCode does not provide it. The list route returns `id`, `ticketId`, `title`, `archived`, `createdAt`, and `updatedAt` without messages or resume state. The title route returns the updated `AssistantSessionSummary`.
 
 Each message-stream `data:` frame contains one JSON event with one of these shapes:
 
 | Type | Payload fields |
 | --- | --- |
 | `delta` | `text` contains the next response fragment |
+| `reasoning` | Provides a sanitized snapshot of reasoning so far in `text`, with `streaming: true` and optional `modelId` and `variant`. Replace the previous snapshot when a new frame arrives. The completed `done.session` contains the final reasoning. No event is sent when the model supplies no reasoning. |
 | `done` | `session` contains the completed `AssistantSession` |
 | `error` | `error` contains a message the UI can display |
 
