@@ -77,13 +77,13 @@ docker pull looptroopai/looptroop:latest
 
 | Channel | What it needs first |
 | --- | --- |
-| **curl / PowerShell** | Node 24.18.0+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm. It never installs Node or asks for sudo. |
-| **npm** | Node 24.18.0+, git, `gh` |
+| **curl / PowerShell** | Node 24.18.1+, git, `gh`. The installer resolves the newest release, checks it against that release's checksum and hands it to npm. It never installs Node or asks for sudo. |
+| **npm** | Node 24.18.1+, git, `gh` |
 | **Homebrew** | Nothing else: it pulls in `node@24` and `gh`, and takes git from the OS |
 | **Scoop** | Nothing else: it depends on `nodejs-lts`, `git` and `gh` |
-| **bun** | bun *and* Node 24.18.0+ (the launcher is a Node program), git, `gh` |
-| **pnpm** | pnpm *and* Node 24.18.0+, git, `gh`. pnpm will not resolve a tag to a version published in the last 24 hours |
-| **Yarn (Bash/zsh)** | Yarn **Classic** *and* Node 24.18.0+, git, `gh`. Yarn 2 removed global installs, so modern Yarn cannot install a CLI at all |
+| **bun** | bun *and* Node 24.18.1+ (the launcher is a Node program), git, `gh` |
+| **pnpm** | pnpm *and* Node 24.18.1+, git, `gh`. pnpm will not resolve a tag to a version published in the last 24 hours |
+| **Yarn (Bash/zsh)** | Yarn **Classic** *and* Node 24.18.1+, git, `gh`. Yarn 2 removed global installs, so modern Yarn cannot install a CLI at all |
 | **Docker** | Only Docker. The image includes Node, git and `gh`, but still needs an OpenCode server it can reach |
 
 [Installation](installation.md) covers every channel in full: upgrading,

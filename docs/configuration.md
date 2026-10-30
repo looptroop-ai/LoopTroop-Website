@@ -182,7 +182,7 @@ cannot widen trust by setting its own `LOOPTROOP_TRUSTED_EXECUTABLE_DIRS`.
 The OpenCode directory hints also come from LoopTroop's own environment, so
 putting them in a project command's environment does not change which CLI runs.
 
-For the npm install and upgrade path, the runtime floor is **Node 24.18.0 or
+For the npm install and upgrade path, the runtime floor is **Node 24.18.1 or
 newer**. The launcher, Doctor, install scripts, and package channels enforce
 the same floor. No npm version is required: LoopTroop has no install scripts,
 so the npm that came with your Node is the one it needs.
