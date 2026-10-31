@@ -776,6 +776,10 @@ Final test command plans use a `<FINAL_TEST_COMMANDS>…</FINAL_TEST_COMMANDS>` 
 - String `test_files` and `modified_files` values are likewise coerced into arrays.
 - `modified_files` falls back to the deduped `test_files` list when omitted.
 
+**Command repairs**
+
+The two command repairs described under the PRD artifact apply to every final test command: a shell-labelled `program`/`args` command becomes a process command, and an absolute `cwd` that is the ticket's worktree, or inside it, becomes relative. Any other absolute path still fails.
+
 **Warning examples:**
 - *Coerced commands from string to array*
 - *Coerced test_files from string to array*
@@ -856,6 +860,10 @@ The canonical executable `.ticket/runtime/execution-setup/run` may be recovered 
 **Path normalization**
 
 `temp_roots`, `workspace_inputs`, and reusable artifact paths are normalized to forward-slash form and drop a leading `./`, so path comparisons stay stable across providers and host shells. Workspace input entries keep only the strict `file|directory` kind and `ignored|untracked` source status. Filesystem and Git validation happen before materialization, so parser normalization never invents an input or changes its classification.
+
+**Command repairs**
+
+The two command repairs described under the PRD artifact apply to every command in a freshly generated setup plan: workspace probes, hook validation commands, step commands and project commands. A shell-labelled `program`/`args` command becomes a process command, and an absolute `cwd` inside the worktree becomes relative. A stored, already-approved plan is read as written; only its shell relabel applies.
 
 **Missing setup-step field fill**
 
