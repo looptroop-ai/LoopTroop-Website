@@ -319,7 +319,7 @@ It currently does the following:
 1. Resolve or create the session, retrying session-creation failures before the prompt is sent.
 2. If `sessionOwnership` is present, call `SessionManager.validateAndReconnect()` first.
 3. Resolve and apply the complete session permission policy for the prompt.
-4. Dispatch the prompt with model, agent, variant, and timeout settings.
+4. Dispatch the prompt with model, agent, variant, and timeout settings. Before dispatch, the adapter checks the session's history and opens its event streams. OpenCode gets 30 s to start each stream. If OpenCode times out or drops the connection during these checks, the adapter waits 2 s and tries the prompt once more, because the model has not received anything yet. Deliberate refusals are not retried, and neither is a prompt whose dispatch has started.
 5. Subscribe to stream events, automatically answering unexpected permission requests once per request ID.
 6. Track OpenCode `session.status` retry events against the profile retry budget and grace window.
 7. Reconcile the streamed reply with assistant messages and stream status.
