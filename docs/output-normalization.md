@@ -592,6 +592,17 @@ The hash of the approved Interview Results artifact is computed at runtime. If t
 - Duplicate ID → renamed deterministically.
   **Warning:** *Renumbered duplicate user story id US-1-1 to US-1-3.*
 
+**Verification commands**
+
+Each user story's `verification.required_commands` holds structured `CommandSpec` objects. Two formatting mistakes are corrected, because the command's own fields already say what to run and where:
+
+- A command marked `mode: shell` but written with `program` and `args`, with no `shell` and no `script`, is relabelled `mode: process`.
+  **Warning:** *User story US-1-1 verification.required_commands[0]: Relabelled a command marked mode "shell" as mode "process", because it was written with program and args.*
+- An absolute `cwd` that is the ticket's worktree, or a folder inside it, is rewritten relative to the repository root (`.` for the worktree itself). An absolute path anywhere else, including one that climbs out with `..`, still fails validation.
+  **Warning:** *User story US-1-1 verification.required_commands[0]: Rewrote the absolute working directory "/path/to/worktree" as ".", relative to the repository root.*
+
+A command that is still invalid fails with its location, for example `User story US-1-1 verification.required_commands[1] is not a valid command`, followed by each problem field. The structured retry passes that to the model, so it knows which command to fix.
+
 **Nested artifact wrapper**
 
 The model sometimes wraps the PRD inside `artifact: { prd: { … } }`. The inner `prd` object is promoted to the root and `artifact: prd` is set as a flat key.
@@ -640,7 +651,12 @@ carry an explicit `program` and `args`; shell entries carry an explicit `shell`
 and `script`. The bead parser validates every entry and does not turn a bare
 string into a guessed shell command. Scalar-list repairs used for ordinary
 prose lists do not apply to this field. An empty command list is valid only with
-the required `testCommandReason`.
+the required `testCommandReason`. The two command repairs described under the
+PRD artifact also apply here, in bead drafts, refinements, coverage revisions
+and the expanded bead list: a shell-labelled `program`/`args` command becomes a
+process command, and an absolute `cwd` inside the worktree becomes relative. An
+invalid entry fails with its position, such as `testCommands[0]`, and the
+problem fields.
 
 **Empty `prdRefs` warning**
 
