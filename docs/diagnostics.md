@@ -647,6 +647,24 @@ Reconnecting keeps that fix number, too. Interview coverage timeouts retain
 their captured model, session, operation, and diagnostic codes in the error
 occurrence so existing continuation checks can use them.
 
+### AI activity warnings
+
+The banner above the log shows current, unresolved conditions for the live phase attempt. It clears a warning when the affected work recovers or a replacement session retries that work; the full log keeps the original events. A warning belongs to its exact session. Ambiguous rows are not assigned to every council model. The banner waits for complete activity evidence and stays hidden if that evidence cannot be loaded.
+
+| State or diagnostic | Meaning and resolution |
+| --- | --- |
+| Waiting for first model activity | A prompt was dispatched, with no model activity or terminal outcome yet. Output, completion, failure, or a user stop ends the wait. |
+| `provider_retrying` | OpenCode reports a provider retry. Model activity or a busy session status clears it; a later retry may appear again. |
+| `near_timeout` | A valid dispatch deadline is close and the model has not started responding. After the deadline, the label says the outcome is pending. This state does not confirm a timeout. Pending question waits suppress it; prompts dispatched before a question wait stop using their stale deadline. |
+| `provider_retry_timeout` | OpenCode exhausted its retry budget or grace window. A successful response or replacement attempt clears the warning. |
+| `provider_timeout_preserved` | The provider timed out and LoopTroop explicitly preserved that session for Continue. The label does not infer that recovery is available for unrelated failures. |
+| `iteration_timeout` | A coding iteration exceeded its budget and the recorded event says the bead will be retried. |
+| `model_no_activity_timeout` | A recorded prompt or council timeout occurred before any model activity. Elapsed time stops at the diagnostic event. |
+| `workflow_timeout` | A recorded timeout occurred after model activity. Model or tool text containing timeout words does not count. |
+| `empty_model_output` | The completed response contains no visible text, including the available transcript fallback. Reasoning or tool calls alone do not supply final response text. A successful result or a new attempt clears the warning. |
+
+Diagnostic codes remain stable. Changing the selected log tab, reopening the ticket, or loading older rows does not change their meaning. The banner does not show archived attempts or completed and canceled tickets.
+
 ## 4. Structured Retry Diagnostics
 
 Structured retry diagnostics explain **recoverable** structured-output failures. They are normalized by `shared/structuredRetryDiagnostics.ts`, merged into structured-output metadata by `server/structuredOutput/metadata.ts`, and rendered in artifact notices / viewers as **Retry Attempts**.
