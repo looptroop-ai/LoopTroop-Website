@@ -72,7 +72,7 @@ All built-in prompts in this section are exported from `server/prompts/index.ts`
 
 | Prompt | Used in / status | Session / tools | Context inputs | Purpose | Full text |
 | --- | --- | --- | --- | --- | --- |
-| `PROM0` | `SCANNING_RELEVANT_FILES` | Fresh / `default` | `ticket_details` | Inspects the repository and returns a structured relevant-files report with rationales and previews. | [Full content here](#full-prompt-prom0) |
+| `PROM0` | `SCANNING_RELEVANT_FILES` | Fresh / `read_only` | `ticket_details` | Inspects the repository and returns a structured relevant-files report with rationales and previews. | [Full content here](#full-prompt-prom0) |
 
 ### Interview
 
