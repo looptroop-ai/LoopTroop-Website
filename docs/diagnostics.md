@@ -649,7 +649,7 @@ occurrence so existing continuation checks can use them.
 
 ### AI activity warnings
 
-The banner above the log shows current, unresolved conditions for the live phase attempt. It clears a warning when the affected work recovers or a replacement session retries that work; the full log keeps the original events. A warning belongs to its exact session. Ambiguous rows are not assigned to every council model. The banner waits for complete activity evidence and stays hidden if that evidence cannot be loaded.
+The banner above the log shows current, unresolved conditions for the live phase attempt. It clears a warning when the affected work recovers or a replacement session retries that work; the full log keeps the original events. A warning belongs to its exact session. Ambiguous rows are not assigned to every council model. The banner waits for complete activity evidence on its first load. If the attempt lookup or an activity page fails, a notice explains the missing evidence and offers Retry. Complete evidence stays visible during refreshes of the same attempt and is cleared when the scope changes. Provider recovery notices and failed tool parts do not end an ongoing prompt; failed shell-command output is excluded from AI lifecycle evidence.
 
 | State or diagnostic | Meaning and resolution |
 | --- | --- |
@@ -658,10 +658,12 @@ The banner above the log shows current, unresolved conditions for the live phase
 | `near_timeout` | A valid dispatch deadline is close and the model has not started responding. After the deadline, the label says the outcome is pending. This state does not confirm a timeout. Pending question waits suppress it; prompts dispatched before a question wait stop using their stale deadline. |
 | `provider_retry_timeout` | OpenCode exhausted its retry budget or grace window. A successful response or replacement attempt clears the warning. |
 | `provider_timeout_preserved` | The provider timed out and LoopTroop explicitly preserved that session for Continue. The label does not infer that recovery is available for unrelated failures. |
-| `iteration_timeout` | A coding iteration exceeded its budget and the recorded event says the bead will be retried. |
+| `iteration_timeout` | A coding iteration exceeded its budget and the recorded event says the bead will be retried. The replacement dispatch retires the old warning. |
 | `model_no_activity_timeout` | A recorded prompt or council timeout occurred before any model activity. Elapsed time stops at the diagnostic event. |
 | `workflow_timeout` | A recorded timeout occurred after model activity. Model or tool text containing timeout words does not count. |
 | `empty_model_output` | The completed response contains no visible text, including the available transcript fallback. Reasoning or tool calls alone do not supply final response text. A successful result or a new attempt clears the warning. |
+
+A later idle update can come from stopping a timed-out request. It ends waiting but does not clear the unresolved timeout; a successful response or a new dispatch establishes recovery.
 
 Diagnostic codes remain stable. Changing the selected log tab, reopening the ticket, or loading older rows does not change their meaning. The banner does not show archived attempts or completed and canceled tickets.
 
