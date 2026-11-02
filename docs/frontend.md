@@ -754,7 +754,7 @@ The current frontend project modal is intentionally scoped to attachment metadat
 
 ## 11. Context Providers
 
-The provider stack is split across `main.tsx`, `App.tsx`, and `TicketDashboard.tsx`. `main.tsx` installs the React Query client, `UIProvider`, `TooltipProvider`, and the app-wide `ErrorBoundary`; `App.tsx` adds `ToastProvider` and `AIQuestionProvider`; `TicketDashboard.tsx` mounts `LogProvider` for the active ticket. The app-wide `ErrorBoundary` renders the `AppCrashScreen` fallback, which shows the `App crashed` message plus a `Show details` panel exposing the caught error message, stack trace, and React component stack (with copy-to-clipboard and a Refresh action).
+The provider stack is split across `main.tsx`, `App.tsx`, and `TicketDashboard.tsx`. `main.tsx` installs the React Query client, `UIProvider`, `TooltipProvider`, and the app-wide `ErrorBoundary`; `App.tsx` adds `ToastProvider` and `AIQuestionProvider` and mounts `ConfirmDialogHost`; `TicketDashboard.tsx` mounts `LogProvider` for the active ticket. The app-wide `ErrorBoundary` renders the `AppCrashScreen` fallback, which shows the `App crashed` message plus a `Show details` panel exposing the caught error message, stack trace, and React component stack (with copy-to-clipboard and a Refresh action).
 
 Among the custom LoopTroop state providers, three carry most of the frontend-specific cross-cutting state:
 
@@ -827,6 +827,10 @@ A dialog's focus scope is the dialog **plus the popups it owns**. `DropdownPicke
 Opening a `DropdownPicker` moves focus into its popup, and closing it hands focus back to the control that opened it. Tab order follows document order, and a popup portaled to the end of the body is otherwise reached only by wrapping round the whole dialog. Both pickers hand focus back however the list closes, not only on Escape: choosing an entry closes the list from inside itself, detaching the element the keyboard was on, which would otherwise leave the document focused on nothing.
 
 Overlays that manage their own focus are left alone. Radix menus and dialogs opened from inside a window bring their own focus scope but still route key events through the React tree, so the surrounding trap stands aside whenever focus is outside its own scope rather than pulling it back to its first control.
+
+The app never uses the browser's own `confirm`, `alert` or `prompt` boxes, which ignore the theme. Questions go through `confirmDialog` and messages through `alertDialog` (`src/lib/confirmDialog.ts`). Both return a promise, so a plain function or a document key listener can ask as easily as a component can. `ConfirmDialogHost` draws them as a Radix alert dialog above every other overlay. Cancel, Escape, the close button and a click outside all answer "no". Focus starts on the safe button, so a stray Enter never throws work away. Only one question shows at a time: a newer one answers the older one with "no". The `no-alert` ESLint rule rejects any new native box.
+
+An edited Configuration, Prompts, Projects or ticket window asks **Discard unsaved changes?** before it closes, whether the user pressed Escape, clicked the backdrop or the close button, chose Cancel, or pressed the browser's Back button. The browser has already moved by the time Back can ask, so the window stays on screen while the question is open. **Keep editing** puts the window's route back, and **Discard changes** finishes the navigation.
 
 The keyboard-shortcuts overlay renders above every other surface, the portaled pickers included (`SHORTCUTS_OVERLAY_Z_INDEX`). An overlay that both contains focus and sits underneath what the user can see leaves the visible interface inert and unresponsive.
 
