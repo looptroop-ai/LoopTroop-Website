@@ -45,7 +45,15 @@ leading `version` update check plus machine checks named `node`, `npm`, `git`,
 `gh`, `gh auth`, `config dir`, `install`, `schema`, `last start`,
 `project ignores`, `opencode cli`, `opencode`, `port`, and `daemon`. Each
 failing check prints what to do about it. The floor is **Node 24.19.0 or
-newer**. The `npm` check reports the version it finds and does not hold it to
+newer**.
+
+`schema` fails when the app database was written by a different LoopTroop
+version. A newer database needs the LoopTroop version that wrote it. An older
+one cannot be opened, because LoopTroop does not convert old data, so the
+remedy names the files to delete to start fresh. `last start` reports a start
+that was refused for the same reason, which is where a refused project database
+shows up. [Upgrading](installation.md#data-from-an-earlier-version) has the
+full reset steps. The `npm` check reports the version it finds and does not hold it to
 a floor.
 
 **Versions are shown against the newest published one:** `v26.7.0 (latest

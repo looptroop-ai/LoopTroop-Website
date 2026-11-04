@@ -359,6 +359,31 @@ container is different: after pulling the image, recreate the container with the
 same volumes, ports and environment settings; a pull alone does not replace a
 running container.
 
+### Data from an earlier version
+
+LoopTroop is in alpha, and a new version can change how it stores data. It
+does not convert data written by an earlier version. If a release changes the
+format of the app database or of a project database, the first start after the
+upgrade stops before it changes anything and names the files to delete.
+`looptroop doctor` reports the same problem: under `schema` for the app
+database, and under `last start` for a project database.
+
+To start fresh:
+
+1. If LoopTroop is running, stop it with `looptroop stop`.
+2. Delete `app.sqlite`, and the `app.sqlite-wal` and `app.sqlite-shm` files
+   next to it, from the
+   [configuration directory](configuration.md#where-looptroop-keeps-its-state).
+3. In each attached project, delete the `.looptroop` folder, then run
+   `git worktree prune` in the project.
+4. Delete the old ticket branches you no longer need. A ticket's branch is
+   named after its ID, such as `PRJ-12`, and a new ticket that gets the same ID
+   reuses an existing branch with that name.
+5. Start LoopTroop and attach your projects again.
+
+Deleting a project's `.looptroop` folder removes its tickets, their logs and
+their worktrees. Merge or copy anything you want to keep before you upgrade.
+
 Channel caveats worth knowing in advance:
 
 - **pnpm arrives about a day late.** pnpm will not resolve a tag to a version

@@ -100,6 +100,8 @@ Unlike high-speed coding tools that optimize for immediate chat responses, LoopT
 
 LoopTroop is early alpha software, but it is usable for real work. The full ticket lifecycle is implemented, but some bugs are still likely. The core primitives (planning, execution, retries) are functional.
 
+New versions can include breaking changes, and there is no backward compatibility: LoopTroop does not convert data written by an earlier version. When a release changes how data is stored, LoopTroop stops at startup without changing anything and tells you what to delete to start fresh. [Upgrading](installation.md#data-from-an-earlier-version) has the steps.
+
 **Configured limitations:** In LoopTroop alpha, LLM Councils support 2 to 10 distinct models, including the main implementer. Each project may have only one active ticket in the execution band at a time; additional tickets must wait until it finishes or is canceled.
 
 ## How It Works

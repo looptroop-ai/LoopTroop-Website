@@ -178,7 +178,7 @@ Operational notes:
 - locked configuration columns freeze the profile/project settings that were in force when the ticket started
 - `manual_qa_override` uses SQL `NULL` for Inherit and booleans for Enabled/Disabled; resolution order is ticket → project → profile, and missing locked values on older started tickets mean disabled
 - the two AI-question overrides follow the same `NULL`-means-inherit convention and the same ticket → project → profile order, but resolve independently of each other, so a ticket can hold its own window while inheriting the on/off answer. Missing locked values on older started tickets mean the run may not ask at all: a ticket already in flight should not silently gain the ability to stop and wait for a person
-- Start snapshots the project's `git_hook_policy` and its project source for execution-setup planning. Older databases may retain an obsolete ticket `git_hook_policy` column and data, but current create/update/read resolution ignores it; no compatibility migration is required.
+- Start snapshots the project's `git_hook_policy` and its project source for execution-setup planning.
 - `cancel_reason` holds why the operator cancelled, and is a ticket column rather than a phase artifact on purpose: cancelling with **Delete AI-generated artifacts** removes every `phase_artifacts` row for the ticket, so a receipt would be erased by the same action that wrote it. Cancelling with **Delete the ticket completely** leaves nothing, including this.
 - `workflow_revision` increases on status transitions and lets polling/SSE consumers reject stale state even when the workflow moves backward from Manual QA to Coding
 - `branch_name = '__looptroop_display_only_mock__'` is reserved for board-only mock/demo tickets; these rows are returned for display, projected through the API with `isDisplayOnlyMock: true`, excluded from startup hydration and runnable workflow actions, and expose only Cancel while non-terminal (except final cleanup in development, where no actions are available)
@@ -215,7 +215,7 @@ Operational notes:
 - this table stores more than just final docs: examples include `interview`, `prd`, `beads`, `execution_setup_plan`, coverage artifacts, `approval_snapshot:*`, `ui_state:error_attention`, `cleanup_report`, `merge_report`, `final_test_report`, and `pull_request_report`
 - `skip_receipt:<surface>` rows are the append-only record of everything that got skipped. The surface is part of the artifact type: `interview_question`, `interview_all`, `interview_approval_mark_skipped`, `approval_with_gaps`, `close_unmerged`, `cancel_ticket`, and `opencode_question`. Each row carries a schema version, an idempotent `action_id`, the item, the phase and attempt, the ticket status before the action, the timestamp, and the reason as it read at that moment. Receipt identity is attempt-scoped: duplicate writes in one phase attempt are ignored, while the same action/item on a later attempt gets a new receipt. An interview bulk skip writes one summary row plus one row per item, all in a single transaction, which is what makes a forty-question Interview Skip All count as one action rather than forty-one skips. Manual QA is not in that list: it already wrote its own skip and waiver records, and the shared read API adapts those rather than adding a duplicate.
 - The AI question panel's **Skip all** sends a separate rejection for each OpenCode request. Each request has its own `action_id` and writes its summary plus question rows in one transaction. Requests can fail independently, so the whole panel operation is not a single transaction.
-- receipts are at schema version `2`. `skipped_by` widened from the literal `user` to `user | timeout | system`, because a question the wait ran out on was refused by nobody and filing that under a person's name is a lie the trail cannot walk back. Rows written before the field existed report `user`, which is what they meant. `opencode_question` rows additionally carry a `question_context` object with the request and session IDs, the configured window, the armed and deadline times, how many times another model reset the shared clock, the elapsed wall and active time, the sibling requests the same refusal covered, an expiry reason, and a quorum-impact note where one applies. It is on the receipt because the request itself is gone the moment OpenCode is told, leaving no current state to read.
+- receipts are at schema version `2`. `skipped_by` widened from the literal `user` to `user | timeout | system`, because a question the wait ran out on was refused by nobody and filing that under a person's name is a lie the trail cannot walk back. Version `2` is the only version read. `opencode_question` rows additionally carry a `question_context` object with the request and session IDs, the configured window, the armed and deadline times, how many times another model reset the shared clock, the elapsed wall and active time, the sibling requests the same refusal covered, an expiry reason, and a quorum-impact note where one applies. It is on the receipt because the request itself is gone the moment OpenCode is told, leaving no current state to read.
 - `opencode_question:<sessionId>:<requestId>` and `opencode_question_timer:<phase>:<attempt>` are the durable copies of live AI-question state. Memory is the cache and these are the record: a daemon restart rebuilds from them, or refuses what it cannot rebuild. Failing to write one costs a restart's worth of recovery, not the wait itself, so the write is best-effort and never blocks a run.
 - Manual QA keeps compact append-only checklist, coverage, results, draft snapshot, and summary artifacts here; live editing exists only as `ui_state:manual_qa_draft:vN` with a server-owned compare-and-set revision
 - council companion artifacts may embed draft/vote metadata and attempt diagnostics in `content`; malformed model text is intentionally kept out of structured fields
@@ -430,7 +430,7 @@ Operational notes:
 
 ### Execution log projection tables
 
-`execution_log_projection` is a rebuildable read model over the ticket's normal, debug, and AI JSONL files. Its composite primary key is `(ticket_id, channel, identity)`; query columns include ordinal, timestamp, phase/attempt, classification, model/bead identifiers, canonical entry JSON, and source byte range. Stable identities fold streaming upserts/finalizations into one projected row without changing what the JSONL writer stores.
+`execution_log_projection` is a rebuildable read model over the ticket's normal, debug, and AI JSONL files. Its composite primary key is `(ticket_id, channel, identity)`. The fields log views filter and sort on are stored as columns when an entry is indexed: ordinal, timestamp, phase and attempt, classification, model and bead identifiers, entry kind, audience, streaming state, operation, session IDs, a command flag, and the Debug view's sort keys. A page query decides which rows to return from those columns alone. The entry itself is stored last in the row, in the same compact form as its JSONL line, together with its source byte range. Stable identities fold streaming upserts/finalizations into one projected row without changing what the JSONL writer stores.
 
 `execution_log_projection_cursors` stores the last indexed byte offset for each `(ticket_id, channel)`. A truncated/replaced file resets only that channel. Cold catch-up reads the remaining suffix cooperatively in bounded batches, and concurrent readers share one catch-up promise per ticket. Both tables cascade with ticket deletion and can be reconstructed from the filesystem logs.
 
@@ -533,13 +533,14 @@ LoopTroop creates a small set of runtime-focused indexes rather than a large gen
 
 - ticket lookup: `tickets(project_id)`, `tickets(status)`, `tickets(external_id)`
 - skip-receipt uniqueness: a partial expression index on `phase_artifacts(ticket_id, receipt_id from content)` for `skip_receipt:*` rows
-- artifact lookup: `phase_artifacts(ticket_id)`, `phase_artifacts(ticket_id, phase, phase_attempt)`
+- artifact lookup: `phase_artifacts(ticket_id, artifact_type, id)` for the latest artifact of a type (and any ticket-only read), `phase_artifacts(ticket_id, phase, phase_attempt)`
 - phase-attempt lookup: `ticket_phase_attempts(ticket_id, phase, state, attempt_number)` plus a uniqueness index on `(ticket_id, phase, attempt_number)`
 - OpenCode session lookup: `opencode_sessions(session_id)`, `opencode_sessions(ticket_id, phase, state)`, `opencode_sessions(ticket_id, phase, phase_attempt, member_id, bead_id, iteration, step, state)`
 - blocked-error lookup: unique `(ticket_id, occurrence_number)` plus `(ticket_id, resolved_at, occurrence_number)`
 - throughput/ETA lookup: `bead_execution_metrics(size_bucket, effort_tier, completed_at)` and `bead_execution_metrics(ticket_id)`
 - AI detail lookup: unique `ticket_ai_turn_metrics(ticket_id, session_id, assistant_message_id)`, phase/model scope `(ticket_id, phase, phase_attempt, model_id)`, and lifecycle/model scope `(ticket_id, model_id, updated_at)`
 - projected history lookup: `execution_log_projection(ticket_id, classification, phase, phase_attempt, model_id, ordinal DESC)`
+- Debug log paging: `execution_log_projection(ticket_id, timestamp_rank, timestamp, debug_sort_key, mirror_occurrence, ordinal)` and the same with `phase` after `ticket_id`, so each page is read in the Debug view's order straight off the index
 
 These match the hot runtime paths: ticket board/status queries, phase-attempt version browsing, session reconnect, blocked-error recovery, and read-time ETA throughput sampling.
 
@@ -551,23 +552,29 @@ These match the hot runtime paths: ticket board/status queries, phase-attempt ve
 > LoopTroop checks its database schema at startup, and `looptroop doctor` reports
 > the schema state.
 
-Fresh project databases are the supported starting point. LoopTroop does not
-migrate or deduplicate older project databases that already contain duplicate
-skip receipts. If startup reports a duplicate skip-receipt index error, back up
-the repository, remove the old LoopTroop project database, and attach the
-repository again.
+Both databases record their schema version in `PRAGMA user_version`, currently
+`3` for each. A new database file is created with the current schema and
+stamped with that version. A database at any other version is refused at
+startup before any statement changes it, with a message that names what to
+delete ([Upgrading](installation.md#data-from-an-earlier-version) lists the
+steps). There is no upgrade step: the `CREATE TABLE` statements are the whole
+schema, and nothing adds a column to an existing database.
 
 LoopTroop uses Drizzle table definitions, but **runtime bootstrap code is the real startup contract**.
 
 For app DB changes:
 
 1. update `server/db/schema.ts`
-2. update the app bootstrap/evolution logic in `server/db/init.ts`
+2. update the `CREATE TABLE` statements in `server/db/init.ts`
+3. bump `APP_SCHEMA_VERSION` in `server/db/schemaVersion.ts`
 
 For project DB changes:
 
 1. update `server/db/schema.ts`
-2. update the project bootstrap/evolution logic in `server/db/project.ts`
+2. update the `CREATE TABLE` statements in `server/db/project.ts`
+3. bump `PROJECT_SCHEMA_VERSION` in `server/db/schemaVersion.ts`
+
+A test fails when a column declared in `schema.ts` is missing from the `CREATE TABLE` statements of its database.
 
 Do **not** treat `db:push` or `db:push:app` as the normal app-schema workflow. Likewise, do not assume a project schema change is complete just because Drizzle can generate or push it; the server still needs matching runtime bootstrap logic.
 
