@@ -554,8 +554,10 @@ These match the hot runtime paths: ticket board/status queries, phase-attempt ve
 
 Both databases record their schema version in `PRAGMA user_version`, currently
 `3` for each. A new database file is created with the current schema and
-stamped with that version. A database at any other version is refused at
-startup before any statement changes it, with a message that names what to
+stamped with that version in one transaction, so a first start interrupted
+halfway leaves a file that is still new rather than one with tables and no
+version. A database at any other version is refused at startup before any
+statement changes it, with a message that names what to
 delete ([Upgrading](installation.md#data-from-an-earlier-version) lists the
 steps). There is no upgrade step: the `CREATE TABLE` statements are the whole
 schema, and nothing adds a column to an existing database.

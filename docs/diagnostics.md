@@ -52,7 +52,11 @@ version. A newer database needs the LoopTroop version that wrote it. An older
 one cannot be opened, because LoopTroop does not convert old data, so the
 remedy names the files to delete to start fresh. `last start` reports a start
 that was refused for the same reason, which is where a refused project database
-shows up. [Upgrading](installation.md#data-from-an-earlier-version) has the
+shows up. It checks the file again against the installed LoopTroop, so the
+failure clears once that version can open it, and it fails while the file
+cannot be read. With `--json`, both checks carry `schema` facts: the database
+path, the version found and expected, `databaseLabel` (`app database` or
+`project database`) and, for an older database, `resetInstructions`. [Upgrading](installation.md#data-from-an-earlier-version) has the
 full reset steps. The `npm` check reports the version it finds and does not hold it to
 a floor.
 

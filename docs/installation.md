@@ -364,7 +364,7 @@ running container.
 LoopTroop is in alpha, and a new version can change how it stores data. It
 does not convert data written by an earlier version. If a release changes the
 format of the app database or of a project database, the first start after the
-upgrade stops before it changes anything and names the files to delete.
+upgrade stops before it changes your data and names the files to delete.
 `looptroop doctor` reports the same problem: under `schema` for the app
 database, and under `last start` for a project database.
 
