@@ -314,7 +314,9 @@ LoopTroop recognizes a background shell completion for a pending managed session
 
 Continue preserves the active session and its normal tool permissions. For OpenCode v2, finishing, abandoning, retrying, or cancelling a task uses a separate cleanup path: LoopTroop first disables native tools in that session and its child sessions, confirms the restriction, interrupts their current work, and stops running shell commands identified by verified model-tool receipts. A late completion notice can still add conversation text, but native permission-checked tools cannot make further edits or start commands. Session transcripts and saved ticket logs remain available. Stopping a running shell removes its native command handle and retained output; it does not delete the conversation.
 
-LoopTroop withholds completion or worktree reset when it cannot confirm cleanup. Commands from other sessions are left alone; an unverified running command claiming the managed session blocks cleanup instead of being terminated. Use LoopTroop-managed sessions only through LoopTroop. Plugin tools must enforce OpenCode permissions to receive the same restriction.
+Cleanup reads older messages when a command's receipt predates the normal response-history window, within the overall cleanup timeout. LoopTroop withholds completion or worktree reset when it cannot confirm cleanup. Commands from other sessions are left alone; an unverified running command claiming the managed session blocks cleanup instead of being terminated. Use LoopTroop-managed sessions only through LoopTroop. Plugin tools must enforce OpenCode permissions to receive the same restriction.
+
+Automatic completion cleanup follows ticket ownership. Callers using unowned sessions control their own session lifetime, so interactive sessions remain available between questions and during response validation.
 
 ## 6. Prompt Runner
 
@@ -440,7 +442,7 @@ local session record.
 
 When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please`. It does not rebuild context or create a new attempt version. Setup and council errors retain the exact session diagnostics used by these checks; automatic retry iteration numbers remain separate from workflow attempt versions.
 
-When a managed session is waiting on a background shell command, Continue can recognize its matching completion notice and answer attributable permission requests, including after stream recovery. It preserves that active session; permanent task cleanup is separate. See [Session Ownership](#_5-session-ownership).
+When a managed session is waiting on a background shell command, Continue can recognize its matching completion notice and answer attributable permission requests, including requests already pending when LoopTroop reconnects. It checks outstanding requests before waiting for idle and recovers them after stream loss. It preserves that active session; permanent task cleanup is separate. See [Session Ownership](#_5-session-ownership).
 
 PRD Part 2 continuation reuses the saved, validated Full Answers checkpoint only when the original inputs and phase attempt match. A missing, damaged, or mismatched checkpoint requires a fresh Retry.
 
