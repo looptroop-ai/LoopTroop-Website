@@ -35,6 +35,8 @@ The model returns test commands plus language-agnostic `file_effects` declaratio
 - `temporary`
 - `unexpected`
 
+Before returning the plan, the agent runs checks needed to establish its final result in the foreground and waits for their real results. Independent ongoing work can stay in the background during the task. Completed or abandoned native sessions have their tools disabled and verified running commands stopped before handoff, with conversation history retained.
+
 Malformed final-test plans do not silently pass through. LoopTroop applies the normal structured-output retry flow, preserves raw attempts for inspection, and records the accepted or rejected output in the final-test artifacts.
 
 ### 1.2 Executing current-host commands with the approved runtime profile

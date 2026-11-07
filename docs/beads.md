@@ -462,6 +462,8 @@ Each bead attempt must end with exactly one `<BEAD_STATUS>...</BEAD_STATUS>` blo
 - `checks.typecheck`
 - `checks.qualitative`
 
+Checks needed for the final completion marker run in the foreground, and the agent must wait for their real results. Independent ongoing work can run in the background while the task remains active.
+
 If the output is malformed or missing the marker, LoopTroop does **not** guess. It sends a structured retry reminder that asks for the exact `<BEAD_STATUS>...</BEAD_STATUS>` block and required fields again. If the workflow deadline expires before a valid marker is returned, the failure is recorded explicitly as an iteration timeout rather than being reduced to a generic missing-marker message.
 
 If the marker shape is valid but the bead is still incomplete, LoopTroop sends a continuation reminder instructing the agent to keep editing, rerun the failing checks, and only return once the bead is actually complete. Planned commands are guidance rather than a frozen second gate: the agent may adapt them to facts discovered in the repository, while Final Testing remains the mandatory backend-executed ticket-level gate. A session that cannot repair and verify the repository before the deadline follows the normal Ralph reset and fresh-session path when recovery is safe; a conflicting step-cap marker can refuse that reset and block recovery.
@@ -574,7 +576,7 @@ When Continue is available, returning from `BLOCKED_ERROR` sends this prompt int
 continue please
 ```
 
-If the coding turn is waiting on a background shell command, LoopTroop recognizes its completion notice when Continue resumes the session. The notice must carry the structured job ID returned by that session's tool call; unrelated or unverifiable input remains blocked.
+If the coding turn is waiting on a background shell command, Continue recognizes a matching completion notice only for a verified model-tool job in the ticket's dedicated managed session. Continue preserves the session for more work. Before a completed or abandoned session hands off the worktree, LoopTroop disables its native tools and stops its verified running commands while keeping conversation history. See [Session Ownership](opencode-integration.md#_5-session-ownership).
 
 This distinction is important:
 

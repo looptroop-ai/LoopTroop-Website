@@ -165,6 +165,8 @@ If required launchers or toolchains are missing, the agent must try real user-sp
 
 ### 4.2 Validation rules before a profile is accepted
 
+The setup agent runs commands needed for its final Ready or Blocked result in the foreground and waits for their actual results. Ongoing concurrent work needs only the readiness evidence required to continue. Before an old native task is completed or abandoned, LoopTroop restricts its tools and stops verified running commands while keeping its transcript; unconfirmed cleanup prevents reset.
+
 LoopTroop does not trust a superficially valid setup response. A setup result is accepted only when all of the following are true:
 
 - the structured result parses and all setup checks pass

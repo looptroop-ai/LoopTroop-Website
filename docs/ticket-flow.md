@@ -411,7 +411,7 @@ available. Provider-login guidance requires provider evidence; an expired token
 from a test or setup command keeps that phase's recovery explanation.
 
 ### The Retry Path (`RETRY`)
-- Confirms that the failed AI sessions stopped, then opens fresh sessions using the failed step's saved inputs. If stopping cannot be confirmed, the ticket stays blocked. Completed earlier planning and saved interview answers remain available.
+- Confirms cleanup of failed AI sessions before opening fresh sessions. For native OpenCode v2 work, this disables old tools and stops verified running commands while keeping conversation history; an unconfirmed stop keeps the ticket blocked. It then opens fresh sessions using the failed step's saved inputs. If stopping cannot be confirmed, the ticket stays blocked. Completed earlier planning and saved interview answers remain available.
 - **Resumed workspace view:** Successful recovery actions (Retry, Continue, Retry with extra note, Edit setup plan, and non-deleting Cancel) clear the active error selection so the workspace automatically follows the ticket to its resumed status or Canceled view.
 - **Planning Phases:** Manual retries create a new version of the draft spec or blueprint in the UI.
 - **`CODING` Exception:** `CODING` does not create new phase attempts. It runs a bead-scoped recovery loop: when safe, it resets the active bead's worktree back to its recorded `beadStartCommit` snapshot and schedules it again; a recovery conflict can refuse the destructive reset and leave the ticket blocked.

@@ -93,7 +93,7 @@ All built-in prompts in this section are exported from `server/prompts/index.ts`
 | `PROM11` | `COUNCIL_VOTING_PRD` | Fresh council vote / `disabled` | `relevant_files`, `ticket_details`, `interview`, `drafts` | Scores PRD drafts with the strict `draft_scores` YAML schema. | [Full content here](#full-prompt-prom11) |
 | `PROM12` | `REFINING_PRD` | Fresh refinement / `read_only` | `relevant_files`, `ticket_details`, `full_answers`, `drafts` | Refines the winning PRD draft and records machine-readable change metadata, using focused inspection only when repository evidence is needed. | [Full content here](#full-prompt-prom12) |
 | `PROM13` | `VERIFYING_PRD_COVERAGE` | Fresh coverage audit / `read_only` | `full_answers`, `prd` | Compares the PRD against the adopted Full Answers artifact, reporting concrete gaps and inspecting the repository only when required to confirm a repository-specific claim. | [Full content here](#full-prompt-prom13) |
-| `PROM13b` | `VERIFYING_PRD_COVERAGE` revision sub-step and PRD approval extra fix | Fresh revision / `read_only` | `full_answers`, `prd`, `coverage_gaps`, optional previous extra-fix history | Revises the PRD to resolve specific coverage gaps with exact epic/story change records; section edits are recorded in `gap_resolutions`. | [Full content here](#full-prompt-prom13b) |
+| `PROM13b` | `VERIFYING_PRD_COVERAGE` revision sub-step and PRD approval extra fix | Fresh revision / `read_only` | `full_answers`, `prd`, `coverage_gaps`, optional previous extra-fix history | Revises the PRD for specific gaps, asks for item-level change records and gap explanations, and supports a version diff when item records are absent. | [Full content here](#full-prompt-prom13b) |
 
 ### Beads
 
@@ -616,13 +616,15 @@ Generate a complete Product Requirements Document (PRD) based on the provided Fu
 4. Epic Completeness: Every epic must include at least one fully populated `user_stories` entry. Never emit an epic shell with `user_stories: []`, omit `user_stories`, or park requirements only at epic level.
 5. Implementation Steps: For each user story, include detailed technical implementation steps decomposed as far as possible — data flows, state changes, component interactions, and integration points.
 6. Technical Requirements: Define architecture constraints, data model, API/contracts, security/performance/reliability constraints, error-handling rules, tooling/environment assumptions, explicit non-goals.
-7. Schema Contract: Follow the exact PRD YAML schema in the Expected Output Format section, including all required top-level keys and nested fields.
-8. Output Format: Output a single, comprehensive PRD document covering all of the above in one artifact.
-9. Boundary Rule: Begin the artifact at `schema_version` and end at `approval.approved_at`. Do not prepend or append any prose.
-10. Length Safety: If output length is a concern, shorten field text instead of truncating later epics, user stories, risks, or the final approval block.
-11. Prompt Echo Guard: Never repeat prompt scaffolding or placeholder schema lines from `## Expected Output Format`, `## Context`, or `# Ticket:`. Output only the final artifact.
-12. No Prose Mode: Never output implementation plans, diffs, next steps, acknowledgements, commentary, or any text outside the PRD YAML artifact.
-13. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
+7. Conditional Repository Inspection: Review the repository evidence already supplied in context, including `relevant_files` when available. If you need extra context to confirm a repository-specific claim, use focused read-only inspection. Inspect only the smallest useful set of manifests, build files, task definitions, CI configuration, and directly relevant source locations; do not survey the repository broadly. Never infer exact commands, file paths, frameworks, package managers, build systems, or test runners solely from ticket or PRD prose, file-extension examples, or common conventions.
+8. Repository Claim Rule: Before adding an exact command, file path, framework, package manager, build system, or test runner that is not already concretely evidenced by the supplied context, confirm it with focused repository inspection.
+9. Schema Contract: Follow the exact PRD YAML schema in the Expected Output Format section, including all required top-level keys and nested fields.
+10. Output Format: Output a single, comprehensive PRD document covering all of the above in one artifact.
+11. Boundary Rule: Begin the artifact at `schema_version` and end at `approval.approved_at`. Do not prepend or append any prose.
+12. Length Safety: If output length is a concern, shorten field text instead of truncating later epics, user stories, risks, or the final approval block.
+13. Prompt Echo Guard: Never repeat prompt scaffolding or placeholder schema lines from `## Expected Output Format`, `## Context`, or `# Ticket:`. Output only the final artifact.
+14. No Prose Mode: Never output implementation plans, diffs, next steps, acknowledgements, commentary, or any text outside the PRD YAML artifact.
+15. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
 YAML with these required top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`. Include only additional top-level fields explicitly requested by this prompt.
@@ -788,14 +790,16 @@ Create the final, definitive version of your PRD by reviewing the alternative (l
 5. Measured Refinement: Do not rewrite from scratch or blend drafts together just for balance. But it is acceptable to improve multiple sections, adjust local structure, or rework content across the draft if that produces a clearly stronger final result.
 6. Restraint: Avoid adding content that merely restates what you already cover. But if genuine gaps exist — missing requirements, unaddressed risks, overlooked error states — add them; completeness matters more than brevity.
 7. Epic Completeness: Every epic in the final PRD must include at least one fully populated `user_stories` entry. Never leave an epic as a shell with `user_stories: []`, omit `user_stories`, or move story-level requirements only into epic-level fields.
-8. Single Artifact Contract: Return one YAML artifact that contains both the final refined PRD and a top-level `changes` list. Do not split the refined PRD and change metadata across multiple outputs, wrappers, or separate artifacts.
-9. Changes Coverage: The top-level `changes` list must fully account for the differences between the winning PRD and the final refined PRD using only changed epic and user story items. Use `type` values `modified`, `added`, or `removed`. Include `item_type` (`epic` or `user_story`) plus `before` and `after` item records (or `null` when appropriate).
-10. One-Entry-Per-Item Rule: Every changed epic or user story must appear exactly once in `changes`. Epic changes do not subsume changed user stories. If an existing item keeps the same ID but its content changes, emit exactly one `modified` entry for that item.
-11. Optional Inspiration Attribution: When a change was directly inspired by an alternative draft, include `inspiration` with `alternative_draft` and the inspiring `item`. Include `inspiration.item.detail` whenever the source item has useful supporting text (for example objective, description, acceptance, or implementation detail). If a change was not directly inspired by a losing draft, omit `inspiration` or set it to null.
-12. Formatting: Output only this single refined PRD artifact with its top-level `changes` list.
-13. Schema Preservation: keep the same PRD schema, required top-level sections, and nested field structure. Do not wrap the PRD in another object.
-14. ID Stability: Preserve existing epic IDs and user story IDs from the winning draft unless you are adding a genuinely new epic or story.
-15. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
+8. Conditional Repository Inspection: Review the repository evidence already supplied in context, including `relevant_files` when available. If you need extra context to confirm a repository-specific claim, use focused read-only inspection. Inspect only the smallest useful set of manifests, build files, task definitions, CI configuration, and directly relevant source locations; do not survey the repository broadly. Never infer exact commands, file paths, frameworks, package managers, build systems, or test runners solely from ticket or PRD prose, file-extension examples, or common conventions.
+9. Repository Claim Preservation: Before adopting repository-specific architecture, paths, commands, tooling, or framework details from an alternative draft, confirm unsupported details with focused repository inspection.
+10. Single Artifact Contract: Return one YAML artifact that contains both the final refined PRD and a top-level `changes` list. Do not split the refined PRD and change metadata across multiple outputs, wrappers, or separate artifacts.
+11. Changes Coverage: The top-level `changes` list must fully account for the differences between the winning PRD and the final refined PRD using only changed epic and user story items. Use `type` values `modified`, `added`, or `removed`. Include `item_type` (`epic` or `user_story`) plus `before` and `after` item records (or `null` when appropriate).
+12. One-Entry-Per-Item Rule: Every changed epic or user story must appear exactly once in `changes`. Epic changes do not subsume changed user stories. If an existing item keeps the same ID but its content changes, emit exactly one `modified` entry for that item.
+13. Optional Inspiration Attribution: When a change was directly inspired by an alternative draft, include `inspiration` with `alternative_draft` and the inspiring `item`. Include `inspiration.item.detail` whenever the source item has useful supporting text (for example objective, description, acceptance, or implementation detail). If a change was not directly inspired by a losing draft, omit `inspiration` or set it to null.
+14. Formatting: Output only this single refined PRD artifact with its top-level `changes` list.
+15. Schema Preservation: keep the same PRD schema, required top-level sections, and nested field structure. Do not wrap the PRD in another object.
+16. ID Stability: Preserve existing epic IDs and user story IDs from the winning draft unless you are adding a genuinely new epic or story.
+17. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
 YAML with these required top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`. Include only additional top-level fields explicitly requested by this prompt.
@@ -858,7 +862,7 @@ approval:
   approved_by: ""
   approved_at: ""
 ```
-Include a top-level `changes` list containing only changed epic and user_story items. Each entry must include `type`, `item_type`, `before`, and `after`. `type` must be `modified`, `added`, or `removed`; `item_type` must be `epic` or `user_story`. A populated `before` or `after` record uses `{id, label, detail?}`, where `label` is the item title. For `added`, use `before: null` and a populated `after`; for `removed`, use a populated `before` and `after: null`; for `modified`, populate both records with the same `id`. Include each changed epic or user story exactly once. Do not put PRD section edits in `changes`. Optional `inspiration` uses {alternative_draft, item}. Keep everything in one YAML artifact.
+Include a top-level `changes` list containing only changed epic and user_story items. Each entry must include `type`, `item_type`, `before`, and `after`. `type` must be `modified`, `added`, or `removed`; `item_type` must be `epic` or `user_story`. A populated `before` or `after` record uses `{id, label, detail?}`, where `label` is the item title. Copy each `before.label` exactly from the current PRD item title and each `after.label` exactly from the revised PRD item title; the labels may differ when the title changes. For `added`, use `before: null` and a populated `after`; for `removed`, use a populated `before` and `after: null`; for `modified`, populate both records with the same `id`. An epic change never subsumes changes to its user stories; include each changed epic and user story exactly once. Do not put PRD section edits in `changes`. Optional `inspiration` uses {alternative_draft, item}. Keep everything in one YAML artifact.
 
 ## Context
 ### relevant_files
@@ -949,15 +953,17 @@ Revise the current PRD candidate to address the provided coverage gaps while pre
 5. Preservation Rule: Keep existing epic IDs and user story IDs unless the revised candidate requires a genuinely new item.
 6. Epic Completeness: Every epic in the revised PRD must include at least one fully populated `user_stories` entry. Never leave an epic as a shell with `user_stories: []`, omit `user_stories`, or move story-level requirements only into epic-level fields.
 7. Specificity Rule: When a provided gap says coverage is vague or hard to verify, resolve it by making the affected acceptance criteria, scope language, or verification guidance more concrete and testable instead of adding generic filler prose.
-8. Change Accounting: The top-level `changes` list must fully and exactly account for every changed epic and user story between the current and revised PRDs, with each changed item listed exactly once.
-9. Change Schema: Each `changes` entry must include `type`, `item_type`, `before`, and `after`. Use only `epic` or `user_story` for `item_type`; use `modified`, `added`, or `removed` for `type`.
-10. Change Semantics: For `added`, `before` is null and `after` is a populated record. For `removed`, `before` is populated and `after` is null. For `modified`, both records are populated and share the same ID.
-11. Gap Resolution Accounting: Include a top-level `gap_resolutions` list with exactly one entry per provided gap.
-12. Gap Resolution Actions: Each `gap_resolutions` entry must include `gap`, `action`, `rationale`, and `affected_items`. `action` must be one of `updated_prd`, `already_covered`, or `left_unresolved`.
-13. Affected Items: `affected_items` must be a YAML list of `{ item_type, id, label }` entries referencing epic or user_story items. Use an empty list when no epic/story reference applies.
-14. Section-Level Changes: The `changes` list is only for epic and user_story items. Account for a gap that updates top-level PRD sections such as `product`, `scope`, `technical_requirements`, or `api_contracts` in its `gap_resolutions` entry with `affected_items: []`. Never emit `item_type: prd`, `section`, or similar section references in `affected_items`.
-15. Output Discipline: Return only one PRD YAML artifact using the normal PRD schema, plus top-level `changes` and `gap_resolutions`. Do not add wrappers or prose.
-16. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
+8. Conditional Repository Inspection: Review the repository evidence already supplied in context, including `relevant_files` when available. If you need extra context to confirm a repository-specific claim, use focused read-only inspection. Inspect only the smallest useful set of manifests, build files, task definitions, CI configuration, and directly relevant source locations; do not survey the repository broadly. Never infer exact commands, file paths, frameworks, package managers, build systems, or test runners solely from ticket or PRD prose, file-extension examples, or common conventions.
+9. Repository Claim Revision: Before adding or revising repository-specific commands, paths, tooling, or implementation details, confirm unsupported details with focused repository inspection.
+10. Change Accounting: The top-level `changes` list must fully and exactly account for every changed epic and user story between the current and revised PRDs, with each changed item listed exactly once.
+11. Change Schema: Each `changes` entry must include `type`, `item_type`, `before`, and `after`. Use only `epic` or `user_story` for `item_type`; use `modified`, `added`, or `removed` for `type`.
+12. Change Semantics: For `added`, `before` is null and `after` is a populated record. For `removed`, `before` is populated and `after` is null. For `modified`, both records are populated and share the same ID.
+13. Gap Resolution Accounting: Include a top-level `gap_resolutions` list with exactly one entry per provided gap.
+14. Gap Resolution Actions: Each `gap_resolutions` entry must include `gap`, `action`, `rationale`, and `affected_items`. `action` must be one of `updated_prd`, `already_covered`, or `left_unresolved`.
+15. Affected Items: For gaps resolved with `updated_prd` or `already_covered`, `affected_items` must be a YAML list of `{ item_type, id, label }` entries referencing epic or user_story items. Use `[]` only when no epic/story item applies, such as a section-only change. For `left_unresolved` source-artifact contradictions, use `[]` as directed above.
+16. Section-Level Changes: The `changes` list records epic and user_story items only. Represent PRD section edits in the PRD content, never as `affected_items` entries. For a resolved gap that also edits a PRD section and affects epic or user_story items, include those references; use `affected_items: []` only when no epic/story item applies. For a `left_unresolved` source-artifact contradiction, use `[]` as directed above.
+17. Output Discipline: Return only one PRD YAML artifact using the normal PRD schema, plus top-level `changes` and `gap_resolutions`. Do not add wrappers or prose.
+18. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
 YAML with these required top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`. Include only additional top-level fields explicitly requested by this prompt.
@@ -1020,9 +1026,8 @@ approval:
   approved_by: ""
   approved_at: ""
 ```
-Include a top-level `changes` list containing only changed epic and user_story items. Each entry must include `type`, `item_type`, `before`, and `after`. `type` must be `modified`, `added`, or `removed`; `item_type` must be `epic` or `user_story`. A populated `before` or `after` record uses `{id, label, detail?}`, where `label` is the item title. For `added`, use `before: null` and a populated `after`; for `removed`, use a populated `before` and `after: null`; for `modified`, populate both records with the same `id`. Include each changed epic or user story exactly once. Do not put PRD section edits in `changes`.
-
-Also include a top-level `gap_resolutions` list. Each entry: {gap, action, rationale, affected_items}. `action` must be one of {updated_prd, already_covered, left_unresolved}. Each `affected_items` entry: {item_type, id, label}; use `[]` when the gap changes PRD sections or has no epic/story mapping.
+Include a top-level `changes` list containing only changed epic and user_story items. Each entry must include `type`, `item_type`, `before`, and `after`. `type` must be `modified`, `added`, or `removed`; `item_type` must be `epic` or `user_story`. A populated `before` or `after` record uses `{id, label, detail?}`, where `label` is the item title. Copy each `before.label` exactly from the current PRD item title and each `after.label` exactly from the revised PRD item title; the labels may differ when the title changes. For `added`, use `before: null` and a populated `after`; for `removed`, use a populated `before` and `after: null`; for `modified`, populate both records with the same `id`. An epic change never subsumes changes to its user stories; include each changed epic and user story exactly once. Do not put PRD section edits in `changes`.
+Also include a top-level `gap_resolutions` list. Each entry: {gap, action, rationale, affected_items}. `action` must be one of {updated_prd, already_covered, left_unresolved}. For resolved gaps, each `affected_items` entry: {item_type, id, label}; use `[]` only when no epic/story item applies, such as a section-only change. For `left_unresolved` source-artifact contradictions, use `affected_items: []`.
 
 ## Context
 ### full_answers
@@ -1743,20 +1748,21 @@ Execute the approved setup plan, initialize reusable execution state, discover a
 7. Temporary Scope and Safety: Put execution-only toolchains, dependency/build caches, generated outputs, logs, and reusable setup artifacts under approved temp roots, preferably `.ticket/runtime/execution-setup/**` and `.ticket/runtime/execution-setup/tool-cache/**`. Do not use privileged or global installation, arbitrary source-tree install paths, or permanent repository changes.
 8. Gitignore Suggestions: If setup commands create untracked generated or local outputs outside approved temp roots because repository ignore coverage is missing, do not edit `.gitignore` during setup. Record the exact paths and recommended `.gitignore` entries in `cautions`, and prefer moving reusable setup outputs under approved temp roots when possible.
 9. Missing Tool Recovery: A failed version or information probe only discovers a missing tool. Before reporting it as failed, try at least two distinct safe user-space strategies that actually obtain, install, or activate a compatible launcher under the approved temp roots, unless repository evidence proves no safe strategy exists. Wrapper creation, cache inspection, PATH edits, and probes are not provisioning attempts. Resolve declared version constraints from repository metadata, consult official release metadata when needed, record the evidence and commands used, and never repeat an unchanged failed approach.
-10. Reusable Runtime Wrapper: When you provision a launcher off the normal PATH or need prepared runtime environment variables, you MUST create `.ticket/runtime/execution-setup/env.sh` and executable `.ticket/runtime/execution-setup/run`. The `run` wrapper must source `env.sh` and execute the command arguments. Record `env.sh` as an environment artifact and `run` as a `command-wrapper` reusable artifact. LoopTroop independently routes the approved plan's bare workspace probes, explicit hook checks, and later project commands through this declared wrapper; do not rewrite approved probes merely to prefix the wrapper.
-11. Tracked Change Boundary: If a repository-native setup command changes tracked manifests, lockfiles, generated assets, or configuration, do not leave those changes behind. Record the exact need in `cautions` and return `blocked` if readiness depends on a permanent repository change.
-12. Minimum Necessary Work: If the environment is already ready or only partially missing one prerequisite, do only the missing temporary work. Do not rebuild or re-bootstrap the environment from scratch without evidence.
-13. Audited Augmentations: If the approved plan is insufficient and you must run additional setup commands, keep those additions minimal and make sure `bootstrap_commands` lists every command actually used, including additions beyond the approved plan.
-14. Reusable Outputs: Record any reusable dependency directory, build cache, generated temp artifact, tool cache, or setup note path in `temp_roots` or `reusable_artifacts`. Prefer runtime-owned paths under `.ticket/runtime/execution-setup/**`; use another setup-created location only when the repository itself requires it.
-15. Discovery Goal: Discover project-level command families for prepare/bootstrap, full test, full lint, and full typecheck when possible. If a command family is unavailable, return an empty list for that field instead of inventing a fake command.
-16. Tooling Probes: Record non-mutating, rerunnable `tooling_probe_commands` that prove the prepared environment works. If a wrapper is required, the probe command itself should use that wrapper, for example `./.ticket/runtime/execution-setup/run <tool> --version`; LoopTroop also applies the resolved wrapper centrally and avoids double wrapping. LoopTroop reruns these probes before coding and rejects profiles with broken wrappers or missing probes for declared command families.
-17. Workspace Probes: Copy the approved `workspace_probes` into the profile. They must be repository-level functional checks, not tool version probes. LoopTroop executes them independently before coding.
-18. Git Hooks: Do not echo the approved Git-hook policy, detected evidence, or validation commands. LoopTroop copies those backend-authoritative fields into the runtime profile after parsing your result.
-19. Approved Workspace Inputs: LoopTroop materializes the approved `workspace_inputs` before this setup session begins. Use those inputs as part of the prepared worktree. Do not copy additional ignored or untracked paths that are not present in the approved plan. If an approved input is unavailable or materialization failed, report the exact path as a workspace failure.
-20. Quality Gate Policy: Default to bead test commands first, then impacted-or-package scoped lint/typecheck, and never block later phases on unrelated baseline debt.
-21. Honest Outcome: Return `ready` only when every setup check passes. If any check fails or a required tool is `failed` or `not_provisionable`, return `blocked`, identify the cause and attempted approaches, and preserve the evidence needed for recovery.
-22. Completion: Continue using the available tools until setup work finishes and you can return exactly one structured result. A progress update such as "provisioning the toolchain" is never a final answer. Return `ready` when preparation succeeds or `blocked` with evidence when it cannot succeed safely; do not stop at a statement of intent.
-23. Output Discipline: End with exactly one `<EXECUTION_SETUP_RESULT>...</EXECUTION_SETUP_RESULT>` block and nothing else.
+10. Runtime Environment: Report the PATH additions and environment variables needed by prepared tools as reusable runtime information. LoopTroop applies that environment to subprocesses and creates any host-appropriate coding-agent launcher; do not require or assume POSIX env.sh/run wrappers.
+11. Structured Commands: Return every machine command as a direct process object or an explicit POSIX, cmd, or PowerShell shell object, using the same command schema shown in the approved plan. Prefer direct processes.
+12. Completion-Dependent Commands: Run commands whose completion result is needed for the final structured outcome in the foreground and wait for their real exit result before returning the final marker. If one still reports as running, stay in the session until its completion result arrives; do not return the marker while only a background completion notification is pending. Keep ongoing work that must run concurrently in the background, wait only for readiness or intermediate results needed to continue, and do not wait for it to exit.
+13. Tracked Change Boundary: If a repository-native setup command changes tracked manifests, lockfiles, generated assets, or configuration, do not leave those changes behind. Record the exact need in `cautions` and return `blocked` if readiness depends on a permanent repository change.
+14. Minimum Necessary Work: If the environment is already ready or only partially missing one prerequisite, do only the missing temporary work. Do not rebuild or re-bootstrap the environment from scratch without evidence.
+15. Audited Augmentations: If the approved plan is insufficient and you must run additional setup commands, keep those additions minimal and make sure `bootstrap_commands` lists every command actually used, including additions beyond the approved plan.
+16. Reusable Outputs: Record any reusable dependency directory, build cache, generated temp artifact, tool cache, or setup note path in `temp_roots` or `reusable_artifacts`. Prefer runtime-owned paths under `.ticket/runtime/execution-setup/**`; use another setup-created location only when the repository itself requires it.
+17. Discovery Goal: Discover project-level command families for prepare/bootstrap, full test, full lint, and full typecheck when possible. If a command family is unavailable, return an empty list for that field instead of inventing a fake command.
+18. Tooling Probes: Record non-mutating, rerunnable `tooling_probe_commands` that prove the prepared environment works. LoopTroop reruns these probes before coding.
+19. Backend-Owned Runtime Fields: Do not echo the approved workspace inputs/probes, Git hook policy/evidence/validations, ticket/schema identity, temp roots, or quality policy. LoopTroop copies those approved fields into the runtime profile after parsing your result.
+20. Approved Workspace Inputs: LoopTroop materializes the approved `workspace_inputs` before this setup session begins. Use those inputs as part of the prepared worktree. Do not copy additional ignored or untracked paths that are not present in the approved plan. If an approved input is unavailable or materialization failed, report the exact path as a workspace failure.
+21. Quality Gate Policy: Default to bead test commands first, then impacted-or-package scoped lint/typecheck, and never block later phases on unrelated baseline debt.
+22. Honest Outcome: Return `ready` only when every setup check passes. If any check fails or a required tool is `failed` or `not_provisionable`, return `blocked`, identify the cause and attempted approaches, and preserve the evidence needed for recovery.
+23. Completion: Continue using the available tools until setup work finishes and you can return exactly one structured result. A progress update such as "provisioning the toolchain" is never a final answer. Return `ready` when preparation succeeds or `blocked` with evidence when it cannot succeed safely; do not stop at a statement of intent.
+24. Output Discipline: End with exactly one `<EXECUTION_SETUP_RESULT>...</EXECUTION_SETUP_RESULT>` block and nothing else.
 
 ## Expected Output Format
 JSON or YAML inside `<EXECUTION_SETUP_RESULT>...</EXECUTION_SETUP_RESULT>` with this exact shape:
@@ -1764,16 +1770,11 @@ JSON or YAML inside `<EXECUTION_SETUP_RESULT>...</EXECUTION_SETUP_RESULT>` with 
   "status": "<ready|blocked>",
   "summary": "short human-readable summary",
   "profile": {
-    "schema_version": 1,
-    "ticket_id": "PROJ-123",
-    "artifact": "execution_setup_profile",
     "status": "<ready|blocked>",
     "summary": "environment initialized and reusable",
-    "temp_roots": [".ticket/runtime/execution-setup", ".ticket/runtime/execution-setup/tool-cache"],
-    "workspace_inputs": [{"path":"relative/path","kind":"file|directory","source_status":"ignored|untracked","reason":"approved setup input"}],
-    "bootstrap_commands": ["..."],
-    "tooling_probe_commands": ["./.ticket/runtime/execution-setup/run <tool> --version"],
-    "workspace_probes": [{"id": "workspace-1", "command": "<safe repository-level command>", "purpose": "prove the project can be loaded"}],
+    "runtime_environment": {"pathPrepend":[".ticket/runtime/execution-setup/tool-cache/bin"],"variables":{}},
+    "bootstrap_commands": [{"mode":"process","program":"tool","args":["prepare"],"cwd":".","env":{}}],
+    "tooling_probe_commands": [{"mode":"process","program":"tool","args":["--version"],"cwd":".","env":{}}],
     "tool_requirements": [
       {
         "launcher": "<required command launcher>",
@@ -1783,7 +1784,7 @@ JSON or YAML inside `<EXECUTION_SETUP_RESULT>...</EXECUTION_SETUP_RESULT>` with 
         "provisioning_attempts": [
           {
             "strategy": "<distinct safe provisioning strategy name>",
-            "commands": ["<safe temp-root provisioning command attempted for this strategy>"],
+            "commands": [{"mode":"shell","shell":"powershell","script":"<current-host provisioning script>","cwd":".","env":{}}],
             "result": "<available|provisioned|failed|not_run>",
             "reason": "<short outcome or failure reason>"
           }
@@ -1797,29 +1798,13 @@ JSON or YAML inside `<EXECUTION_SETUP_RESULT>...</EXECUTION_SETUP_RESULT>` with 
         "path": ".ticket/runtime/execution-setup/tool-cache",
         "kind": "cache",
         "purpose": "why this exists"
-      },
-      {
-        "path": ".ticket/runtime/execution-setup/env.sh",
-        "kind": "environment",
-        "purpose": "exports PATH and cache variables for prepared runtime tooling"
-      },
-      {
-        "path": ".ticket/runtime/execution-setup/run",
-        "kind": "command-wrapper",
-        "purpose": "sources env.sh before executing project commands"
       }
     ],
     "project_commands": {
-      "prepare": ["..."],
-      "test_full": ["..."],
-      "lint_full": ["..."],
-      "typecheck_full": ["..."]
-    },
-    "quality_gate_policy": {
-      "tests": "bead-test-commands-first",
-      "lint": "impacted-or-package",
-      "typecheck": "impacted-or-package",
-      "full_project_fallback": "never-block-on-unrelated-baseline"
+      "prepare": [{"mode":"process","program":"tool","args":["prepare"],"cwd":".","env":{}}],
+      "test_full": [{"mode":"process","program":"tool","args":["test"],"cwd":".","env":{}}],
+      "lint_full": [],
+      "typecheck_full": []
     },
     "cautions": ["..."]
   },
@@ -1906,27 +1891,28 @@ Implement the active bead requirements in the worktree, pass all quality gates (
 1. Read and Understand: Read the bead specification from the `bead_data` context — including bead id, description, acceptance criteria, target files, and test commands. `bead_data` identifies which bead you are implementing.
 2. Check Prior Notes: If bead notes exist from prior iteration failures, carefully read them and avoid repeating the same mistakes. These notes describe what went wrong previously and what to do differently.
 3. Execution Setup Reference: The full setup profile is available at `.ticket/runtime/execution-setup-profile.json`. Treat it as read-only runtime context; read it only when setup, tooling, prepared-artifact, or project-command details are needed, and prefer it over rediscovering those details from scratch.
-4. Prepared Runtime Wrapper: If the setup profile records `.ticket/runtime/execution-setup/run` or project commands already use that wrapper, run setup-dependent commands through `./.ticket/runtime/execution-setup/run ...` so the prepared PATH and cache variables from `env.sh` are applied.
+4. Prepared Runtime Launcher: When the setup profile records a `command-launcher` reusable artifact, invoke setup-dependent tools through that host-specific `.sh`, `.ps1`, or `.cmd` launcher. Do not assume POSIX syntax; use the launcher matching `host_context.preferredShell`. Machine commands in the profile are structured objects, so read their program/args or explicit shell/script fields rather than treating the JSON as command text.
 5. Implement Changes: Make the necessary code changes in the worktree to fulfill the bead requirements. Follow existing code patterns and conventions in the project.
 6. Environment Readiness: If the setup profile file is missing, unreadable, or invalid, do only the minimum safe discovery needed to proceed. Do not rediscover or rebuild the full environment unless the existing setup is missing or invalid. If a required command launcher or toolchain is missing and no approved temp root from the setup profile can hold execution-only tooling, report an environment failure instead of installing into arbitrary repository paths.
 7. Execution-Only Tooling: If you must prepare a missed execution-only toolchain or cache during coding, create it only under an existing approved temp root from `.ticket/runtime/execution-setup-profile.json`, preferably `.ticket/runtime/execution-setup/**`. Never download or install toolchains, SDKs, package managers, or large caches into arbitrary project paths.
-8. Repair Loop: Treat the bead's planned test commands as starting guidance. Run applicable commands first, but correct or replace an inaccurate command when repository evidence requires it. Then run impacted, package-scoped, or file-scoped lint and typecheck commands when supported without blocking on unrelated baseline debt.
-9. Run Tests: Run the smallest appropriate bead-scoped checks and keep fixing failures until applicable checks pass. When the bead records that no automated command is appropriate, do not invent one solely to satisfy the plan.
-10. Agent-Owned Verification: You own bead-scoped verification. LoopTroop validates the final structured completion marker but does not independently rerun the frozen planned commands; return `done/pass` only after the checks actually appropriate to the repository and bead have passed.
-11. Run Lint & Typecheck: Prefer scoped lint and typecheck for the code you touched. Do not fail the bead because of unrelated pre-existing project-wide lint/typecheck debt.
-12. Self-Verify Quality: Review each acceptance criterion and confirm the implementation satisfies it qualitatively. Check edge cases and error handling.
-13. Do Not Self-Terminate Early: Do not stop just because lint, tests, or typecheck fail. Continue working in the same session while time remains. The app will decide when to stop the iteration.
-14. No Progress Prose: While the bead is still in progress, do not reply with plain-language status updates such as "I'm installing dependencies" or "I'll rerun tests next". Keep using tools and continue working until you can return the required completion marker or the app interrupts you.
-15. Completion Marker:
+8. Repair Loop: After implementing the bead, treat its planned test commands as starting guidance. Run the applicable commands, and correct or replace a command when repository evidence shows that another project-native check is more appropriate. Then run impacted, package-scoped, or file-scoped lint and typecheck commands when the project supports them. If a scoped lint/typecheck command is unavailable, use the best safe project-native command family from the setup profile file when available without blocking on unrelated baseline debt.
+9. Run Tests: Use the smallest appropriate automated checks for the implementation and keep fixing relevant failures until they pass. When the bead has no test commands and gives a reason, do not invent an unsuitable command merely to create a gate.
+10. Completion-Dependent Commands: Run commands whose completion result is needed for the final structured outcome in the foreground and wait for their real exit result before returning the final marker. If one still reports as running, stay in the session until its completion result arrives; do not return the marker while only a background completion notification is pending. Keep ongoing work that must run concurrently in the background, wait only for readiness or intermediate results needed to continue, and do not wait for it to exit.
+11. Agent-Owned Verification: LoopTroop validates the final completion marker but does not independently rerun a frozen copy of the bead test commands. Return `done` only after you have run the applicable checks and verified the implementation against the acceptance criteria.
+12. Run Lint & Typecheck: Prefer scoped lint and typecheck for the code you touched. Do not fail the bead because of unrelated pre-existing project-wide lint/typecheck debt.
+13. Self-Verify Quality: Review each acceptance criterion and confirm the implementation satisfies it qualitatively. Check edge cases and error handling.
+14. Do Not Self-Terminate Early: Do not stop just because lint, tests, or typecheck fail. Continue working in the same session while time remains. The app will decide when to stop the iteration.
+15. No Progress Prose: While the bead is still in progress, do not reply with plain-language status updates such as "I'm installing dependencies" or "I'll rerun tests next". Keep using tools and continue working until you can return the required completion marker or the app interrupts you.
+16. Completion Marker:
 When you finish a bead, end your response with exactly one JSON marker in these tags and nothing else after it:
 <BEAD_STATUS>{"bead_id":"<bead-id>","status":"done","checks":{"tests":"pass","lint":"pass","typecheck":"pass","qualitative":"pass"}}</BEAD_STATUS>
 If you cannot complete the bead, use the same JSON shape with `"status":"error"` and include a short `"reason"` field.
 Inside the marker, return only the machine-readable object. Do not add markdown fences, commentary, or wrapper keys.
 Self-check before sending: exactly one marker, valid bead_id, valid status, and all four required checks present.
 Do not use plain-text COMPLETE/FAILED markers.
-16. Output Discipline: Return exactly one <BEAD_STATUS>...</BEAD_STATUS> block as the final output marker. Inside the marker, return only the machine-readable JSON object. No markdown fences, commentary, or wrapper keys.
-17. Terminal Condition: The normal terminal response for an active iteration is the final marker with status `done` after all required gates pass. Do not emit status `error` for lint/test/typecheck failures while the app has not stopped the iteration.
-18. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
+17. Output Discipline: Return exactly one <BEAD_STATUS>...</BEAD_STATUS> block as the final output marker. Inside the marker, return only the machine-readable JSON object. No markdown fences, commentary, or wrapper keys.
+18. Terminal Condition: The normal terminal response for an active iteration is the final marker with status `done` after all required gates pass. Do not emit status `error` for lint/test/typecheck failures while the app has not stopped the iteration.
+19. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
 JSON inside <BEAD_STATUS>...</BEAD_STATUS> tags with bead_id, status, checks (tests, lint, typecheck, qualitative), and optional reason
@@ -2009,17 +1995,18 @@ Design and implement a comprehensive final test (or test suite) that validates t
 9. File Effects Contract: Also record `file_effects` for every repository file you expect final testing to create or leave dirty. Use `{"path":"relative/path","intent":"candidate"}` for files that should be included in the PR, `{"path":"relative/path","intent":"temporary"}` for files that are expected test byproducts and must stay out of the PR, and `{"path":"relative/path","intent":"unexpected","reason":"..."}` for dirty files you did not intend as permanent. Paths must be repository-relative and language/framework agnostic.
 10. Ephemeral Runtime Exclusion: LoopTroop-owned internals such as `.ticket/**`, `.ticket/runtime/execution-setup/**`, `.ticket/runtime/execution-setup-profile.json`, and `.looptroop/**` are temporary runtime state and must never appear in `modified_files` or `file_effects`.
 11. Mandatory Self-Execution: Before returning `<FINAL_TEST_COMMANDS>`, you MUST run the exact command(s) you plan to return in this same worktree.
-12. Execution Setup Reference: If `.ticket/runtime/execution-setup-profile.json` records `.ticket/runtime/execution-setup/run` or project commands already use that wrapper, run setup-dependent final-test commands through `./.ticket/runtime/execution-setup/run ...` so the prepared PATH and cache variables from `env.sh` are applied. LoopTroop will also execute returned commands through the declared setup wrapper when one is available, so the backend reuses the prepared environment even if the command text omits it.
-13. Repair Loop: If any planned command fails, inspect the real failure output, fix the underlying implementation and/or the final test files, and rerun the same command(s). Repeat until the exact planned command(s) pass or you run out of time.
-14. Scope Discipline: You may modify production code and test files during this phase, but keep changes minimal and strictly within the approved ticket, PRD, and Beads scope.
-15. Do Not Game The Tests: Do not weaken assertions, delete coverage, lower thresholds, or narrow test scope just to get a pass. Only change a failing test if it is demonstrably broader than the approved requirements.
-16. Test Commands: Provide the exact commands to run the final test(s). Commands must target only your test files — do not run the entire project test suite.
-17. Command Marker: End your response with `<FINAL_TEST_COMMANDS>{"commands":["<cmd1>","<cmd2>"],"test_files":["path/to/test-file"],"modified_files":["path/to/test-file","src/feature-file"],"file_effects":[{"path":"path/to/test-file","intent":"candidate"},{"path":"tmp/test-output","intent":"temporary","reason":"created by the final-test command"}],"summary":"short explanation"}</FINAL_TEST_COMMANDS>`.
-18. Output Discipline: Return exactly one `<FINAL_TEST_COMMANDS>...</FINAL_TEST_COMMANDS>` block and nothing else outside it. Inside the marker, return only the machine-readable object with a non-empty `commands` field, a non-empty `test_files` field, a non-empty `modified_files` field, and `file_effects` entries for expected dirty files.
-19. Do not claim the tests passed yourself. LoopTroop will execute the commands and determine pass/fail from the real exit codes.
-20. Final Gate: Return `<FINAL_TEST_COMMANDS>` only after the exact listed command(s) have passed locally in your own session on the current branch state.
-21. Failure Handling: If you added or updated tests, include only the commands needed to verify the final implementation state.
-22. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
+12. Completion-Dependent Commands: Run commands whose completion result is needed for the final structured outcome in the foreground and wait for their real exit result before returning the final marker. If one still reports as running, stay in the session until its completion result arrives; do not return the marker while only a background completion notification is pending. Keep ongoing work that must run concurrently in the background, wait only for readiness or intermediate results needed to continue, and do not wait for it to exit.
+13. Execution Setup Reference: Read `.ticket/runtime/execution-setup-profile.json` for the approved runtime environment and project commands. LoopTroop applies its structured PATH additions and variables directly when it executes returned commands.
+14. Repair Loop: If any planned command fails, inspect the real failure output, fix the underlying implementation and/or the final test files, and rerun the same command(s). Repeat until the exact planned command(s) pass or you run out of time.
+15. Scope Discipline: You may modify production code and test files during this phase, but keep changes minimal and strictly within the approved ticket, PRD, and Beads scope.
+16. Do Not Game The Tests: Do not weaken assertions, delete coverage, lower thresholds, or narrow test scope just to get a pass. Only change a failing test if it is demonstrably broader than the approved requirements.
+17. Test Commands: Provide exact structured commands targeting only your test files. Prefer `{"mode":"process","program":"tool","args":["test"],"cwd":".","env":{}}`; use `{"mode":"shell","shell":"posix|cmd|powershell","script":"...","cwd":".","env":{}}` only when repository evidence requires shell syntax. Use the current host context supplied below; plans are for this host.
+18. Command Marker: End your response with `<FINAL_TEST_COMMANDS>{"commands":[{"mode":"process","program":"tool","args":["test","path/to/test-file"],"cwd":".","env":{}}],"test_files":["path/to/test-file"],"modified_files":["path/to/test-file","src/feature-file"],"file_effects":[{"path":"path/to/test-file","intent":"candidate"},{"path":"tmp/test-output","intent":"temporary","reason":"created by the final-test command"}],"summary":"short explanation"}</FINAL_TEST_COMMANDS>`.
+19. Output Discipline: Return exactly one `<FINAL_TEST_COMMANDS>...</FINAL_TEST_COMMANDS>` block and nothing else outside it. Inside the marker, return only the machine-readable object with a non-empty `commands` field, a non-empty `test_files` field, a non-empty `modified_files` field, and `file_effects` entries for expected dirty files.
+20. Do not claim the tests passed yourself. LoopTroop will execute the commands and determine pass/fail from the real exit codes.
+21. Final Gate: Return `<FINAL_TEST_COMMANDS>` only after the exact listed command(s) have passed locally in your own session on the current branch state.
+22. Failure Handling: If you added or updated tests, include only the commands needed to verify the final implementation state.
+23. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
 Test file(s) + execution commands
@@ -2098,7 +2085,7 @@ These builders assemble prompt variants around the built-in prompts or create st
 | `buildPrdRefinePrompt()` | `server/phases/prd/draft.ts` | `REFINING_PRD` | Fresh refinement | `PROM12.toolPolicy` | Labeled Full Answers, winning PRD draft, alternative PRD drafts | Gives `PROM12` the exact winning draft and alternatives used for refinement. |
 | `buildFullAnswersRetryPrompt()` | `server/phases/prd/draft.ts` | `DRAFTING_PRD` full-answers retry | Same session when recoverable | `PROM10a.toolPolicy` | Validation error, raw response, canonical interview, skipped IDs | Corrects malformed Full Answers output while preserving canonical question order and IDs. |
 | `buildPrdRefinementRetryPrompt()` | `server/phases/prd/refined.ts` | `REFINING_PRD` retry path | Same session when recoverable | `PROM12.toolPolicy` | Validation error and sanitized raw response | Corrects malformed refined PRD output and reinforces PRD change metadata rules. |
-| `buildPrdCoverageRevisionRetryPrompt()` | `server/phases/prd/coverageRevision.ts` | `VERIFYING_PRD_COVERAGE` revision retry | Same session when recoverable | `PROM13b.toolPolicy` | Validation error and sanitized raw response | Keeps the original PRD schema, repeats the exact epic/story `changes` contract, and routes section edits through `gap_resolutions` with `affected_items: []`. |
+| `buildPrdCoverageRevisionRetryPrompt()` | `server/phases/prd/coverageRevision.ts` | `VERIFYING_PRD_COVERAGE` revision retry; `WAITING_PRD_APPROVAL` extra-fix retry | Fresh session after invalid output; reconnects only for eligible session recovery | `PROM13b.toolPolicy` | Validation error and full previous response as data-only repair context | Corrects malformed coverage revision output while preserving prior content, reinforcing item-level records, retaining affected story refs for resolved mixed gaps, and keeping empty refs for unresolved source contradictions. |
 | `buildBeadsContextBuilder()` | `server/phases/beads/draft.ts` | `COUNCIL_VOTING_BEADS`, `REFINING_BEADS` | Fresh | `PROM21` or `PROM22` policy | `beads_vote` or `beads_refine` context | Supplies phase-specific bead context to shared council vote/refine pipelines. |
 | `buildBeadsVotePrompt()` | `server/workflow/phases/beadsPhase.ts` | `COUNCIL_VOTING_BEADS` | Fresh council vote | `PROM21.toolPolicy` | `beads_vote` context plus `vote_rubric` | Adds the detailed beads voting rubric around `PROM21`. |
 | `buildBeadsExpandRetryPrompt()` | `server/workflow/phases/beadsPhase.ts` | `EXPANDING_BEADS` retry path | Same session when recoverable | `PROM25.toolPolicy` | Validation error, raw response, `PROM25` schema reminder | Corrects malformed expanded bead output and adds preserved-field guidance when needed. |

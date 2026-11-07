@@ -310,7 +310,11 @@ This is what lets the backend distinguish:
 
 `keepActive` and `forceFresh` are prompt-runner controls layered on top of this ownership model; they are not part of the persisted ownership key itself.
 
-LoopTroop recognizes a background shell completion for a pending owned session only when its typed notice carries the structured job ID returned by that session's tool call. Matching text or source labels alone do not prove ownership; unrelated or unverifiable session input remains blocked.
+LoopTroop recognizes a background shell completion for a pending managed session only when its typed notice matches a verified model-tool job observed for that session. Matching text or source labels alone do not prove ownership; unrelated or unverifiable session input remains blocked.
+
+Continue preserves the active session and its normal tool permissions. For OpenCode v2, finishing, abandoning, retrying, or cancelling a task uses a separate cleanup path: LoopTroop first disables native tools in that session and its child sessions, confirms the restriction, interrupts their current work, and stops running shell commands identified by verified model-tool receipts. A late completion notice can still add conversation text, but native permission-checked tools cannot make further edits or start commands. Session transcripts and saved ticket logs remain available. Stopping a running shell removes its native command handle and retained output; it does not delete the conversation.
+
+LoopTroop withholds completion or worktree reset when it cannot confirm cleanup. Commands from other sessions are left alone; an unverified running command claiming the managed session blocks cleanup instead of being terminated. Use LoopTroop-managed sessions only through LoopTroop. Plugin tools must enforce OpenCode permissions to receive the same restriction.
 
 ## 6. Prompt Runner
 
@@ -436,7 +440,7 @@ local session record.
 
 When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please`. It does not rebuild context or create a new attempt version. Setup and council errors retain the exact session diagnostics used by these checks; automatic retry iteration numbers remain separate from workflow attempt versions.
 
-For a CODING session waiting on a background shell command, Continue also lets LoopTroop recognize the matching typed completion notice. The notice must carry the structured job ID returned by the owned tool call; unrelated or unverifiable session input remains blocked.
+When a managed session is waiting on a background shell command, Continue can recognize its matching completion notice and answer attributable permission requests, including after stream recovery. It preserves that active session; permanent task cleanup is separate. See [Session Ownership](#_5-session-ownership).
 
 PRD Part 2 continuation reuses the saved, validated Full Answers checkpoint only when the original inputs and phase attempt match. A missing, damaged, or mismatched checkpoint requires a fresh Retry.
 
