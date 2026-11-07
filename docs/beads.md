@@ -568,13 +568,13 @@ Model-provider authentication failures remain ineligible for Continue.
 Billing, quota, invalid-request, and policy denials do not qualify for the
 server-login exception.
 
-When Continue is available, returning from `BLOCKED_ERROR` sends exactly:
+When Continue is available, returning from `BLOCKED_ERROR` sends this prompt into the preserved session:
 
 ```text
 continue please
 ```
 
-into that preserved session.
+If the coding turn is waiting on a background shell command, LoopTroop recognizes its completion notice when Continue resumes the session. The notice must carry the structured job ID returned by that session's tool call; unrelated or unverifiable input remains blocked.
 
 This distinction is important:
 

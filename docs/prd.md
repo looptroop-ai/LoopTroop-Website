@@ -172,7 +172,9 @@ retries do not replace its evidence. For errors without a saved occurrence,
 the server applies the reported time window before selecting those five records.
 The separate phase log retains the full history.
 
-Coverage metadata is also filtered conservatively. LoopTroop keeps revision/change metadata only when it contains real, text-preserving semantic before/after items. If a model emits only section paths or vague summaries, LoopTroop records warnings and falls back to deriving the visible diff from the validated PRD versions themselves.
+PROM13b requires a top-level `changes` list with one exact before-and-after record for each changed epic or user story. Records use `type` (`modified`, `added`, or `removed`), `item_type` (`epic` or `user_story`), `before`, and `after`. Added and removed records use `null` on the absent side; modified records keep the same item ID on both sides. Top-level section edits belong in the corresponding `gap_resolutions` entry with `affected_items: []`. Its structured retry repeats the full PRD schema and change-record contract.
+
+LoopTroop validates supplied change records before saving them. Safe formatting normalization can retain repair warnings, and the review UI can derive a visible diff from validated PRD versions when usable metadata is absent. Unsupported or incomplete records that fail validation trigger a structured retry and can block the revision if they remain invalid. LoopTroop does not invent PRD content or change details.
 
 If the candidate becomes clean, it advances to approval cleanly. If the cap is exhausted first, the latest candidate still advances, but unresolved coverage warnings stay visible for review instead of being hidden. From the approval warning, the user can request manual extra fixes one at a time; each extra fix reloads the latest server artifacts, revises only the listed gaps, runs a fresh coverage check, and records an `Extra Fix N` entry in the coverage report.
 

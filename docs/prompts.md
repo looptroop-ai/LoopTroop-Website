@@ -93,7 +93,7 @@ All built-in prompts in this section are exported from `server/prompts/index.ts`
 | `PROM11` | `COUNCIL_VOTING_PRD` | Fresh council vote / `disabled` | `relevant_files`, `ticket_details`, `interview`, `drafts` | Scores PRD drafts with the strict `draft_scores` YAML schema. | [Full content here](#full-prompt-prom11) |
 | `PROM12` | `REFINING_PRD` | Fresh refinement / `read_only` | `relevant_files`, `ticket_details`, `full_answers`, `drafts` | Refines the winning PRD draft and records machine-readable change metadata, using focused inspection only when repository evidence is needed. | [Full content here](#full-prompt-prom12) |
 | `PROM13` | `VERIFYING_PRD_COVERAGE` | Fresh coverage audit / `read_only` | `full_answers`, `prd` | Compares the PRD against the adopted Full Answers artifact, reporting concrete gaps and inspecting the repository only when required to confirm a repository-specific claim. | [Full content here](#full-prompt-prom13) |
-| `PROM13b` | `VERIFYING_PRD_COVERAGE` revision sub-step and PRD approval extra fix | Fresh revision / `read_only` | `full_answers`, `prd`, `coverage_gaps`, optional previous extra-fix history | Revises the PRD to resolve specific coverage gaps, using focused inspection only when repository evidence is needed. | [Full content here](#full-prompt-prom13b) |
+| `PROM13b` | `VERIFYING_PRD_COVERAGE` revision sub-step and PRD approval extra fix | Fresh revision / `read_only` | `full_answers`, `prd`, `coverage_gaps`, optional previous extra-fix history | Revises the PRD to resolve specific coverage gaps with exact epic/story change records; section edits are recorded in `gap_resolutions`. | [Full content here](#full-prompt-prom13b) |
 
 ### Beads
 
@@ -625,14 +625,14 @@ Generate a complete Product Requirements Document (PRD) based on the provided Fu
 13. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
-YAML with exactly these top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`.
+YAML with these required top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`. Include only additional top-level fields explicitly requested by this prompt.
 `artifact` must be `prd`. `source_interview` must include `content_sha256`.
 `product` keys: `problem_statement`, `target_users`.
 `scope` keys: `in_scope`, `out_of_scope`.
 `technical_requirements` keys: `architecture_constraints`, `data_model`, `api_contracts`, `security_constraints`, `performance_constraints`, `reliability_constraints`, `error_handling_rules`, `tooling_assumptions`.
 `epics` must be a non-empty list. Each epic: `id`, `title`, `objective`, `implementation_steps`, `user_stories`.
-Each user story: `id`, `title`, `acceptance_criteria`, `implementation_steps`, `verification.required_commands`.
-YAML Safety: Any one-line scalar or list item that begins with backticks or `@`, or contains `: ` in plain text, must be double-quoted.
+Each user story: `id`, `title`, `acceptance_criteria`, `implementation_steps`, `verification.required_commands`. Every command is a structured process or current-host shell command; prefer direct process execution.
+YAML Safety: Any one-line scalar or list item that begins with a backtick, `@`, `,`, `]`, or `}`, or contains `: ` in plain text, must be double-quoted.
 Example:
 ```yaml
 schema_version: 1
@@ -674,7 +674,11 @@ epics:
           - "..."
         verification:
           required_commands:
-            - "npm test"
+            - mode: "process"
+              program: "npm"
+              args: ["test"]
+              cwd: "."
+              env: {}
 risks:
   - "..."
 approval:
@@ -794,14 +798,14 @@ Create the final, definitive version of your PRD by reviewing the alternative (l
 15. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
-YAML with exactly these top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`.
+YAML with these required top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`. Include only additional top-level fields explicitly requested by this prompt.
 `artifact` must be `prd`. `source_interview` must include `content_sha256`.
 `product` keys: `problem_statement`, `target_users`.
 `scope` keys: `in_scope`, `out_of_scope`.
 `technical_requirements` keys: `architecture_constraints`, `data_model`, `api_contracts`, `security_constraints`, `performance_constraints`, `reliability_constraints`, `error_handling_rules`, `tooling_assumptions`.
 `epics` must be a non-empty list. Each epic: `id`, `title`, `objective`, `implementation_steps`, `user_stories`.
-Each user story: `id`, `title`, `acceptance_criteria`, `implementation_steps`, `verification.required_commands`.
-YAML Safety: Any one-line scalar or list item that begins with backticks or `@`, or contains `: ` in plain text, must be double-quoted.
+Each user story: `id`, `title`, `acceptance_criteria`, `implementation_steps`, `verification.required_commands`. Every command is a structured process or current-host shell command; prefer direct process execution.
+YAML Safety: Any one-line scalar or list item that begins with a backtick, `@`, `,`, `]`, or `}`, or contains `: ` in plain text, must be double-quoted.
 Example:
 ```yaml
 schema_version: 1
@@ -843,14 +847,18 @@ epics:
           - "..."
         verification:
           required_commands:
-            - "npm test"
+            - mode: "process"
+              program: "npm"
+              args: ["test"]
+              cwd: "."
+              env: {}
 risks:
   - "..."
 approval:
   approved_by: ""
   approved_at: ""
 ```
-Also include a top-level `changes` list. Each change item: {type, item_type, before, after, inspiration?}. `type` must be one of {modified, added, removed}. `item_type` must be `epic` or `user_story`. `before` and `after` use {id, label, detail?} or null when appropriate. Optional `inspiration` uses {alternative_draft, item}. Keep everything in one YAML artifact.
+Include a top-level `changes` list containing only changed epic and user_story items. Each entry must include `type`, `item_type`, `before`, and `after`. `type` must be `modified`, `added`, or `removed`; `item_type` must be `epic` or `user_story`. A populated `before` or `after` record uses `{id, label, detail?}`, where `label` is the item title. For `added`, use `before: null` and a populated `after`; for `removed`, use a populated `before` and `after: null`; for `modified`, populate both records with the same `id`. Include each changed epic or user story exactly once. Do not put PRD section edits in `changes`. Optional `inspiration` uses {alternative_draft, item}. Keep everything in one YAML artifact.
 
 ## Context
 ### relevant_files
@@ -941,23 +949,25 @@ Revise the current PRD candidate to address the provided coverage gaps while pre
 5. Preservation Rule: Keep existing epic IDs and user story IDs unless the revised candidate requires a genuinely new item.
 6. Epic Completeness: Every epic in the revised PRD must include at least one fully populated `user_stories` entry. Never leave an epic as a shell with `user_stories: []`, omit `user_stories`, or move story-level requirements only into epic-level fields.
 7. Specificity Rule: When a provided gap says coverage is vague or hard to verify, resolve it by making the affected acceptance criteria, scope language, or verification guidance more concrete and testable instead of adding generic filler prose.
-8. Change Accounting: Include a top-level `changes` list that fully and exactly accounts for the diff between the current PRD candidate and the revised PRD candidate.
-9. Gap Resolution Accounting: Include a top-level `gap_resolutions` list with exactly one entry per provided gap.
-10. Gap Resolution Actions: Each `gap_resolutions` entry must include `gap`, `action`, `rationale`, and `affected_items`. `action` must be one of `updated_prd`, `already_covered`, or `left_unresolved`.
-11. Affected Items: `affected_items` must be a YAML list of `{ item_type, id, label }` entries referencing epic or user_story items. Use an empty list when no epic/story reference applies.
-12. Section-Level Changes: If a gap updates top-level PRD sections such as `product`, `scope`, `technical_requirements`, or `api_contracts`, keep `affected_items: []`. Never emit `item_type: prd`, `section`, or similar section references in `affected_items`.
-13. Output Discipline: Return only one PRD YAML artifact using the normal PRD schema, plus top-level `changes` and `gap_resolutions`. Do not add wrappers or prose.
-14. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
+8. Change Accounting: The top-level `changes` list must fully and exactly account for every changed epic and user story between the current and revised PRDs, with each changed item listed exactly once.
+9. Change Schema: Each `changes` entry must include `type`, `item_type`, `before`, and `after`. Use only `epic` or `user_story` for `item_type`; use `modified`, `added`, or `removed` for `type`.
+10. Change Semantics: For `added`, `before` is null and `after` is a populated record. For `removed`, `before` is populated and `after` is null. For `modified`, both records are populated and share the same ID.
+11. Gap Resolution Accounting: Include a top-level `gap_resolutions` list with exactly one entry per provided gap.
+12. Gap Resolution Actions: Each `gap_resolutions` entry must include `gap`, `action`, `rationale`, and `affected_items`. `action` must be one of `updated_prd`, `already_covered`, or `left_unresolved`.
+13. Affected Items: `affected_items` must be a YAML list of `{ item_type, id, label }` entries referencing epic or user_story items. Use an empty list when no epic/story reference applies.
+14. Section-Level Changes: The `changes` list is only for epic and user_story items. Account for a gap that updates top-level PRD sections such as `product`, `scope`, `technical_requirements`, or `api_contracts` in its `gap_resolutions` entry with `affected_items: []`. Never emit `item_type: prd`, `section`, or similar section references in `affected_items`.
+15. Output Discipline: Return only one PRD YAML artifact using the normal PRD schema, plus top-level `changes` and `gap_resolutions`. Do not add wrappers or prose.
+16. Final Self-Check: before responding, verify that you are returning only the artifact, using the exact required top-level shape, with no prose, no markdown fences, no commentary, and no extra wrapper keys.
 
 ## Expected Output Format
-YAML with exactly these top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`.
+YAML with these required top-level keys (no wrappers): `schema_version`, `ticket_id`, `artifact`, `status`, `source_interview`, `product`, `scope`, `technical_requirements`, `epics`, `risks`, `approval`. Include only additional top-level fields explicitly requested by this prompt.
 `artifact` must be `prd`. `source_interview` must include `content_sha256`.
 `product` keys: `problem_statement`, `target_users`.
 `scope` keys: `in_scope`, `out_of_scope`.
 `technical_requirements` keys: `architecture_constraints`, `data_model`, `api_contracts`, `security_constraints`, `performance_constraints`, `reliability_constraints`, `error_handling_rules`, `tooling_assumptions`.
 `epics` must be a non-empty list. Each epic: `id`, `title`, `objective`, `implementation_steps`, `user_stories`.
-Each user story: `id`, `title`, `acceptance_criteria`, `implementation_steps`, `verification.required_commands`.
-YAML Safety: Any one-line scalar or list item that begins with backticks or `@`, or contains `: ` in plain text, must be double-quoted.
+Each user story: `id`, `title`, `acceptance_criteria`, `implementation_steps`, `verification.required_commands`. Every command is a structured process or current-host shell command; prefer direct process execution.
+YAML Safety: Any one-line scalar or list item that begins with a backtick, `@`, `,`, `]`, or `}`, or contains `: ` in plain text, must be double-quoted.
 Example:
 ```yaml
 schema_version: 1
@@ -999,14 +1009,20 @@ epics:
           - "..."
         verification:
           required_commands:
-            - "npm test"
+            - mode: "process"
+              program: "npm"
+              args: ["test"]
+              cwd: "."
+              env: {}
 risks:
   - "..."
 approval:
   approved_by: ""
   approved_at: ""
 ```
-Also include top-level `changes` and `gap_resolutions` lists. `changes` uses the same shape as PROM12 refinement output. Each `gap_resolutions` item: {gap, action, rationale, affected_items}. `action` must be one of {updated_prd, already_covered, left_unresolved}. Each `affected_items` entry: {item_type, id, label}.
+Include a top-level `changes` list containing only changed epic and user_story items. Each entry must include `type`, `item_type`, `before`, and `after`. `type` must be `modified`, `added`, or `removed`; `item_type` must be `epic` or `user_story`. A populated `before` or `after` record uses `{id, label, detail?}`, where `label` is the item title. For `added`, use `before: null` and a populated `after`; for `removed`, use a populated `before` and `after: null`; for `modified`, populate both records with the same `id`. Include each changed epic or user story exactly once. Do not put PRD section edits in `changes`.
+
+Also include a top-level `gap_resolutions` list. Each entry: {gap, action, rationale, affected_items}. `action` must be one of {updated_prd, already_covered, left_unresolved}. Each `affected_items` entry: {item_type, id, label}; use `[]` when the gap changes PRD sections or has no epic/story mapping.
 
 ## Context
 ### full_answers
@@ -2082,7 +2098,7 @@ These builders assemble prompt variants around the built-in prompts or create st
 | `buildPrdRefinePrompt()` | `server/phases/prd/draft.ts` | `REFINING_PRD` | Fresh refinement | `PROM12.toolPolicy` | Labeled Full Answers, winning PRD draft, alternative PRD drafts | Gives `PROM12` the exact winning draft and alternatives used for refinement. |
 | `buildFullAnswersRetryPrompt()` | `server/phases/prd/draft.ts` | `DRAFTING_PRD` full-answers retry | Same session when recoverable | `PROM10a.toolPolicy` | Validation error, raw response, canonical interview, skipped IDs | Corrects malformed Full Answers output while preserving canonical question order and IDs. |
 | `buildPrdRefinementRetryPrompt()` | `server/phases/prd/refined.ts` | `REFINING_PRD` retry path | Same session when recoverable | `PROM12.toolPolicy` | Validation error and sanitized raw response | Corrects malformed refined PRD output and reinforces PRD change metadata rules. |
-| `buildPrdCoverageRevisionRetryPrompt()` | `server/phases/prd/coverageRevision.ts` | `VERIFYING_PRD_COVERAGE` revision retry | Same session when recoverable | `PROM13b.toolPolicy` | Validation error and sanitized raw response | Corrects malformed PRD coverage revision output, including `changes` and `gap_resolutions`. |
+| `buildPrdCoverageRevisionRetryPrompt()` | `server/phases/prd/coverageRevision.ts` | `VERIFYING_PRD_COVERAGE` revision retry | Same session when recoverable | `PROM13b.toolPolicy` | Validation error and sanitized raw response | Keeps the original PRD schema, repeats the exact epic/story `changes` contract, and routes section edits through `gap_resolutions` with `affected_items: []`. |
 | `buildBeadsContextBuilder()` | `server/phases/beads/draft.ts` | `COUNCIL_VOTING_BEADS`, `REFINING_BEADS` | Fresh | `PROM21` or `PROM22` policy | `beads_vote` or `beads_refine` context | Supplies phase-specific bead context to shared council vote/refine pipelines. |
 | `buildBeadsVotePrompt()` | `server/workflow/phases/beadsPhase.ts` | `COUNCIL_VOTING_BEADS` | Fresh council vote | `PROM21.toolPolicy` | `beads_vote` context plus `vote_rubric` | Adds the detailed beads voting rubric around `PROM21`. |
 | `buildBeadsExpandRetryPrompt()` | `server/workflow/phases/beadsPhase.ts` | `EXPANDING_BEADS` retry path | Same session when recoverable | `PROM25.toolPolicy` | Validation error, raw response, `PROM25` schema reminder | Corrects malformed expanded bead output and adds preserved-field guidance when needed. |

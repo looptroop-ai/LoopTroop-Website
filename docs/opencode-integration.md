@@ -310,6 +310,8 @@ This is what lets the backend distinguish:
 
 `keepActive` and `forceFresh` are prompt-runner controls layered on top of this ownership model; they are not part of the persisted ownership key itself.
 
+LoopTroop recognizes a background shell completion for a pending owned session only when its typed notice carries the structured job ID returned by that session's tool call. Matching text or source labels alone do not prove ownership; unrelated or unverifiable session input remains blocked.
+
 ## 6. Prompt Runner
 
 `runOpenCodePrompt()` is the main orchestration helper. It resolves session ownership, timeout budget, tool policy, and prompt dispatch in one place.
@@ -433,6 +435,8 @@ local session record.
 **Non-continuable errors:** Model-provider auth failures, invalid requests, provider permission errors, missing API keys, model-not-found, non-402 insufficient-quota signals, and v2 prompt POSTs without a verifiable inbox receipt are not eligible for Continue. Server billing, quota, invalid-request, and policy denials do not qualify for the server-login exception. A server login or permission failure without an existing session, including failed session creation, also stays Retry-only.
 
 When all checks pass, the Continue action records a pending continuation keyed by `sessionId`. The next owned session prompt consumes this and sends exactly `continue please`. It does not rebuild context or create a new attempt version. Setup and council errors retain the exact session diagnostics used by these checks; automatic retry iteration numbers remain separate from workflow attempt versions.
+
+For a CODING session waiting on a background shell command, Continue also lets LoopTroop recognize the matching typed completion notice. The notice must carry the structured job ID returned by the owned tool call; unrelated or unverifiable session input remains blocked.
 
 PRD Part 2 continuation reuses the saved, validated Full Answers checkpoint only when the original inputs and phase attempt match. A missing, damaged, or mismatched checkpoint requires a fresh Retry.
 
