@@ -65,7 +65,9 @@ Startup Restore, Welcome Disclaimer, and Keyboard Shortcuts overlays also keep
 their content within the viewport so it remains reachable on short screens.
 Startup notices take focus before routed dialogs open. A direct link to
 Configuration, Projects, or New Ticket stays selected and opens after the notices
-are dismissed.
+are dismissed. A routed dialog that was already open stays mounted but hidden
+under the notice, so dismissing it returns the same form and any typed draft
+instead of an empty replacement.
 
 > [!NOTE]
 > **Current behavior.** The directory picker layers above the Projects
@@ -457,9 +459,10 @@ Live coverage summaries use the active phase attempt from phase-attempt history
 to scope artifact and log reads, then wait for that attempt and matching data
 before showing candidate versions or pass counts. Continue stays on the current
 attempt; Retry starts a new one. A failed progress read offers Retry. PRD and
-Beads approval controls stay disabled until the first coverage result loads and
-while reports refresh, so an older cached report cannot enable approval during
-that refresh. A successful empty result remains usable; coverage is not mandatory.
+Beads approval controls stay disabled until the first coverage result
+loads, while reports refresh, and after a refresh fails until a retry loads
+current evidence. An older cached report stays readable but cannot enable
+approval. A successful empty result remains usable; coverage is not mandatory.
 
 The completed-workflow **Bead Commits** artifact offers **Net Diff**, **By Bead**, and **By File** views. By Bead presents per-bead git commits; By File presents the commits that touched each file. Both activity views show each bead as `#<priority> · <bead ID> · <title>` and use the execution priority for their order.
 
