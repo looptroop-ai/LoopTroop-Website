@@ -63,6 +63,9 @@ when the desktop layout appears; hidden controls are skipped when focus wraps.
 Shared dialogs limit their height to the viewport and scroll long content. The
 Startup Restore, Welcome Disclaimer, and Keyboard Shortcuts overlays also keep
 their content within the viewport so it remains reachable on short screens.
+Startup notices take focus before routed dialogs open. A direct link to
+Configuration, Projects, or New Ticket stays selected and opens after the notices
+are dismissed.
 
 > [!NOTE]
 > **Current behavior.** The directory picker layers above the Projects
@@ -454,8 +457,9 @@ Live coverage summaries use the active phase attempt from phase-attempt history
 to scope artifact and log reads, then wait for that attempt and matching data
 before showing candidate versions or pass counts. Continue stays on the current
 attempt; Retry starts a new one. A failed progress read offers Retry. PRD and
-Beads approval controls stay disabled until the first coverage result loads,
-including while a query is paused offline.
+Beads approval controls stay disabled until the first coverage result loads and
+while reports refresh, so an older cached report cannot enable approval during
+that refresh. A successful empty result remains usable; coverage is not mandatory.
 
 The completed-workflow **Bead Commits** artifact offers **Net Diff**, **By Bead**, and **By File** views. By Bead presents per-bead git commits; By File presents the commits that touched each file. Both activity views show each bead as `#<priority> · <bead ID> · <title>` and use the execution priority for their order.
 
@@ -470,6 +474,8 @@ While a council drafting or voting step runs, the window that opens from a model
 `LogProvider` treats the server-side execution-log projection as the frontend's durable log source. SSE-delivered rows merge into a bounded in-memory overlay immediately, by stable entry identity, so phase and full-log views stay live without waiting for file persistence. Restored/history queries request the newest 20 matching projected rows for a fast first paint, merge that page with the live overlay in one Map-indexed pass, and fetch older cursors in batches of up to 250 only when the user scrolls upward. The ALL projection applies its visible-row rules before that limit, excluding command chatter and AI-detail-only rows that belong in dedicated tabs, so neither kind of tail can produce a false empty filter after a browser refresh. Opening or switching to a ticket resets tail-following for both phase and Full Log views, so that first 20-row page is immediately visible rather than inheriting another ticket's scroll position. Phase and Full Log views show a **Loading remaining logs** row while an older page is pending and preserve the current reading position when rows are prepended. Large phase and lifecycle timelines virtualize log rows and bead/phase delimiters with `react-virtuoso`; **Copy all** requests the complete matching history directly rather than waiting for visible pagination, shows a spinner and explanatory tooltip until the export reaches the clipboard, and exposes a retry message if that operation fails. The browser no longer writes durable log snapshots to `localStorage`; only the SSE replay cursor remains browser-persistent. None of these history/read changes replay restored rows through live persistence or SSE broadcasting.
 
 A failed first log snapshot stays an error and is never cached as an empty result. The log view can retry the failed scope without remounting. A ticket log-refresh event clears cached snapshots and scope readiness, discards responses from older requests, and reloads requested scopes.
+Clearing the local log view also reloads its requested scopes from server history,
+so mounted coverage summaries recover without reopening the ticket.
 
 The full-history actions are explicit: Go to top, bead navigation, and Copy all
 drain every matching cursor page without a required Load more click or a page
