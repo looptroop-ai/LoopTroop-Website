@@ -191,6 +191,8 @@ QA-origin beads receive a **Manual QA Fix** badge and keep their version, source
 
 `GENERATING_EXECUTION_SETUP_PLAN` uses a dedicated active phase-review presentation instead of the approval editor. It explains that drafting is read-only, keeps the live log expanded, shows an artifact placeholder immediately, and replaces it with the complete structured plan plus generation report when ready. Invalid generation keeps rejected raw output and retry diagnostics inspectable. The existing phase-attempt selector switches both artifacts and logs across archived generations.
 
+Archived setup-plan views use a neutral label until artifact history loads. If that read fails, the view offers Retry and does not label the draft rejected based on unavailable data.
+
 Execution setup approval exposes the separately published approval copy's workspace inputs, functional workspace probes, and Git-hook handling as first-class plan fields. The user can review and edit each ignored or untracked file or directory before approval. Detected hooks and the ticket-locked project policy are read-only, backend-authoritative evidence; ordered validation commands remain editable, including adding, reordering, changing, or removing every command without an additional waiver gate. Raw or structured edits that attempt to change the policy are normalized back to the locked project value. Regenerate preserves commentary and any unsaved structured/raw baseline durably, then returns the ticket to **Drafting Workspace Setup Plan** for a new version. The runtime/final review surfaces whether input materialization and hook validation executed, failed, or was deliberately skipped.
 
 The plan's environment variables are edited as rows with stable ids, each remembering the name it currently occupies in the plan. A name a sibling already holds is reported on the row and not taken up: that row keeps the name it had, so nothing is renamed or dropped behind the user's back, and every other edit on the form still reaches the plan while the collision stands. Renames settle to a fixed point because freeing a name applies whichever rename was waiting for it. For example, renaming `FOO` to `BAR` and then moving the original `BAR` out of the way leaves the field and the saved plan agreeing on `BAR`. Two names differing only in case are pointed out as a warning rather than refused: Windows treats `PATH` and `Path` as one variable and Node keeps only one of them when it spawns a process there, while on Linux and macOS both are real and usable.
@@ -256,7 +258,7 @@ particular login refresh, or offer Continue.
 
 `GENERATING_QA_CHECKLIST` uses the standard non-interactive coding/phase-review workspace. Its activity line and log expose checkpoint, version reservation, context assembly, model/tool work, validation, persistence, and handoff milestones. The clickable `Manual QA Checklist` artifact opens a readable structured checklist first and preserves the exact canonical YAML on a Raw tab. `WAITING_MANUAL_QA` then lazy-loads `ManualQAView` as the interactive consumer, rendering prerequisites, actions, expected results, watch notes, advisory PRD coverage, Pending/Pass/Fail/Waive/Improvement controls, validation, failure merge groups, and evidence. PRD coverage and the Manual QA phase log are collapsed by default, and the log height when expanded is manually adjustable up or down.
 
-The handoff deliberately avoids querying a merely reserved checklist version while generation is still writing it. The round index distinguishes checklist-backed versions from reservations and associates available rounds with their phase attempt, outcome, and completion metadata. Both status titles stay version-free; the existing phase-attempt selector appears only when more than one checklist-backed version is available and drives both the artifact and matching logs. Checklist artifact events, Manual QA status transitions, and SSE gap recovery invalidate the Manual QA query family so the interactive gate opens the durable version without requiring a browser refresh.
+The handoff deliberately avoids querying a merely reserved checklist version while generation is still writing it. The round index distinguishes checklist-backed versions from reservations and associates available rounds with their phase attempt, outcome, and completion metadata. Both status titles stay version-free; the existing phase-attempt selector appears only when more than one checklist-backed version is available and drives both the artifact and matching logs. Checklist artifact events, Manual QA status transitions, and SSE gap recovery invalidate the Manual QA query family so the interactive gate opens the durable version without requiring a browser refresh. Initial checklist-load errors offer Retry. If a saved checklist is already visible, a failed refresh appears inline while the checklist and results stay on screen.
 
 Pending is the first and default result for every checklist item. It displays only a short instruction to choose Pass, Fail, Waive, or Improvement, with no evidence or result-specific fields until another result is selected. Waiver reasons are optional. Failure merge groups use selectable item buttons labeled with checklist number and title, support multiple selections, and may include items that have not yet been marked Fail; Submit identifies and blocks on every selected member that is still not Fail.
 
@@ -275,6 +277,8 @@ The **Skip Manual QA…** action opens a concise warning that no QA fix bead or 
 The timeline is visit-aware rather than solely status-index based. Ticket payloads combine `visitedStatuses` with monotonic `workflowRevision`; SSE and polling prefer the higher revision, so a valid reverse transition from Manual QA to Coding cannot leave a newer-indexed stale screen mounted. Manual QA also participates in needs-input attention, context trees, status summaries, artifact viewers, cancellation/retry surfaces, progress labels, and completed-ticket review.
 
 ## 6. Data Hooks
+
+API queries and mutations still run when the browser reports offline, because a local or self-hosted LoopTroop server may remain reachable. Actual request failures drive retries and error messages.
 
 ### Workflow, Ticket, And UI-State Data
 
@@ -446,9 +450,12 @@ artifacts stay visible during refreshes, while empty results, missing output,
 and request failures remain distinct. Version summaries wait for version
 evidence instead of showing a guessed default.
 
-Live coverage summaries wait for both artifact and log history before showing
-candidate versions or pass counts. Read-only approval panes also wait for
-phase-attempt history before choosing a version.
+Live coverage summaries use the active phase attempt from phase-attempt history
+to scope artifact and log reads, then wait for that attempt and matching data
+before showing candidate versions or pass counts. Continue stays on the current
+attempt; Retry starts a new one. A failed progress read offers Retry. PRD and
+Beads approval controls stay disabled until the first coverage result loads,
+including while a query is paused offline.
 
 The completed-workflow **Bead Commits** artifact offers **Net Diff**, **By Bead**, and **By File** views. By Bead presents per-bead git commits; By File presents the commits that touched each file. Both activity views show each bead as `#<priority> · <bead ID> · <title>` and use the execution priority for their order.
 
@@ -461,6 +468,8 @@ Council-style live workspace phases keep their current-action card dense: compac
 While a council drafting or voting step runs, the window that opens from a model's chip in `PhaseArtifactsPanel` has small **Stop** and **Retry** buttons in its top-right corner. During voting, the same two actions are icons on each voter's badge in the **Voter Status** row of **Voting Details**. Both ask for confirmation, and the Stop confirmation warns when the step could no longer reach quorum. The controls appear only while the step is running and at least one model is still working. See [LLM Council](llm-council.md#stopping-or-retrying-one-model) for what each action does.
 
 `LogProvider` treats the server-side execution-log projection as the frontend's durable log source. SSE-delivered rows merge into a bounded in-memory overlay immediately, by stable entry identity, so phase and full-log views stay live without waiting for file persistence. Restored/history queries request the newest 20 matching projected rows for a fast first paint, merge that page with the live overlay in one Map-indexed pass, and fetch older cursors in batches of up to 250 only when the user scrolls upward. The ALL projection applies its visible-row rules before that limit, excluding command chatter and AI-detail-only rows that belong in dedicated tabs, so neither kind of tail can produce a false empty filter after a browser refresh. Opening or switching to a ticket resets tail-following for both phase and Full Log views, so that first 20-row page is immediately visible rather than inheriting another ticket's scroll position. Phase and Full Log views show a **Loading remaining logs** row while an older page is pending and preserve the current reading position when rows are prepended. Large phase and lifecycle timelines virtualize log rows and bead/phase delimiters with `react-virtuoso`; **Copy all** requests the complete matching history directly rather than waiting for visible pagination, shows a spinner and explanatory tooltip until the export reaches the clipboard, and exposes a retry message if that operation fails. The browser no longer writes durable log snapshots to `localStorage`; only the SSE replay cursor remains browser-persistent. None of these history/read changes replay restored rows through live persistence or SSE broadcasting.
+
+A failed first log snapshot stays an error and is never cached as an empty result. The log view can retry the failed scope without remounting. A ticket log-refresh event clears cached snapshots and scope readiness, discards responses from older requests, and reloads requested scopes.
 
 The full-history actions are explicit: Go to top, bead navigation, and Copy all
 drain every matching cursor page without a required Load more click or a page
