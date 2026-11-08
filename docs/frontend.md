@@ -46,7 +46,7 @@ Most modal routes and workspace views are also lazy-loaded through `lazyWithChun
 `App.tsx` and `AppShell.tsx` also own several shell-level surfaces outside the active ticket workspace:
 
 - `WelcomeDisclaimer` for the first-run long-workflow warning, including the optional WSL mounted-drive warning from startup status
-- `StartupRestorePopup` when LoopTroop restores existing local profile/project state
+- `StartupRestorePopup` after startup finds saved profile or project rows in the local app database. It can appear on first use with existing data or after a restart or update; it lists what it found and the database location, and dismissal is saved for that database
 - centered modal routes for Configuration (`/config`), Projects (`/project/new`), and New Ticket (`/ticket/new`)
 - deep-link ticket selection from `/ticket/:externalId`
 - header controls for dashboard search, New Ticket, Projects, Configuration, Docs, Refresh, and theme switching; on desktop the ticket search sits beside **New Ticket**, while mobile uses a search popover to preserve header space
@@ -60,6 +60,9 @@ the logo returns to the board, or the user presses browser Back. Dropdowns keep
 Escape and focus inside their popup while open. On narrow screens, the navigation
 drawer behaves like a dialog, traps focus, returns focus to its opener, and closes
 when the desktop layout appears; hidden controls are skipped when focus wraps.
+Shared dialogs limit their height to the viewport and scroll long content. The
+Startup Restore, Welcome Disclaimer, and Keyboard Shortcuts overlays also keep
+their content within the viewport so it remains reachable on short screens.
 
 > [!NOTE]
 > **Current behavior.** The directory picker layers above the Projects
@@ -434,6 +437,18 @@ Several UI components exist specifically to inspect durable workflow state:
 | `FullLogView` | Ticket-wide log inspection |
 
 The frontend is built around the assumption that users must be able to inspect prior attempts and artifacts without replaying the run mentally from logs.
+
+Raw artifact views place **Copy** beside the line, character, and estimated
+token counts. Plain text and missing-output states keep the same header layout.
+Council, Coding, and historical review views wait for artifact and phase-attempt
+data before choosing the latest version or showing an empty state. Cached
+artifacts stay visible during refreshes, while empty results, missing output,
+and request failures remain distinct. Version summaries wait for version
+evidence instead of showing a guessed default.
+
+Live coverage summaries wait for both artifact and log history before showing
+candidate versions or pass counts. Read-only approval panes also wait for
+phase-attempt history before choosing a version.
 
 The completed-workflow **Bead Commits** artifact offers **Net Diff**, **By Bead**, and **By File** views. By Bead presents per-bead git commits; By File presents the commits that touched each file. Both activity views show each bead as `#<priority> · <bead ID> · <title>` and use the execution priority for their order.
 
