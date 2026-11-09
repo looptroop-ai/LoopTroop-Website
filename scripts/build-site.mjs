@@ -19,14 +19,14 @@ await cp(path.join(root, 'public'), siteDir, { recursive: true })
 console.log('Compiling Tailwind CSS for landing page...')
 execSync('tailwindcss -i src/web.css -o site/web.css --minify', { stdio: 'inherit' })
 
-console.log('Copying WebP screenshots to site/media...')
+console.log('Copying screenshots and demo media to site/media...')
 const mediaDest = path.join(siteDir, 'media')
 await mkdir(mediaDest, { recursive: true })
 const mediaSrc = path.join(root, 'docs', 'media')
 const mediaFiles = await readdir(mediaSrc)
 await Promise.all(
   mediaFiles
-    .filter((file) => file.endsWith('.webp') || file.endsWith('.gif'))
+    .filter((file) => ['.webp', '.gif', '.mp4'].some((ext) => file.endsWith(ext)))
     .map((file) => copyFile(path.join(mediaSrc, file), path.join(mediaDest, file)))
 )
 
