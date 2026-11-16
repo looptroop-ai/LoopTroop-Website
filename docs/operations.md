@@ -108,7 +108,11 @@ complete successfully before LoopTroop releases the owned process tree and
 its records.
 If HTTP has already closed, the daemon retries runtime cleanup internally;
 a later CLI stop does not force-kill that pending generation. Stale-state
-cleanup also leaves its pending ownership record intact.
+cleanup also leaves its pending ownership record intact. Once a daemon has
+recorded that shutdown is pending, `looptroop stop` waits longer, within a
+fixed limit, for that retry to finish. This keeps a slow Windows `taskkill`
+retry from being reported as incomplete cleanup just before the daemon clears
+its records.
 Shutdown closes live browser event streams before waiting for HTTP requests
 to finish, so an open LoopTroop tab does not hold the daemon open.
 
