@@ -458,7 +458,7 @@ Routine dependency updates are handled by Renovate rather than by local tooling,
 | Lockfile refresh | One weekly pull request covers the root lockfile and all five CI-tool lockfiles, Monday to Wednesday. It resolves against the registry as it stood 7 days earlier |
 | Dependency dashboard | One issue listing every update Renovate knows about and why it has not shipped |
 
-`main` requires a branch to be up to date, so merging one Renovate pull request leaves the others behind. Renovate rebases them in its nightly window. To rebase one sooner, tick the rebase box in its description. Don't use GitHub's **Update branch** button: that commit isn't Renovate's, and Renovate stops maintaining a branch someone else has committed to.
+Renovate rebases its pull requests only when they conflict with `main`, so merging one no longer sets off a CI run for every other open one. `main` requires a branch to be up to date, so before merging a Renovate pull request that has fallen behind, tick the rebase box in its description and wait for its checks. Don't use GitHub's **Update branch** button: that commit isn't Renovate's, and Renovate stops maintaining a branch someone else has committed to.
 
 Dependencies with additional constraints:
 
@@ -471,6 +471,17 @@ Dependencies with additional constraints:
 
 `npm audit` runs in CI as a report only and never applies fixes automatically; remediation is a reviewed change.
 
+### How CI runs
+
+CI runs once for each commit of a pull request and once for each push to `main`. A branch with no pull request yet runs nothing on push; `gh workflow run ci.yml --ref <branch>` starts a run on it.
+
+- The required **Packaging** check waits on every job except the Codecov upload and the advisory lane that tests the next Node major.
+- Every Mac and Windows job waits for a quick Linux install check, so a commit that cannot install fails there before it holds those machines.
+- Each Windows test lane is split over two machines by the per-file times `main` recorded on its last run. The lane passes only if both halves passed and together ran every test file exactly once.
+- One Ubuntu lane runs the tests in a shuffled order, to catch tests that depend on running after another one. The job summary shows the seed and the command that reproduces the order.
+- A job that GitHub never gave a machine to is re-run automatically, at most twice. A job that ran and failed is never re-run.
+- `npm install` sets up a pre-push hook that runs `npm run lint` and `npm run typecheck` before every push. `git push --no-verify` skips it once.
+
 ### CI security checks
 
 CI tooling for Bun, pnpm, Yarn and OpenCode uses committed integrity lockfiles and disables third-party lifecycle scripts. Native binaries come from the verified optional packages and must run successfully before setup finishes. Tools use the normal PATH without trusted-executable directory overrides; Windows Bun and pnpm use their native binary directories, while OpenCode keeps its npm shim for the launcher regression tests. Container builds use npm bundled in the digest-pinned Node image and install production dependencies from the release lockfile with lifecycle scripts disabled.
@@ -479,7 +490,9 @@ Published-install checks install LoopTroop from live feeds. Their driver and too
 
 Artifact downloads use the pinned official GitHub action and fail on a digest mismatch. Python's standard library extracts the verified ZIPs only into the workspace or runner temporary directory. It rejects checkout-controlled destination symlinks, Windows alternate data-stream names and archive paths that would leave the destination, including through an existing symlink. This avoids the action's deprecated unzip dependency while preserving named and merged downloads. Credentialed jobs keep extraction code inside the workflow; read-only jobs share a local action. Python runs in isolated mode so repository files cannot replace its standard-library imports.
 
-Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Packaging check and blocks the merge.
+Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Verify check, and with it Packaging, and blocks the merge.
+
+Verify also audits every workflow and local action with [zizmor](https://docs.zizmor.sh/), pinned and checksum-verified like actionlint. It looks for template injection, credentials left in a checkout, overbroad permissions and dangerous triggers. Any finding fails the check unless `.github/zizmor.yml`, or a `zizmor: ignore` comment beside the line, excuses it with a reason. The audits that read other repositories' current state, such as a moved version tag or a newly published advisory, are switched off: they would fail an unrelated pull request on the day an upstream project releases, and Renovate moves those pins.
 
 DeepSource's checked-in configuration declares JavaScript ES modules, matching the repository's runtime and ESLint settings. It retains the existing analyzers, test patterns and rule thresholds. After configuration changes land on main, check the analysis run's effective settings to confirm activation. If the run still reports CommonJS, update the JavaScript module-system setting in DeepSource's dashboard.
 
@@ -487,7 +500,7 @@ Selected read-only build and test jobs use StepSecurity Harden-Runner to record 
 
 OpenSSF Scorecard reports repository supply-chain findings on pushes to main and on a weekly schedule. Its results are available in GitHub code scanning and the public Scorecard service. GitHub's existing CodeQL setup handles source scanning, and Renovate handles dependency updates. Scorecard also assesses repository policies and recent review history. LoopTroop requires pull requests and CI checks but does not require independent human approvals; the maintainer accepts those review-policy findings. AI reviews do not count as human approvals for Scorecard. The project has not enrolled for an OpenSSF Best Practices badge; this is also an accepted limitation. Historical scanner scores can lag the current setup, and the reviewed Scorecard version can miss successful scans when a pull request has more than 30 check runs.
 
-V8 coverage runs with `npm run test:coverage` across all four Vitest projects. It measures application sources under `src/`, `server/`, and `shared/`, including the CommonJS launcher, and fails below 90% global line or 80% branch coverage. It writes LCOV and JSON summary files and prints a text report. Child-process coverage stays disabled because stopped or detached processes can leave incomplete profiles. CI collects coverage in the required read-only Ubuntu Verify job and retains the reports for seven days. A separate Codecov job uploads LCOV with OIDC on pushes, manual runs, and pull requests from this repository; public-fork pull requests use Codecov's tokenless upload path. Codecov project and patch statuses are reported separately and are not required CI gates.
+V8 coverage runs with `npm run test:coverage` across all four Vitest projects. It measures application sources under `src/`, `server/`, and `shared/`, including the CommonJS launcher, and fails below 90% global line or 80% branch coverage. It writes LCOV and JSON summary files and prints a text report. Child-process coverage stays disabled because stopped or detached processes can leave incomplete profiles. CI collects coverage in the Ubuntu toolchain test lane, the required `Test (ubuntu-latest, toolchain floor)` check, which runs the suite once, and retains the reports for seven days. A separate Codecov job uploads LCOV with OIDC on pushes, manual runs, and pull requests from this repository; public-fork pull requests use Codecov's tokenless upload path. Codecov project and patch statuses are reported separately and are not required CI gates.
 
 The authenticated project picker can browse local directories before attachment, including directories outside the daemon's working directory. Git discovery can read metadata outside a working tree for linked worktrees. These operations use the local user's permissions. Ticket-artifact access has separate containment checks; the project picker is not a filesystem sandbox.
 
