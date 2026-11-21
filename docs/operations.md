@@ -473,14 +473,14 @@ Dependencies with additional constraints:
 
 ### How CI runs
 
-CI runs once for each commit of a pull request and once for each push to `main`. A branch with no pull request yet runs nothing on push; `gh workflow run ci.yml --ref <branch>` starts a run on it.
+CI runs once for each commit of a pull request and once for each push to `main`. A branch with no pull request yet runs nothing on push; `gh workflow run ci.yml --ref <branch>` starts a run on it. A pull request with a merge conflict runs nothing until the conflict is resolved, because GitHub makes no merge commit to test. A newer commit cancels a pull request's older run; a run on `main` always finishes.
 
-- The required **Packaging** check waits on every job except the Codecov upload and the advisory lane that tests the next Node major.
-- Every Mac and Windows job waits for a quick Linux install check, so a commit that cannot install fails there before it holds those machines.
-- Each Windows test lane is split over two machines by the per-file times `main` recorded on its last run. The lane passes only if both halves passed and together ran every test file exactly once.
+- The required **Packaging** check waits on every job except the Codecov upload and the advisory lane that tests the next Node major. It also reads every job's own result, because GitHub reports a matrix as passed when one of its legs never got a machine.
+- Every Mac and Windows job, and the test matrix, waits for the quick Linux check **Install check (ubuntu)**, so a commit that cannot install fails there before it holds those machines.
+- Each Windows test lane is split over two machines by the per-file times `main` recorded on its last run, setup and imports included. The install check takes one copy of those times per run, so both halves split the same way. The lane passes only if both halves passed and together ran every test file exactly once.
 - One Ubuntu lane runs the tests in a shuffled order, to catch tests that depend on running after another one. The job summary shows the seed and the command that reproduces the order.
-- A job that GitHub never gave a machine to is re-run automatically, at most twice. A job that ran and failed is never re-run.
-- `npm install` sets up a pre-push hook that runs `npm run lint` and `npm run typecheck` before every push. `git push --no-verify` skips it once.
+- A job that GitHub never gave a machine to is re-run automatically, at most twice, unless a newer commit already replaced the run. A job that ran and failed is never re-run.
+- `npm run dev` (or `npm run hooks` on its own) sets up a pre-push hook that runs `npm run lint` and `npm run typecheck` before every push that updates a branch. `git push --no-verify` skips it once. It leaves an existing `core.hooksPath`, and hooks of your own in `.git/hooks`, alone.
 
 ### CI security checks
 
@@ -490,7 +490,7 @@ Published-install checks install LoopTroop from live feeds. Their driver and too
 
 Artifact downloads use the pinned official GitHub action and fail on a digest mismatch. Python's standard library extracts the verified ZIPs only into the workspace or runner temporary directory. It rejects checkout-controlled destination symlinks, Windows alternate data-stream names and archive paths that would leave the destination, including through an existing symlink. This avoids the action's deprecated unzip dependency while preserving named and merged downloads. Credentialed jobs keep extraction code inside the workflow; read-only jobs share a local action. Python runs in isolated mode so repository files cannot replace its standard-library imports.
 
-Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Verify check, and with it Packaging, and blocks the merge.
+Pull requests run dependency review for runtime, development, and unknown dependency scopes. This includes frontend packages bundled into the application. A failed dependency review fails the required Verify check, and with it Packaging, and blocks the merge. A push to `main` is reviewed against the commit it replaced.
 
 Verify also audits every workflow and local action with [zizmor](https://docs.zizmor.sh/), pinned and checksum-verified like actionlint. It looks for template injection, credentials left in a checkout, overbroad permissions and dangerous triggers. Any finding fails the check unless `.github/zizmor.yml`, or a `zizmor: ignore` comment beside the line, excuses it with a reason. The audits that read other repositories' current state, such as a moved version tag or a newly published advisory, are switched off: they would fail an unrelated pull request on the day an upstream project releases, and Renovate moves those pins.
 
