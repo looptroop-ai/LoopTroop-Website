@@ -479,7 +479,7 @@ CI runs once for each commit of a pull request and once for each push to `main`.
 - Every Mac and Windows job, and the test matrix, waits for the quick Linux check **Install check (ubuntu)**, so a commit that cannot install fails there before it holds those machines.
 - Each Windows test lane is split over two machines by the per-file times `main` recorded on its last run, setup and imports included. The install check takes one copy of those times per run, so both halves split the same way. The lane passes only if both halves passed and together ran every test file exactly once.
 - One Ubuntu lane runs the tests in a shuffled order, to catch tests that depend on running after another one. The job summary shows the seed and the command that reproduces the order.
-- A job that GitHub never gave a machine to is re-run automatically, at most twice, unless a newer commit already replaced the run. A job that ran and failed is never re-run.
+- A job that GitHub never gave a machine to is re-run automatically, at most twice, unless a newer commit already replaced the run. Nothing that failed on its own is re-run; a gate that failed only because of such a job is re-run with it.
 - `npm run dev` (or `npm run hooks` on its own) sets up a pre-push hook that runs `npm run lint` and `npm run typecheck` before every push that updates a branch. `git push --no-verify` skips it once. It leaves an existing `core.hooksPath`, and hooks of your own in `.git/hooks`, alone.
 
 ### CI security checks
