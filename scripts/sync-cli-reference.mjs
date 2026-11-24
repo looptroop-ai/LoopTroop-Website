@@ -32,7 +32,7 @@ import { pathToFileURL } from 'node:url'
  * through `.github/actions/looptroop-source`, which reads it from this line, so
  * this is the only place it is written.
  */
-export const CLI_SOURCE_REF = 'cf617d04755c47dcce58e32a91efe9d6318cf72b'
+export const CLI_SOURCE_REF = 'e64e30565dd9155fd795c8fc9069bc5f45807b3e'
 
 const PAGE = path.join(process.cwd(), 'docs', 'cli.md')
 const MARKER = '<!-- generated from server/cli/cli.ts; run npm run sync:cli -->'

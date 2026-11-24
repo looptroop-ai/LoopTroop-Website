@@ -44,7 +44,7 @@ It checks the machine rather than a ticket. In a normal CLI run that means a
 leading `version` update check plus machine checks named `node`, `npm`, `git`,
 `gh`, `gh auth`, `config dir`, `install`, `schema`, `last start`,
 `project ignores`, `opencode cli`, `opencode`, `port`, and `daemon`. Each
-failing check prints what to do about it. The floor is **Node 24.19.0 or
+failing check prints what to do about it. The floor is **Node 24.20.0 or
 newer**.
 
 `schema` fails when the app database was written by a different LoopTroop
